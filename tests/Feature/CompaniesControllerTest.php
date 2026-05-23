@@ -112,6 +112,7 @@ class CompaniesControllerTest extends TestCase
         $this->assertNull($company->rounding_custom_threshold);
         $this->assertFalse($company->rounding_orders_enabled);
         $this->assertFalse($company->rounding_contracts_enabled);
+        $this->assertFalse($company->rounding_warehouse_enabled);
     }
 
     public function test_store_company_resets_rounding_quantity_fields_when_disabled(): void
@@ -175,6 +176,7 @@ class CompaniesControllerTest extends TestCase
             'rounding_direction' => 'standard',
             'rounding_orders_enabled' => true,
             'rounding_contracts_enabled' => false,
+            'rounding_warehouse_enabled' => true,
         ];
 
         $response = $this->actingAsApi($this->adminUser)
@@ -185,6 +187,7 @@ class CompaniesControllerTest extends TestCase
         $this->assertTrue($company->rounding_enabled);
         $this->assertTrue($company->rounding_orders_enabled);
         $this->assertFalse($company->rounding_contracts_enabled);
+        $this->assertTrue($company->rounding_warehouse_enabled);
     }
 
     public function test_update_company_via_post_multipart_still_works(): void

@@ -239,7 +239,7 @@ class WarehouseReceiptRepository extends BaseRepository
             foreach ($products as $product) {
                 $total_amount += $product['price'] * $product['quantity'];
             }
-            $total_amount = $roundingService->roundForCompany($companyId, (float) $total_amount);
+            $total_amount = $roundingService->roundWarehouseAmountForCompany($companyId, (float) $total_amount);
 
             $totalInDefault = $this->sumReceiptLinesInDefaultCurrency($products, $lineCurrency, $companyId, $date);
 
@@ -309,45 +309,69 @@ class WarehouseReceiptRepository extends BaseRepository
     }
 
     /**
-     * @param  array<int, array{product_id:int, quantity:float|int|string, price:float|int|string}>  $products
+     * @return array<int, float>
      */
-    private function assertPurchaseReceiptQuantities(WhPurchase $purchase, array $products, ?int $editingReceiptId): void
+    public function remainingReceiptQuantityByProduct(WhPurchase $purchase, ?int $excludeReceiptId = null): array
     {
-        $companyId = $this->getCurrentCompanyId();
+        $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
         $rounding = new RoundingService();
         $planned = [];
-        $plannedPrices = [];
-        /** @var WhPurchaseProduct $line */
         foreach ($purchase->products as $line) {
             $planned[(int) $line->product_id] = $rounding->roundQuantityForCompany($companyId, (float) $line->quantity);
-            $plannedPrices[(int) $line->product_id] = $line->documentCurrencyUnitPrice();
         }
 
         $received = WhReceiptProduct::query()
-            ->whereHas('receipt', function ($q) use ($purchase, $editingReceiptId) {
+            ->whereHas('receipt', function ($q) use ($purchase, $excludeReceiptId) {
                 $q->where('purchase_id', $purchase->id);
-                if ($editingReceiptId !== null) {
-                    $q->where('id', '!=', $editingReceiptId);
+                if ($excludeReceiptId !== null) {
+                    $q->where('id', '!=', $excludeReceiptId);
                 }
             })
             ->selectRaw('product_id, sum(quantity) as qty')
             ->groupBy('product_id')
-            ->pluck('qty', 'product_id')
-            ->map(fn ($v) => (float) $v)
-            ->all();
+            ->pluck('qty', 'product_id');
+
+        $remaining = [];
+        foreach ($planned as $productId => $plannedQty) {
+            $remaining[$productId] = max(0.0, $plannedQty - (float) ($received[$productId] ?? 0));
+        }
+
+        return $remaining;
+    }
+
+    /**
+     * @param  array<int, array{product_id:int, quantity:float|int|string, price:float|int|string}>  $products
+     */
+    private function assertPurchaseReceiptQuantities(WhPurchase $purchase, array $products, ?int $editingReceiptId): void
+    {
+        $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
+        $rounding = new RoundingService();
+        $remaining = $this->remainingReceiptQuantityByProduct($purchase, $editingReceiptId);
+        $plannedPrices = [];
+        foreach ($purchase->products as $line) {
+            $plannedPrices[(int) $line->product_id] = $line->documentCurrencyUnitPrice();
+        }
 
         foreach ($products as $product) {
             $productId = (int) ($product['product_id'] ?? 0);
             $incoming = $rounding->roundQuantityForCompany($companyId, (float) ($product['quantity'] ?? 0));
-            $plannedQty = (float) ($planned[$productId] ?? 0);
-            $receivedQty = (float) ($received[$productId] ?? 0);
-            if ($plannedQty <= 0 || $incoming + $receivedQty > $plannedQty + 1e-9) {
-                throw new \RuntimeException('Количество в оприходовании не может быть больше, чем в закупке');
+            if ($incoming <= 0) {
+                continue;
             }
+
+            $left = (float) ($remaining[$productId] ?? 0);
+            if ($left <= 0) {
+                throw new \RuntimeException((string) __('warehouse_purchase.receipt_product_not_available'));
+            }
+
+            if ($incoming > $left + 1e-9) {
+                throw new \RuntimeException((string) __('warehouse_purchase.receipt_quantity_exceeds_remaining'));
+            }
+
             $incomingPrice = (float) ($product['price'] ?? 0);
             $plannedPrice = (float) ($plannedPrices[$productId] ?? 0);
             if (abs($incomingPrice - $plannedPrice) > 1e-9) {
-                throw new \RuntimeException('Цена в оприходовании из закупки должна совпадать с ценой закупки');
+                throw new \RuntimeException((string) __('warehouse_purchase.receipt_price_must_match_purchase'));
             }
         }
     }
@@ -444,8 +468,8 @@ class WarehouseReceiptRepository extends BaseRepository
 
             $roundingService = new RoundingService();
             $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
-            $total_amount = $roundingService->roundForCompany($companyId, (float) $total_amount);
-            $totalInDefault = $roundingService->roundForCompany($companyId, (float) $totalInDefault);
+            $total_amount = $roundingService->roundWarehouseAmountForCompany($companyId, (float) $total_amount);
+            $totalInDefault = $roundingService->roundWarehouseAmountForCompany($companyId, (float) $totalInDefault);
             $receipt->orig_amount = $total_amount;
             $receipt->orig_currency_id = $lineCurrencyId;
             $receipt->amount = $totalInDefault;
@@ -584,7 +608,7 @@ class WarehouseReceiptRepository extends BaseRepository
                 $landedLine = (float) ($line['landed_line_total_default'] ?? 0);
                 $unit = $landedLine / $qty;
                 if ($companyId > 0) {
-                    $unit = $rounding->roundForCompany($companyId, $unit);
+                    $unit = $rounding->roundWarehouseAmountForCompany($companyId, $unit);
                 }
                 if ($unit <= 1e-12) {
                     continue;
@@ -686,7 +710,7 @@ class WarehouseReceiptRepository extends BaseRepository
             }
             $defaultCurrency = Currency::firstWhere('is_default', true);
             $defaultCurrencyId = (int) $defaultCurrency->id;
-            $receipt->orig_amount = $roundingService->roundForCompany($companyId, $totalAmount);
+            $receipt->orig_amount = $roundingService->roundWarehouseAmountForCompany($companyId, $totalAmount);
             $receipt->orig_currency_id = $defaultCurrencyId;
             $receipt->amount = $receipt->orig_amount;
             $receipt->status = WhReceiptStatus::Completed;
@@ -846,7 +870,7 @@ class WarehouseReceiptRepository extends BaseRepository
             $sum += $line;
         }
 
-        return $rounding->roundForCompany($companyId, $sum);
+        return $rounding->roundWarehouseAmountForCompany($companyId, $sum);
     }
 
     /**

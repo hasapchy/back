@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property float|null $rounding_custom_threshold Порог для кастомного округления
  * @property bool $rounding_orders_enabled Округление сумм в заказах
  * @property bool $rounding_contracts_enabled Округление сумм в контрактах
+ * @property bool $rounding_warehouse_enabled Округление сумм на складе
  * @property int $rounding_quantity_decimals Количество знаков после запятой для округления количества
  * @property bool $rounding_quantity_enabled Включено ли округление количества
  * @property string $rounding_quantity_direction Направление округления количества
@@ -44,6 +45,7 @@ class Company extends Model
         'rounding_custom_threshold',
         'rounding_orders_enabled',
         'rounding_contracts_enabled',
+        'rounding_warehouse_enabled',
         'rounding_quantity_decimals',
         'rounding_quantity_enabled',
         'rounding_quantity_direction',
@@ -60,6 +62,7 @@ class Company extends Model
         'rounding_direction' => 'standard',
         'rounding_orders_enabled' => true,
         'rounding_contracts_enabled' => false,
+        'rounding_warehouse_enabled' => true,
         'rounding_quantity_decimals' => 2,
         'rounding_quantity_enabled' => true,
         'rounding_quantity_direction' => 'standard',
@@ -71,6 +74,7 @@ class Company extends Model
         'rounding_enabled' => 'boolean',
         'rounding_orders_enabled' => 'boolean',
         'rounding_contracts_enabled' => 'boolean',
+        'rounding_warehouse_enabled' => 'boolean',
         'rounding_quantity_enabled' => 'boolean',
         'skip_project_order_balance' => 'boolean',
         'work_schedule' => 'array',

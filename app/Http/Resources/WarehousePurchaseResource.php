@@ -6,6 +6,7 @@ use App\Enums\WhPurchaseStatus;
 use App\Models\WhPurchase;
 use App\Services\UnitStockPresentationService;
 use App\Services\WarehousePurchaseGoodsPaymentLimitService;
+use App\Repositories\WarehouseReceiptRepository;
 
 class WarehousePurchaseResource extends BaseDomainResource
 {
@@ -32,7 +33,15 @@ class WarehousePurchaseResource extends BaseDomainResource
         $presentation->attachStockByUnitsToProductLines($purchase->products);
         $data = $purchase->toArray();
         $data['status'] = $purchase->status->value;
-        $data['products'] = WarehousePurchaseProductResource::collection($purchase->products)->resolve();
+        $remainingByProduct = app(WarehouseReceiptRepository::class)
+            ->remainingReceiptQuantityByProduct($purchase, null);
+        $data['products'] = $purchase->products->map(function ($line) use ($remainingByProduct, $request) {
+            $row = (new WarehousePurchaseProductResource($line))->toArray($request);
+            $productId = (int) $line->product_id;
+            $row['remaining_receipt_quantity'] = (float) ($remainingByProduct[$productId] ?? 0);
+
+            return $row;
+        })->values()->all();
         $data['receipts'] = WarehouseReceiptResource::collection($purchase->receipts)->resolve();
         $data['transactions'] = TransactionResource::collection($purchase->transactions)->resolve();
         $data['goods_payment_remaining_default'] = app(WarehousePurchaseGoodsPaymentLimitService::class)

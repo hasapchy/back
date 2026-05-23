@@ -139,6 +139,7 @@ class UserCompanyController extends BaseController
             'companies.rounding_custom_threshold',
             'companies.rounding_orders_enabled',
             'companies.rounding_contracts_enabled',
+            'companies.rounding_warehouse_enabled',
             'companies.rounding_quantity_decimals',
             'companies.rounding_quantity_enabled',
             'companies.rounding_quantity_direction',

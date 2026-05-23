@@ -200,6 +200,30 @@ class WarehousePurchaseControllerTest extends TestCase
         $response->assertJsonFragment(['error' => 'Редактирование доступно только для закупки в статусе Черновик']);
     }
 
+    public function test_approved_purchase_can_be_completed_with_status_only_update(): void
+    {
+        $purchase = WhPurchase::query()->create([
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'creator_id' => $this->adminUser->id,
+            'status' => 'approved',
+            'date' => now(),
+            'amount' => 10,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)->putJson("/api/warehouse_purchases/{$purchase->id}", [
+            'status' => 'completed',
+            'cash_id' => $this->cashRegister->id,
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('wh_purchases', [
+            'id' => $purchase->id,
+            'status' => 'completed',
+        ]);
+    }
+
     public function test_purchase_payment_rejects_overpayment(): void
     {
         $createResponse = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', [

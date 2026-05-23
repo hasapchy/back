@@ -141,10 +141,10 @@ class WarehousePurchaseRepository extends BaseRepository
                 $linePayloads[$idx] = array_merge($this->resolveWarehouseLineOrigDisplay($product), $lineOrig);
                 $amountOrig += (float) $products[$idx]['quantity'] * (float) $lineOrig['orig_unit_price'];
             }
-            $amountOrig = $rounding->roundForCompany($companyId, $amountOrig);
+            $amountOrig = $rounding->roundWarehouseAmountForCompany($companyId, $amountOrig);
             $amountDefault = $purchaseCurrencyId === (int) $defaultCurrency->id
                 ? $amountOrig
-                : $this->convertAndRoundCurrency($amountOrig, $purchaseCurrencyId, (int) $defaultCurrency->id);
+                : $rounding->roundWarehouseAmountForCompany($companyId, $this->convertCurrency($amountOrig, $purchaseCurrencyId, (int) $defaultCurrency->id));
 
             $purchase = new WhPurchase();
             $purchase->supplier_id = (int) $data['supplier_id'];
@@ -198,6 +198,16 @@ class WarehousePurchaseRepository extends BaseRepository
     {
         return DB::transaction(function () use ($id, $data): bool {
             $purchase = WhPurchase::query()->lockForUpdate()->findOrFail($id);
+
+            if ($purchase->status === WhPurchaseStatus::Approved && $this->isPurchaseCompletionPayload($data)) {
+                $purchase->status = WhPurchaseStatus::Completed->value;
+                $purchase->save();
+                $this->invalidateCaches();
+                WarehouseTimelineCache::forgetPurchase($id, (int) $purchase->supplier_id);
+
+                return true;
+            }
+
             if ($purchase->status !== WhPurchaseStatus::Draft) {
                 throw new \RuntimeException((string) __('warehouse_purchase.edit_only_draft'));
             }
@@ -240,10 +250,10 @@ class WarehousePurchaseRepository extends BaseRepository
                     ->selectRaw('COALESCE(SUM(quantity * COALESCE(orig_unit_price, price)), 0) as amount_orig')
                     ->value('amount_orig');
             }
-            $amountOrig = $rounding->roundForCompany($companyId, $amountOrig);
+            $amountOrig = $rounding->roundWarehouseAmountForCompany($companyId, $amountOrig);
             $purchase->amount = $purchaseCurrencyId === (int) $defaultCurrency->id
                 ? $amountOrig
-                : $this->convertAndRoundCurrency($amountOrig, $purchaseCurrencyId, (int) $defaultCurrency->id);
+                : $rounding->roundWarehouseAmountForCompany($companyId, $this->convertCurrency($amountOrig, $purchaseCurrencyId, (int) $defaultCurrency->id));
             $purchase->orig_amount = $amountOrig;
             $purchase->orig_currency_id = $purchaseCurrencyId;
 
@@ -333,7 +343,10 @@ class WarehousePurchaseRepository extends BaseRepository
             $paymentCurrencyId = (int) ($data['currency_id'] ?? $purchase->currency_id ?? $defaultCurrency->id);
             $incomingAmountDefault = $paymentCurrencyId === (int) $defaultCurrency->id
                 ? $amount
-                : $this->convertAndRoundCurrency($amount, $paymentCurrencyId, (int) $defaultCurrency->id);
+                : app(RoundingService::class)->roundWarehouseAmountForCompany(
+                    $this->getCurrentCompanyId(),
+                    $this->convertCurrency($amount, $paymentCurrencyId, (int) $defaultCurrency->id)
+                );
             $remaining = app(WarehousePurchaseGoodsPaymentLimitService::class)->remainingDefault($purchase, null);
             if ($incomingAmountDefault > $remaining + 1e-9) {
                 throw new \RuntimeException((string) __('warehouse_purchase.goods_payment_exceeds_remaining'));
@@ -402,5 +415,25 @@ class WarehousePurchaseRepository extends BaseRepository
         }
 
         return $fallbackCurrencyId;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function isPurchaseCompletionPayload(array $data): bool
+    {
+        if (WhPurchaseStatus::tryFrom((string) ($data['status'] ?? '')) !== WhPurchaseStatus::Completed) {
+            return false;
+        }
+
+        $allowedKeys = ['status', 'cash_id'];
+
+        foreach (array_keys($data) as $key) {
+            if (! in_array($key, $allowedKeys, true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

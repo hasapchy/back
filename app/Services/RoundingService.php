@@ -82,11 +82,7 @@ class RoundingService
      */
     public function roundOrderAmountForCompany(?int $companyId, float $value): float
     {
-        if (! $this->shouldRoundOrderAmounts($companyId)) {
-            return $value;
-        }
-
-        return $this->roundForCompany($companyId, $value);
+        return $this->roundModuleAmountForCompany($companyId, $value, 'rounding_orders_enabled');
     }
 
     /**
@@ -96,7 +92,28 @@ class RoundingService
      */
     public function roundContractAmountForCompany(?int $companyId, float $value): float
     {
-        if (! $this->shouldRoundContractAmounts($companyId)) {
+        return $this->roundModuleAmountForCompany($companyId, $value, 'rounding_contracts_enabled');
+    }
+
+    /**
+     * @param int|null $companyId
+     * @param float $value
+     * @return float
+     */
+    public function roundWarehouseAmountForCompany(?int $companyId, float $value): float
+    {
+        return $this->roundModuleAmountForCompany($companyId, $value, 'rounding_warehouse_enabled');
+    }
+
+    /**
+     * @param int|null $companyId
+     * @param float $value
+     * @param string $moduleEnabledField
+     * @return float
+     */
+    protected function roundModuleAmountForCompany(?int $companyId, float $value, string $moduleEnabledField): float
+    {
+        if (! $this->isModuleAmountRoundingEnabled($companyId, $moduleEnabledField)) {
             return $value;
         }
 
