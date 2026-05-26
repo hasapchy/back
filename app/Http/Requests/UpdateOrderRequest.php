@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\NormalizesOrderNullableTextFields;
+use App\Http\Requests\Concerns\ProhibitsOrderAlternateUnitFields;
 use App\Http\Requests\Concerns\ResolvesSimpleOrderUser;
 use App\Http\Requests\Concerns\SharedOrderEntityRules;
 use App\Http\Requests\Concerns\ValidatesOrderClientBalance;
@@ -16,6 +17,7 @@ use Illuminate\Validation\ValidationException;
 class UpdateOrderRequest extends FormRequest
 {
     use NormalizesOrderNullableTextFields;
+    use ProhibitsOrderAlternateUnitFields;
     use ResolvesSimpleOrderUser;
     use SharedOrderEntityRules;
     use ValidatesOrderClientBalance;
@@ -45,7 +47,10 @@ class UpdateOrderRequest extends FormRequest
     {
         $isSimpleUser = $this->isSimpleOrderUser();
 
-        return array_merge($this->sharedOrderEntityRules($isSimpleUser, true), [
+        return array_merge(
+            $this->sharedOrderEntityRules($isSimpleUser, true),
+            $this->orderAlternateUnitProhibitedRules(),
+            [
             'warehouse_id'         => ['required', 'integer', new WarehouseAccessRule()],
             'currency_id'          => [
                 'nullable',
@@ -87,7 +92,8 @@ class UpdateOrderRequest extends FormRequest
             'remove_temp_products'  => 'nullable|array',
             'remove_temp_products.*' => 'integer|exists:order_temp_products,id',
             'client_balance_id'      => $this->orderClientBalanceIdRules(),
-        ]);
+            ]
+        );
     }
 
     /**

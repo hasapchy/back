@@ -185,6 +185,25 @@ class InvoicesRepository extends BaseRepository
     }
 
     /**
+     * Массово обновить статус счетов
+     *
+     * @param array<int> $ids
+     * @param string $status
+     * @return int
+     */
+    public function updateStatusByIds(array $ids, string $status): int
+    {
+        if ($ids === []) {
+            return 0;
+        }
+
+        $affected = Invoice::query()->whereIn('id', $ids)->update(['status' => $status]);
+        CacheService::invalidateInvoicesCache();
+
+        return $affected;
+    }
+
+    /**
      * Удалить счет
      *
      * @param int $id ID счета
@@ -196,6 +215,33 @@ class InvoicesRepository extends BaseRepository
         $invoice->delete();
         CacheService::invalidateInvoicesCache();
         return $invoice;
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<int, Order>|\Illuminate\Database\Eloquent\Collection $orders
+     * @return void
+     */
+    public function assertOrdersShareInvoiceCurrency($orders): void
+    {
+        if ($orders->count() <= 1) {
+            return;
+        }
+
+        $currencyKeys = $orders->map(function ($order) {
+            if (! empty($order->currency_id)) {
+                return 'id:' . (int) $order->currency_id;
+            }
+
+            $symbol = mb_strtolower(trim((string) ($order->currency_symbol ?? '')));
+
+            return 'sym:' . ($symbol !== '' ? $symbol : 'none');
+        })->unique();
+
+        if ($currencyKeys->count() > 1) {
+            throw new \InvalidArgumentException(
+                'Нельзя объединять в одном счёте заказы с разной валютой.'
+            );
+        }
     }
 
     /**
@@ -327,6 +373,7 @@ class InvoicesRepository extends BaseRepository
                     'price' => $orderProduct->price,
                     'total_price' => $adjustedTotalPrice,
                     'unit_id' => $orderProduct->product->unit_id ?? null,
+                    'unit_short_name' => $orderProduct->product->unit?->short_name,
                 ];
             }
 
@@ -343,6 +390,7 @@ class InvoicesRepository extends BaseRepository
                     'price' => $tempProduct->price,
                     'total_price' => $adjustedTotalPrice,
                     'unit_id' => $tempProduct->unit_id,
+                    'unit_short_name' => $tempProduct->unit?->short_name,
                 ];
             }
         }

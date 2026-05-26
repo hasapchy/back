@@ -131,7 +131,13 @@ class UserCompanyController extends BaseController
         $companies = $user->companies()->select(
             'companies.id',
             'companies.name',
+            'companies.full_name',
             'companies.logo',
+            'companies.address',
+            'companies.phone',
+            'companies.registration_number',
+            'companies.email',
+            'companies.warehouse_number',
             'companies.show_deleted_transactions',
             'companies.rounding_decimals',
             'companies.rounding_enabled',

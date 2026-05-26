@@ -29,6 +29,12 @@ class UpdateCompanyRequest extends FormRequest
 
         return [
             'name' => "required|string|max:255|unique:companies,name,{$companyId}",
+            'full_name' => 'nullable|string|max:500',
+            'address' => 'nullable|string|max:500',
+            'phone' => 'nullable|string|max:64',
+            'registration_number' => 'nullable|string|max:128',
+            'email' => 'nullable|string|max:255',
+            'warehouse_number' => 'nullable|string|max:128',
             'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
             'show_deleted_transactions' => 'nullable|boolean',
             'rounding_decimals' => 'nullable|integer|min:0|max:2',

@@ -348,8 +348,11 @@ class WarehouseReceiptRepository extends BaseRepository
         $rounding = new RoundingService();
         $remaining = $this->remainingReceiptQuantityByProduct($purchase, $editingReceiptId);
         $plannedPrices = [];
+        $plannedProductIds = [];
         foreach ($purchase->products as $line) {
-            $plannedPrices[(int) $line->product_id] = $line->documentCurrencyUnitPrice();
+            $productId = (int) $line->product_id;
+            $plannedProductIds[$productId] = true;
+            $plannedPrices[$productId] = $line->documentCurrencyUnitPrice();
         }
 
         foreach ($products as $product) {
@@ -357,6 +360,10 @@ class WarehouseReceiptRepository extends BaseRepository
             $incoming = $rounding->roundQuantityForCompany($companyId, (float) ($product['quantity'] ?? 0));
             if ($incoming <= 0) {
                 continue;
+            }
+
+            if (! isset($plannedProductIds[$productId])) {
+                throw new \RuntimeException((string) __('warehouse_purchase.receipt_product_not_in_purchase'));
             }
 
             $left = (float) ($remaining[$productId] ?? 0);
@@ -496,6 +503,8 @@ class WarehouseReceiptRepository extends BaseRepository
 
             app(ReceiptExpenseAllocationService::class)->syncAllForReceipt((int) $receipt_id);
 
+            $this->syncLinkedPurchaseCompletion($receipt->purchase_id);
+
             $this->invalidateCaches();
             WarehouseTimelineCache::forgetReceipt((int) $receipt_id);
 
@@ -622,6 +631,8 @@ class WarehouseReceiptRepository extends BaseRepository
             $receipt->status = WhReceiptStatus::Completed;
             $receipt->saveQuietly();
 
+            $this->syncLinkedPurchaseCompletion($receipt->purchase_id);
+
             $this->invalidateCaches();
             WarehouseTimelineCache::forgetReceipt($receipt_id);
         });
@@ -647,11 +658,14 @@ class WarehouseReceiptRepository extends BaseRepository
             $receipt = WhReceipt::findOrFail($receipt_id);
             app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $receipt->warehouse_id);
             $reverseStock = $receipt->status === WhReceiptStatus::Completed;
+            $purchaseId = $receipt->purchase_id !== null ? (int) $receipt->purchase_id : null;
             $this->reverseReceiptStockAndDeleteLines($receipt, $reverseStock);
 
             $rid = (int) $receipt->id;
             $wid = (int) $receipt->warehouse_id;
             $receipt->delete();
+
+            $this->syncLinkedPurchaseCompletion($purchaseId);
 
             return ['rid' => $rid, 'wid' => $wid];
         });
@@ -1003,5 +1017,17 @@ class WarehouseReceiptRepository extends BaseRepository
             'date' => $data['date'],
             'is_debt' => (bool) ($data['is_debt'] ?? true),
         ];
+    }
+
+    /**
+     * Синхронизирует статус закупки после изменений связанных оприходований.
+     */
+    private function syncLinkedPurchaseCompletion(?int $purchaseId): void
+    {
+        if ($purchaseId === null || $purchaseId <= 0) {
+            return;
+        }
+
+        app(WarehousePurchaseRepository::class)->syncPurchaseCompletionState($purchaseId);
     }
 }

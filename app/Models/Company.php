@@ -12,6 +12,12 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @property int $id
  * @property string $name Название компании
+ * @property string|null $full_name Полное название компании (для счёта)
+ * @property string|null $address Адрес компании
+ * @property string|null $phone Телефон компании
+ * @property string|null $registration_number Регистрационный номер
+ * @property string|null $email Email компании
+ * @property string|null $warehouse_number Номер склада (W/H)
  * @property string $logo Логотип компании
  * @property bool $show_deleted_transactions Показывать ли удаленные транзакции
  * @property int $rounding_decimals Количество знаков после запятой для округления
@@ -37,6 +43,12 @@ class Company extends Model
 
     protected $fillable = [
         'name',
+        'full_name',
+        'address',
+        'phone',
+        'registration_number',
+        'email',
+        'warehouse_number',
         'logo',
         'show_deleted_transactions',
         'rounding_decimals',
