@@ -115,15 +115,15 @@ class ReceiptExpenseAllocationService
 
             $rounded = [];
             foreach ($orderedLineIds as $lid) {
-                $rounded[$lid] = $rounding->roundForCompany($companyId, (float) ($shares[$lid] ?? 0));
+                $rounded[$lid] = $rounding->roundWarehouseAmountForCompany($companyId, (float) ($shares[$lid] ?? 0));
             }
 
-            $sumRounded = $rounding->roundForCompany($companyId, array_sum($rounded));
-            $diff = $rounding->roundForCompany($companyId, $pool - $sumRounded);
+            $sumRounded = $rounding->roundWarehouseAmountForCompany($companyId, array_sum($rounded));
+            $diff = $rounding->roundWarehouseAmountForCompany($companyId, $pool - $sumRounded);
             $n = count($orderedLineIds);
             if ($n > 0 && abs($diff) > 1e-12) {
                 $lastId = (int) $orderedLineIds[$n - 1];
-                $rounded[$lastId] = $rounding->roundForCompany($companyId, ($rounded[$lastId] ?? 0) + $diff);
+                $rounded[$lastId] = $rounding->roundWarehouseAmountForCompany($companyId, ($rounded[$lastId] ?? 0) + $diff);
             }
 
             foreach ($rounded as $lineId => $amt) {
@@ -209,10 +209,10 @@ class ReceiptExpenseAllocationService
             $lid = (int) $line->id;
             $raw = $this->lineRawSubtotalInReceiptCurrency($line);
             $sub = $this->rawSubtotalInDefaultCurrency($raw, $lineCurrency, $defaultCurrency, $companyId, $date);
-            $sub = $rounding->roundForCompany($companyId, $sub);
-            $alloc = $rounding->roundForCompany($companyId, (float) ($byLineAllocated[$lid] ?? 0));
-            $goodsSubtotal = $rounding->roundForCompany($companyId, $goodsSubtotal + $sub);
-            $allocatedTotal = $rounding->roundForCompany($companyId, $allocatedTotal + $alloc);
+            $sub = $rounding->roundWarehouseAmountForCompany($companyId, $sub);
+            $alloc = $rounding->roundWarehouseAmountForCompany($companyId, (float) ($byLineAllocated[$lid] ?? 0));
+            $goodsSubtotal = $rounding->roundWarehouseAmountForCompany($companyId, $goodsSubtotal + $sub);
+            $allocatedTotal = $rounding->roundWarehouseAmountForCompany($companyId, $allocatedTotal + $alloc);
             $product = $line->relationLoaded('product') ? $line->product : null;
             $linesOut[] = [
                 'wh_receipt_product_id' => $lid,
@@ -221,7 +221,7 @@ class ReceiptExpenseAllocationService
                 'price' => (float) $line->price,
                 'line_subtotal_default' => $sub,
                 'allocated_expenses_default' => $alloc,
-                'landed_line_total_default' => $rounding->roundForCompany($companyId, $sub + $alloc),
+                'landed_line_total_default' => $rounding->roundWarehouseAmountForCompany($companyId, $sub + $alloc),
                 'product_name' => $product?->name,
                 'unit_short_name' => $product?->unit?->short_name,
             ];
@@ -251,14 +251,14 @@ class ReceiptExpenseAllocationService
             'receipt_id' => $receiptId,
             'goods_subtotal_default' => $goodsSubtotal,
             'expenses_allocated_total' => $allocatedTotal,
-            'full_cost_default' => $rounding->roundForCompany($companyId, $goodsSubtotal + $allocatedTotal),
+            'full_cost_default' => $rounding->roundWarehouseAmountForCompany($companyId, $goodsSubtotal + $allocatedTotal),
             'lines_count' => count($linesOut),
         ]);
 
         return [
             'goods_subtotal_default' => $goodsSubtotal,
             'expenses_allocated_total' => $allocatedTotal,
-            'full_cost_default' => $rounding->roundForCompany($companyId, $goodsSubtotal + $allocatedTotal),
+            'full_cost_default' => $rounding->roundWarehouseAmountForCompany($companyId, $goodsSubtotal + $allocatedTotal),
             'default_currency_symbol' => $defaultCurrency->symbol,
             'lines' => $linesOut,
         ];
@@ -352,6 +352,6 @@ class ReceiptExpenseAllocationService
             $raw = CurrencyConverter::convert($raw, $lineCurrency, $defaultCurrency, $defaultCurrency, $companyId, $dateStr);
         }
 
-        return $rounding->roundForCompany($companyId, $raw);
+        return $rounding->roundWarehouseAmountForCompany($companyId, $raw);
     }
 }

@@ -19,6 +19,7 @@ use App\Services\TransactionSourceService;
 use App\Services\ReceiptExpenseAllocationService;
 use App\Services\Timeline\TimelineCache;
 use App\Services\ClientBalanceService;
+use App\Services\WarehouseDocumentPaymentStatusService;
 use Illuminate\Support\Facades\DB;
 
 class TransactionsRepository extends BaseRepository
@@ -626,6 +627,7 @@ class TransactionsRepository extends BaseRepository
                 CacheService::invalidateOrdersCache();
             }
             $this->invalidateWarehouseSourceCaches($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
+            $this->syncLinkedPurchaseCompletionAfterPaymentChange($transaction);
 
             TimelineCache::forget('transaction', (int) $transaction->id);
         } catch (\Exception $e) {
@@ -715,6 +717,7 @@ class TransactionsRepository extends BaseRepository
             CacheService::invalidateOrdersCache();
         }
         $this->invalidateWarehouseSourceCaches($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
+        $this->syncLinkedPurchaseCompletionAfterPaymentChange($transaction);
 
         TimelineCache::forget('transaction', (int) $id);
 
@@ -1036,6 +1039,7 @@ class TransactionsRepository extends BaseRepository
                 CacheService::invalidateOrdersCache();
             }
             $this->invalidateWarehouseSourceCaches($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
+            $this->syncLinkedPurchaseCompletionAfterPaymentChange($transaction);
 
             TimelineCache::forget('transaction', (int) $id);
 
@@ -1167,6 +1171,7 @@ class TransactionsRepository extends BaseRepository
                 }
             }
             $this->invalidateWarehouseSourceCaches($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
+            $this->syncLinkedPurchaseCompletionAfterPaymentChange($transaction);
 
             TimelineCache::forget('transaction', $id);
 
@@ -1855,5 +1860,28 @@ class TransactionsRepository extends BaseRepository
     private function syncReceiptLandedCostAllocations(Transaction $transaction): void
     {
         app(ReceiptExpenseAllocationService::class)->syncForTransaction($transaction->fresh());
+    }
+
+    /**
+     * Пересчитывает автозакрытие закупки после изменения оплаты за товар.
+     */
+    private function syncLinkedPurchaseCompletionAfterPaymentChange(Transaction $transaction): void
+    {
+        if ($transaction->is_debt || $transaction->is_deleted) {
+            return;
+        }
+        if ((int) ($transaction->category_id ?? 0) !== WarehouseDocumentPaymentStatusService::GOODS_PAYMENT_CATEGORY_ID) {
+            return;
+        }
+        $sourceType = (string) ($transaction->source_type ?? '');
+        if (! str_contains($sourceType, 'WhPurchase')) {
+            return;
+        }
+        $purchaseId = (int) ($transaction->source_id ?? 0);
+        if ($purchaseId <= 0) {
+            return;
+        }
+
+        app(WarehousePurchaseRepository::class)->syncPurchaseCompletionState($purchaseId);
     }
 }

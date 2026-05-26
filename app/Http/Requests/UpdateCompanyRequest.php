@@ -29,6 +29,12 @@ class UpdateCompanyRequest extends FormRequest
 
         return [
             'name' => "required|string|max:255|unique:companies,name,{$companyId}",
+            'full_name' => 'nullable|string|max:500',
+            'address' => 'nullable|string|max:500',
+            'phone' => 'nullable|string|max:64',
+            'registration_number' => 'nullable|string|max:128',
+            'email' => 'nullable|string|max:255',
+            'warehouse_number' => 'nullable|string|max:128',
             'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
             'show_deleted_transactions' => 'nullable|boolean',
             'rounding_decimals' => 'nullable|integer|min:0|max:2',
@@ -37,6 +43,7 @@ class UpdateCompanyRequest extends FormRequest
             'rounding_custom_threshold' => 'nullable|numeric|min:0|max:1',
             'rounding_orders_enabled' => 'nullable|boolean',
             'rounding_contracts_enabled' => 'nullable|boolean',
+            'rounding_warehouse_enabled' => 'nullable|boolean',
             'rounding_quantity_decimals' => 'nullable|integer|min:0|max:5',
             'rounding_quantity_enabled' => 'nullable|boolean',
             'rounding_quantity_direction' => 'nullable|in:standard,up,down,custom',
@@ -67,6 +74,9 @@ class UpdateCompanyRequest extends FormRequest
         if (isset($data['rounding_contracts_enabled'])) {
             $data['rounding_contracts_enabled'] = filter_var($data['rounding_contracts_enabled'], FILTER_VALIDATE_BOOLEAN);
         }
+        if (isset($data['rounding_warehouse_enabled'])) {
+            $data['rounding_warehouse_enabled'] = filter_var($data['rounding_warehouse_enabled'], FILTER_VALIDATE_BOOLEAN);
+        }
         if (isset($data['rounding_quantity_enabled'])) {
             $data['rounding_quantity_enabled'] = filter_var($data['rounding_quantity_enabled'], FILTER_VALIDATE_BOOLEAN);
         }
@@ -88,6 +98,7 @@ class UpdateCompanyRequest extends FormRequest
                 $data['rounding_custom_threshold'] = null;
                 $data['rounding_orders_enabled'] = false;
                 $data['rounding_contracts_enabled'] = false;
+                $data['rounding_warehouse_enabled'] = false;
             }
         }
 

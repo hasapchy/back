@@ -47,7 +47,7 @@ trait ResolvesWarehouseLineOrigDisplay
             $price = (float) $product['amount'] / $quantity;
         }
         if ($companyId) {
-            $price = $rounding->roundForCompany($companyId, $price);
+            $price = $rounding->roundWarehouseAmountForCompany($companyId, $price);
         }
 
         $origUnitPrice = $price;
@@ -66,7 +66,7 @@ trait ResolvesWarehouseLineOrigDisplay
                 $dateStr
             );
             if ($companyId) {
-                $defUnitPrice = $rounding->roundForCompany($companyId, $defUnitPrice);
+                $defUnitPrice = $rounding->roundWarehouseAmountForCompany($companyId, $defUnitPrice);
             }
         }
 

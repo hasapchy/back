@@ -87,6 +87,12 @@ class InvoiceController extends BaseController
                 return $this->errorResponse('Все заказы должны принадлежать одному клиенту', 400);
             }
 
+            try {
+                $this->itemsRepository->assertOrdersShareInvoiceCurrency($orders);
+            } catch (\InvalidArgumentException $e) {
+                return $this->errorResponse($e->getMessage(), 400);
+            }
+
             $productsData = $this->itemsRepository->prepareProductsFromOrders($orders);
             $products = $productsData['products'];
 
@@ -205,6 +211,13 @@ class InvoiceController extends BaseController
 
         try {
             $orders = $this->itemsRepository->getOrdersForInvoice($request->order_ids);
+
+            try {
+                $this->itemsRepository->assertOrdersShareInvoiceCurrency($orders);
+            } catch (\InvalidArgumentException $e) {
+                return $this->errorResponse($e->getMessage(), 400);
+            }
+
             $productsData = $this->itemsRepository->prepareProductsFromOrders($orders);
             $products = $productsData['products'];
             $orderDate = $productsData['order_date'];

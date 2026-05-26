@@ -3,14 +3,15 @@
 namespace App\Repositories;
 
 use App\Enums\WhPurchaseStatus;
+use App\Enums\WhReceiptStatus;
 use App\Models\ClientBalance;
 use App\Models\WhPurchase;
 use App\Models\WhPurchaseProduct;
+use App\Services\WarehouseDocumentPaymentStatusService;
 use App\Services\WarehousePurchaseGoodsPaymentLimitService;
 use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
 use App\Services\RoundingService;
-use App\Services\WarehouseDocumentPaymentStatusService;
 use App\Models\Transaction;
 use App\Services\Timeline\WarehouseTimelineCache;
 use Illuminate\Support\Facades\DB;
@@ -141,10 +142,10 @@ class WarehousePurchaseRepository extends BaseRepository
                 $linePayloads[$idx] = array_merge($this->resolveWarehouseLineOrigDisplay($product), $lineOrig);
                 $amountOrig += (float) $products[$idx]['quantity'] * (float) $lineOrig['orig_unit_price'];
             }
-            $amountOrig = $rounding->roundForCompany($companyId, $amountOrig);
+            $amountOrig = $rounding->roundWarehouseAmountForCompany($companyId, $amountOrig);
             $amountDefault = $purchaseCurrencyId === (int) $defaultCurrency->id
                 ? $amountOrig
-                : $this->convertAndRoundCurrency($amountOrig, $purchaseCurrencyId, (int) $defaultCurrency->id);
+                : $rounding->roundWarehouseAmountForCompany($companyId, $this->convertCurrency($amountOrig, $purchaseCurrencyId, (int) $defaultCurrency->id));
 
             $purchase = new WhPurchase();
             $purchase->supplier_id = (int) $data['supplier_id'];
@@ -198,6 +199,11 @@ class WarehousePurchaseRepository extends BaseRepository
     {
         return DB::transaction(function () use ($id, $data): bool {
             $purchase = WhPurchase::query()->lockForUpdate()->findOrFail($id);
+
+            if (isset($data['status']) && WhPurchaseStatus::tryFrom((string) $data['status']) === WhPurchaseStatus::Completed) {
+                throw new \RuntimeException((string) __('warehouse_purchase.completion_is_automatic'));
+            }
+
             if ($purchase->status !== WhPurchaseStatus::Draft) {
                 throw new \RuntimeException((string) __('warehouse_purchase.edit_only_draft'));
             }
@@ -240,10 +246,10 @@ class WarehousePurchaseRepository extends BaseRepository
                     ->selectRaw('COALESCE(SUM(quantity * COALESCE(orig_unit_price, price)), 0) as amount_orig')
                     ->value('amount_orig');
             }
-            $amountOrig = $rounding->roundForCompany($companyId, $amountOrig);
+            $amountOrig = $rounding->roundWarehouseAmountForCompany($companyId, $amountOrig);
             $purchase->amount = $purchaseCurrencyId === (int) $defaultCurrency->id
                 ? $amountOrig
-                : $this->convertAndRoundCurrency($amountOrig, $purchaseCurrencyId, (int) $defaultCurrency->id);
+                : $rounding->roundWarehouseAmountForCompany($companyId, $this->convertCurrency($amountOrig, $purchaseCurrencyId, (int) $defaultCurrency->id));
             $purchase->orig_amount = $amountOrig;
             $purchase->orig_currency_id = $purchaseCurrencyId;
 
@@ -333,7 +339,10 @@ class WarehousePurchaseRepository extends BaseRepository
             $paymentCurrencyId = (int) ($data['currency_id'] ?? $purchase->currency_id ?? $defaultCurrency->id);
             $incomingAmountDefault = $paymentCurrencyId === (int) $defaultCurrency->id
                 ? $amount
-                : $this->convertAndRoundCurrency($amount, $paymentCurrencyId, (int) $defaultCurrency->id);
+                : app(RoundingService::class)->roundWarehouseAmountForCompany(
+                    $this->getCurrentCompanyId(),
+                    $this->convertCurrency($amount, $paymentCurrencyId, (int) $defaultCurrency->id)
+                );
             $remaining = app(WarehousePurchaseGoodsPaymentLimitService::class)->remainingDefault($purchase, null);
             if ($incomingAmountDefault > $remaining + 1e-9) {
                 throw new \RuntimeException((string) __('warehouse_purchase.goods_payment_exceeds_remaining'));
@@ -356,9 +365,104 @@ class WarehousePurchaseRepository extends BaseRepository
 
             $this->invalidateCaches();
             WarehouseTimelineCache::forgetPurchase($id, (int) $purchase->supplier_id);
+            $this->syncPurchaseCompletionState($id);
 
             return (int) $txId;
         });
+    }
+
+    /**
+     * Синхронизирует статус закупки после изменений оприходований или оплат.
+     */
+    public function syncPurchaseCompletionState(int $purchaseId): void
+    {
+        $this->tryRevertAutoCompleteFromReceipts($purchaseId);
+        $this->tryAutoCompleteFromReceipts($purchaseId);
+    }
+
+    /**
+     * Проверяет, оплачена ли закупка по товару (полная оплата в базовой валюте).
+     */
+    public function purchaseIsFullyPaid(WhPurchase $purchase): bool
+    {
+        $payment = app(WarehouseDocumentPaymentStatusService::class)->enrichPurchase($purchase);
+
+        return ($payment['payment_status'] ?? '') === 'paid';
+    }
+
+    /**
+     * Проверяет, выполнены ли условия автозакрытия закупки по оприходованиям.
+     */
+    public function purchaseFulfillsAutoCompletion(WhPurchase $purchase): bool
+    {
+        if (! $purchase->relationLoaded('products')) {
+            $purchase->load('products');
+        }
+
+        if ($purchase->products->isEmpty()) {
+            return false;
+        }
+
+        if (! $purchase->receipts()->exists()) {
+            return false;
+        }
+
+        if ($purchase->receipts()->where('status', '!=', WhReceiptStatus::Completed->value)->exists()) {
+            return false;
+        }
+
+        $remaining = app(WarehouseReceiptRepository::class)->remainingReceiptQuantityByProduct($purchase, null);
+        foreach ($remaining as $left) {
+            if ((float) $left > 1e-9) {
+                return false;
+            }
+        }
+
+        if (! $this->purchaseIsFullyPaid($purchase)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Переводит закупку в «Завершено», если она подтверждена и все оприходования закрыты.
+     */
+    public function tryAutoCompleteFromReceipts(int $purchaseId): void
+    {
+        $purchase = WhPurchase::query()->lockForUpdate()->find($purchaseId);
+        if (! $purchase instanceof WhPurchase || $purchase->status !== WhPurchaseStatus::Approved) {
+            return;
+        }
+
+        if (! $this->purchaseFulfillsAutoCompletion($purchase)) {
+            return;
+        }
+
+        $purchase->status = WhPurchaseStatus::Completed->value;
+        $purchase->save();
+        $this->invalidateCaches();
+        WarehouseTimelineCache::forgetPurchase($purchaseId, (int) $purchase->supplier_id);
+    }
+
+    /**
+     * Возвращает закупку в «Подтверждено», если автозакрытие больше не выполняется.
+     */
+    public function tryRevertAutoCompleteFromReceipts(int $purchaseId): void
+    {
+        $purchase = WhPurchase::query()->lockForUpdate()->find($purchaseId);
+        if (! $purchase instanceof WhPurchase || $purchase->status !== WhPurchaseStatus::Completed) {
+            return;
+        }
+
+        if ($this->purchaseFulfillsAutoCompletion($purchase)) {
+            return;
+        }
+
+        $purchase->status = WhPurchaseStatus::Approved->value;
+        $purchase->save();
+        $this->invalidateCaches();
+        WarehouseTimelineCache::forgetPurchase($purchaseId, (int) $purchase->supplier_id);
     }
 
     private function invalidateCaches(): void
@@ -403,4 +507,5 @@ class WarehousePurchaseRepository extends BaseRepository
 
         return $fallbackCurrencyId;
     }
+
 }

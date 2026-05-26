@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Repositories\ClientsRepository;
+use App\Repositories\InvoicesRepository;
 use App\Repositories\OrdersRepository;
 use App\Repositories\ProjectsRepository;
 use App\Repositories\SalesRepository;
@@ -29,6 +30,7 @@ final class BatchEntityActions
 {
     public function __construct(
         private readonly ClientsRepository $clientsRepository,
+        private readonly InvoicesRepository $invoicesRepository,
         private readonly SalesRepository $salesRepository,
         private readonly ProjectsRepository $projectsRepository,
         private readonly OrdersRepository $ordersRepository,

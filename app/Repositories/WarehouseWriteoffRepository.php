@@ -15,6 +15,7 @@ use App\Models\WhWriteoffProduct;
 use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
 use App\Services\InventoryLockService;
+use App\Services\RoundingService;
 use App\Services\Timeline\WarehouseTimelineCache;
 use Illuminate\Support\Facades\DB;
 
@@ -472,6 +473,8 @@ class WarehouseWriteoffRepository extends BaseRepository
         foreach ($products as $product) {
             $amount += (float) ($product['price'] ?? 0) * (float) ($product['quantity'] ?? 0);
         }
+
+        $amount = app(RoundingService::class)->roundWarehouseAmountForCompany($this->getCurrentCompanyId(), $amount);
 
         $txData = [
             'type' => 1,

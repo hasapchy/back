@@ -12,6 +12,8 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WhPurchase;
+use App\Models\WhPurchaseProduct;
+use App\Repositories\WarehouseReceiptRepository;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -108,6 +110,39 @@ class WarehousePurchaseControllerTest extends TestCase
         return $this->withApiTokenForCompany($user, (int) $this->company->id);
     }
 
+    private function createApprovedPurchaseWithProduct(float $quantity, float $unitPrice): WhPurchase
+    {
+        $purchase = WhPurchase::query()->create([
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'creator_id' => $this->adminUser->id,
+            'status' => 'approved',
+            'date' => now(),
+            'amount' => $quantity * $unitPrice,
+            'orig_amount' => $quantity * $unitPrice,
+            'orig_currency_id' => $this->cashRegister->currency_id,
+        ]);
+        WhPurchaseProduct::query()->create([
+            'purchase_id' => $purchase->id,
+            'product_id' => $this->product->id,
+            'quantity' => $quantity,
+            'price' => $unitPrice,
+            'orig_unit_price' => $unitPrice,
+            'orig_currency_id' => $this->cashRegister->currency_id,
+        ]);
+
+        return $purchase;
+    }
+
+    private function payPurchaseInFull(int $purchaseId, float $amount): void
+    {
+        $this->actingAsApi($this->adminUser)->postJson("/api/warehouse_purchases/{$purchaseId}/pay", [
+            'cash_id' => $this->cashRegister->id,
+            'amount' => $amount,
+        ])->assertStatus(200);
+    }
+
     public function test_store_warehouse_purchase_success_and_creates_debt_transaction(): void
     {
         $payload = [
@@ -198,6 +233,261 @@ class WarehousePurchaseControllerTest extends TestCase
 
         $response->assertStatus(400);
         $response->assertJsonFragment(['error' => 'Редактирование доступно только для закупки в статусе Черновик']);
+    }
+
+    public function test_manual_purchase_completion_via_api_is_forbidden(): void
+    {
+        $purchase = WhPurchase::query()->create([
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'creator_id' => $this->adminUser->id,
+            'status' => 'approved',
+            'date' => now(),
+            'amount' => 10,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)->putJson("/api/warehouse_purchases/{$purchase->id}", [
+            'status' => 'completed',
+            'cash_id' => $this->cashRegister->id,
+        ]);
+
+        $response->assertStatus(400);
+        $response->assertJsonFragment(['error' => __('warehouse_purchase.completion_is_automatic')]);
+        $this->assertDatabaseHas('wh_purchases', [
+            'id' => $purchase->id,
+            'status' => 'approved',
+        ]);
+    }
+
+    public function test_purchase_stays_approved_when_receipts_done_but_unpaid(): void
+    {
+        auth()->shouldUse('api');
+        auth('api')->setUser($this->adminUser);
+        request()->headers->set('X-Company-ID', (string) $this->company->id);
+
+        $purchase = $this->createApprovedPurchaseWithProduct(5, 10.0);
+        $receiptRepo = app(WarehouseReceiptRepository::class);
+        $receiptId = $receiptRepo->createItem([
+            'client_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'purchase_id' => $purchase->id,
+            'creator_id' => $this->adminUser->id,
+            'date' => now()->toDateTimeString(),
+            'note' => null,
+            'status' => 'draft',
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 5,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+        $receiptRepo->completeReceipt((int) $receiptId);
+
+        $this->assertDatabaseHas('wh_purchases', [
+            'id' => $purchase->id,
+            'status' => 'approved',
+        ]);
+    }
+
+    public function test_purchase_auto_completes_when_receipts_done_and_fully_paid(): void
+    {
+        auth()->shouldUse('api');
+        auth('api')->setUser($this->adminUser);
+        request()->headers->set('X-Company-ID', (string) $this->company->id);
+
+        $purchase = $this->createApprovedPurchaseWithProduct(5, 10.0);
+        $receiptRepo = app(WarehouseReceiptRepository::class);
+        $receiptId = $receiptRepo->createItem([
+            'client_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'purchase_id' => $purchase->id,
+            'creator_id' => $this->adminUser->id,
+            'date' => now()->toDateTimeString(),
+            'note' => null,
+            'status' => 'draft',
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 5,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+        $receiptRepo->completeReceipt((int) $receiptId);
+
+        $this->assertDatabaseHas('wh_purchases', [
+            'id' => $purchase->id,
+            'status' => 'approved',
+        ]);
+
+        $this->payPurchaseInFull($purchase->id, 50.0);
+
+        $this->assertDatabaseHas('wh_purchases', [
+            'id' => $purchase->id,
+            'status' => 'completed',
+        ]);
+    }
+
+    public function test_purchase_reverts_to_approved_when_completed_receipt_is_deleted(): void
+    {
+        auth()->shouldUse('api');
+        auth('api')->setUser($this->adminUser);
+        request()->headers->set('X-Company-ID', (string) $this->company->id);
+
+        $purchase = WhPurchase::query()->create([
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'creator_id' => $this->adminUser->id,
+            'status' => 'approved',
+            'date' => now(),
+            'amount' => 50,
+            'orig_amount' => 50,
+            'orig_currency_id' => $this->cashRegister->currency_id,
+        ]);
+        WhPurchaseProduct::query()->create([
+            'purchase_id' => $purchase->id,
+            'product_id' => $this->product->id,
+            'quantity' => 5,
+            'price' => 10,
+            'orig_unit_price' => 10,
+            'orig_currency_id' => $this->cashRegister->currency_id,
+        ]);
+
+        $receiptRepo = app(WarehouseReceiptRepository::class);
+        $receiptId = $receiptRepo->createItem([
+            'client_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'purchase_id' => $purchase->id,
+            'creator_id' => $this->adminUser->id,
+            'date' => now()->toDateTimeString(),
+            'note' => null,
+            'status' => 'draft',
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 5,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+        $receiptRepo->completeReceipt((int) $receiptId);
+        $this->payPurchaseInFull($purchase->id, 50.0);
+
+        $this->assertDatabaseHas('wh_purchases', [
+            'id' => $purchase->id,
+            'status' => 'completed',
+        ]);
+
+        $receiptRepo->deleteItem((int) $receiptId);
+
+        $this->assertDatabaseHas('wh_purchases', [
+            'id' => $purchase->id,
+            'status' => 'approved',
+        ]);
+        $this->assertDatabaseMissing('wh_receipts', ['id' => $receiptId]);
+    }
+
+    public function test_receipt_from_purchase_rejects_product_not_in_purchase(): void
+    {
+        auth()->shouldUse('api');
+        auth('api')->setUser($this->adminUser);
+        request()->headers->set('X-Company-ID', (string) $this->company->id);
+
+        $purchase = $this->createApprovedPurchaseWithProduct(5, 10.0);
+        $otherProduct = Product::factory()->create([
+            'creator_id' => $this->adminUser->id,
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage((string) __('warehouse_purchase.receipt_product_not_in_purchase'));
+
+        app(WarehouseReceiptRepository::class)->createItem([
+            'client_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'purchase_id' => $purchase->id,
+            'creator_id' => $this->adminUser->id,
+            'date' => now()->toDateTimeString(),
+            'note' => null,
+            'status' => 'draft',
+            'products' => [
+                [
+                    'product_id' => $otherProduct->id,
+                    'quantity' => 1,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+    }
+
+    public function test_purchase_stays_approved_until_all_partial_receipts_are_completed(): void
+    {
+        auth()->shouldUse('api');
+        auth('api')->setUser($this->adminUser);
+        request()->headers->set('X-Company-ID', (string) $this->company->id);
+
+        $purchase = WhPurchase::query()->create([
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'creator_id' => $this->adminUser->id,
+            'status' => 'approved',
+            'date' => now(),
+            'amount' => 50,
+            'orig_amount' => 50,
+            'orig_currency_id' => $this->cashRegister->currency_id,
+        ]);
+        WhPurchaseProduct::query()->create([
+            'purchase_id' => $purchase->id,
+            'product_id' => $this->product->id,
+            'quantity' => 10,
+            'price' => 5,
+            'orig_unit_price' => 5,
+            'orig_currency_id' => $this->cashRegister->currency_id,
+        ]);
+
+        $receiptRepo = app(WarehouseReceiptRepository::class);
+        $firstReceiptId = $receiptRepo->createItem([
+            'client_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'purchase_id' => $purchase->id,
+            'creator_id' => $this->adminUser->id,
+            'date' => now()->toDateTimeString(),
+            'note' => null,
+            'status' => 'draft',
+            'products' => [
+                ['product_id' => $this->product->id, 'quantity' => 4, 'price' => 5],
+            ],
+        ]);
+        $receiptRepo->completeReceipt((int) $firstReceiptId);
+
+        $this->assertDatabaseHas('wh_purchases', [
+            'id' => $purchase->id,
+            'status' => 'approved',
+        ]);
+
+        $secondReceiptId = $receiptRepo->createItem([
+            'client_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'purchase_id' => $purchase->id,
+            'creator_id' => $this->adminUser->id,
+            'date' => now()->toDateTimeString(),
+            'note' => null,
+            'status' => 'draft',
+            'products' => [
+                ['product_id' => $this->product->id, 'quantity' => 6, 'price' => 5],
+            ],
+        ]);
+        $receiptRepo->completeReceipt((int) $secondReceiptId);
+        $this->payPurchaseInFull($purchase->id, 50.0);
+
+        $this->assertDatabaseHas('wh_purchases', [
+            'id' => $purchase->id,
+            'status' => 'completed',
+        ]);
     }
 
     public function test_purchase_payment_rejects_overpayment(): void
@@ -401,6 +691,40 @@ class WarehousePurchaseControllerTest extends TestCase
         ]);
         $secondPayment->assertStatus(400);
         $secondPayment->assertJsonFragment(['error' => __('warehouse_purchase.goods_payment_exceeds_remaining')]);
+    }
+
+    public function test_update_draft_merges_duplicate_product_lines_in_payload(): void
+    {
+        $createResponse = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', [
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 2,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+        $createResponse->assertStatus(200);
+        $purchaseId = (int) $createResponse->json('data.id');
+
+        $updateResponse = $this->actingAsApi($this->adminUser)->putJson("/api/warehouse_purchases/{$purchaseId}", [
+            'cash_id' => $this->cashRegister->id,
+            'products' => [
+                ['product_id' => $this->product->id, 'quantity' => 2, 'price' => 10],
+                ['product_id' => $this->product->id, 'quantity' => 3, 'price' => 10],
+            ],
+        ]);
+        $updateResponse->assertStatus(200);
+
+        $this->assertDatabaseCount('wh_purchase_products', 1);
+        $this->assertDatabaseHas('wh_purchase_products', [
+            'purchase_id' => $purchaseId,
+            'product_id' => $this->product->id,
+            'quantity' => 5,
+        ]);
     }
 
     public function test_update_draft_syncs_products_and_debt(): void

@@ -74,6 +74,6 @@ class WarehouseReceiptGoodsPaymentLimitService
         $rounding = new RoundingService;
         $raw = $total - $paid;
 
-        return $companyId > 0 ? max(0.0, $rounding->roundForCompany($companyId, $raw)) : max(0.0, $raw);
+        return max(0.0, $rounding->roundWarehouseAmountForCompany($companyId ?: null, $raw));
     }
 }
