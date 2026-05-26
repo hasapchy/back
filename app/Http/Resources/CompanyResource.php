@@ -2,25 +2,12 @@
 
 namespace App\Http\Resources;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class CompanyResource extends JsonResource
 {
     /**
-     * @param \Illuminate\Http\Request $request
-     * @return array<string, mixed>
+     * @var bool
      */
-    public function toArray($request): array
-    {
-        if (is_array($this->resource)) {
-            return $this->resource;
-        }
-
-        if ($this->resource instanceof Model) {
-            return $this->resource->toArray();
-        }
-
-        return (array) $this->resource;
-    }
+    public $preserveKeys = true;
 }

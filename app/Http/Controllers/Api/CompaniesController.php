@@ -72,7 +72,7 @@ class CompaniesController extends BaseController
         $rolesRepository = app(RolesRepository::class);
         $rolesRepository->createDefaultRolesForCompany($company->id);
 
-        return $this->successResponse(new CompanyResource($company));
+        return $this->successResponse((new CompanyResource($company))->resolve());
     }
 
     /**
@@ -98,7 +98,7 @@ class CompaniesController extends BaseController
 
         $company = $company->fresh();
 
-        return $this->successResponse(new CompanyResource($company));
+        return $this->successResponse((new CompanyResource($company))->resolve());
     }
 
     /**

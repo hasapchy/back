@@ -32,27 +32,6 @@ class WorkScheduleNormalizer
     }
 
     /**
-     * @param  mixed  $raw
-     * @return array<int, array{enabled: bool, start: string, end: string}>|null
-     */
-    public static function prepareInput(mixed $raw): ?array
-    {
-        if ($raw === null || $raw === '') {
-            return null;
-        }
-
-        if (is_string($raw)) {
-            $raw = json_decode($raw, true);
-        }
-
-        if (! is_array($raw)) {
-            return null;
-        }
-
-        return self::normalize($raw);
-    }
-
-    /**
      * @param  array<mixed>  $value
      * @return list<mixed>|null
      */

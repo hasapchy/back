@@ -55,7 +55,7 @@ class UserCompanyController extends BaseController
             $request->session()->put(ResolvedCompany::SESSION_KEY, (int) $company->id);
         }
 
-        return $this->successResponse(new CompanyResource($company));
+        return $this->successResponse((new CompanyResource($company))->resolve());
     }
 
     /**
@@ -113,7 +113,10 @@ class UserCompanyController extends BaseController
             ), 'Company selected successfully');
         }
 
-        return $this->successResponse(new CompanyResource($company), 'Company selected successfully');
+        return $this->successResponse(
+            (new CompanyResource($company))->resolve(),
+            'Company selected successfully'
+        );
     }
 
     /**

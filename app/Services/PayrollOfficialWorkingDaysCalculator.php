@@ -38,7 +38,7 @@ class PayrollOfficialWorkingDaysCalculator
         $from = $monthStart->copy()->startOfDay();
         $to = $monthEnd->copy()->startOfDay();
         $nonWorking = $this->nonWorkingDateKeySet((int) $company->id, $from, $to);
-        $schedule = is_array($company->work_schedule) ? $company->work_schedule : [];
+        $schedule = $company->effectiveWorkSchedule();
 
         $scheduleOff = [];
         $calendarOff = [];
@@ -206,7 +206,7 @@ class PayrollOfficialWorkingDaysCalculator
         $from = $monthStart->copy()->startOfDay();
         $to = $monthEnd->copy()->startOfDay();
         $nonWorking = $this->nonWorkingDateKeySet((int) $company->id, $from, $to);
-        $schedule = is_array($company->work_schedule) ? $company->work_schedule : [];
+        $schedule = $company->effectiveWorkSchedule();
         $norm = $this->countOfficialWorkingDaysBetween($schedule, $nonWorking, $from, $to);
 
         $empFrom = $from->copy();
