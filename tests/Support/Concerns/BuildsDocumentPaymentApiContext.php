@@ -175,7 +175,7 @@ trait BuildsDocumentPaymentApiContext
         return ClientBalance::query()->create([
             'client_id' => $this->client->id,
             'currency_id' => $this->currency->id,
-            'type' => 0,
+            'type' => 1,
             'balance' => 0,
         ]);
     }

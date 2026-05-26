@@ -834,6 +834,7 @@ class WarehousePurchaseControllerTest extends TestCase
         $showResponse = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_purchases/{$purchaseId}");
         $showResponse->assertStatus(200);
         $showResponse->assertJsonPath('data.payment_status', 'unpaid');
+        $showResponse->assertJsonPath('data.paid_amount', 0);
 
         $unpaidIndex = $this->actingAsApi($this->adminUser)->getJson('/api/warehouse_purchases?payment_status=unpaid');
         $unpaidIndex->assertStatus(200);

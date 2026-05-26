@@ -66,7 +66,7 @@ final class DocumentParentBalanceResolver
             return;
         }
 
-        if ($isDebt) {
+        if ($isDebt && $this->forbidsManualDocumentDebt($orderId, $sourceType)) {
             $validator->errors()->add(
                 'is_debt',
                 __('Записи в кредит по документу создаются автоматически при сохранении документа, а не вручную.')
@@ -94,6 +94,33 @@ final class DocumentParentBalanceResolver
         }
 
         $this->assertClientBalancePresentForPayee($validator, $clientBalanceId, $payeeClientId);
+    }
+
+    /**
+     * Долг по заказу, закупке и контракту создаётся при сохранении документа.
+     * По оприходованию ручные расходы (доставка, прочие) оформляют кредит сами — не блокируем.
+     */
+    private function forbidsManualDocumentDebt(?int $orderId, ?string $sourceType): bool
+    {
+        if ($orderId !== null && $orderId > 0) {
+            return true;
+        }
+
+        if (! $sourceType) {
+            return false;
+        }
+
+        if (str_contains($sourceType, 'WhReceipt')) {
+            return false;
+        }
+
+        foreach (['Order', 'WhPurchase', 'ProjectContract'] as $fragment) {
+            if (str_contains($sourceType, $fragment)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

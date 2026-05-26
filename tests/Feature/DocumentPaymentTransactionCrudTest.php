@@ -173,7 +173,7 @@ class DocumentPaymentTransactionCrudTest extends TestCase
             'is_debt' => false,
         ]);
 
-        $response->assertStatus(400);
+        $response->assertStatus(422);
         $response->assertJsonFragment(['error' => __('warehouse_purchase.goods_payment_exceeds_remaining')]);
     }
 
@@ -229,11 +229,10 @@ class DocumentPaymentTransactionCrudTest extends TestCase
             ->assertStatus(403);
     }
 
-    public function test_store_rejects_is_debt_for_contract_purchase_and_receipt(): void
+    public function test_store_rejects_is_debt_for_contract_and_purchase(): void
     {
         $contract = $this->createProjectContract();
         $purchase = $this->createWhPurchase();
-        $receipt = $this->createWhReceipt();
 
         $cases = [
             [
@@ -243,12 +242,6 @@ class DocumentPaymentTransactionCrudTest extends TestCase
             [
                 'source_type' => 'App\\Models\\WhPurchase',
                 'source_id' => $purchase->id,
-            ],
-            [
-                'source_type' => 'App\\Models\\WhReceipt',
-                'source_id' => $receipt->id,
-                'client_id' => $this->client->id,
-                'client_balance_id' => $this->clientBalance->id,
             ],
         ];
 

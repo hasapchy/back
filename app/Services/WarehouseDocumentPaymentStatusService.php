@@ -120,7 +120,8 @@ class WarehouseDocumentPaymentStatusService
       ->select('source_id', DB::raw('COALESCE(SUM(def_amount), 0) as paid_total'))
       ->where('source_type', $sourceType)
       ->whereIn('source_id', $ids)
-      ->where('is_debt', false)
+      ->where('type', 0)
+      ->where('is_debt', 0)
       ->where('is_deleted', false)
       ->groupBy('source_id');
 
@@ -144,7 +145,11 @@ class WarehouseDocumentPaymentStatusService
   public function enrichPurchase(WhPurchase $purchase, ?float $paidDefault = null): array
   {
     $total = (float) ($purchase->amount ?? 0);
-    $paid = $paidDefault ?? $this->batchPaidDefaultBySourceIds(WhPurchase::class, [(int) $purchase->id])[(int) $purchase->id] ?? 0.0;
+    $paid = $paidDefault ?? $this->batchPaidDefaultBySourceIds(
+      WhPurchase::class,
+      [(int) $purchase->id],
+      self::GOODS_PAYMENT_CATEGORY_ID
+    )[(int) $purchase->id] ?? 0.0;
     $symbol = $purchase->origCurrency?->symbol ?? $purchase->currency?->symbol ?? null;
 
     return $this->resolveStatus($paid, $total, $symbol);
@@ -230,7 +235,9 @@ class WarehouseDocumentPaymentStatusService
   {
     $type = addslashes(WhPurchase::class);
 
-    return "SELECT COALESCE(SUM(def_amount), 0) FROM transactions WHERE source_type = '{$type}' AND source_id = wh_purchases.id AND is_debt = 0 AND is_deleted = 0";
+    $categoryId = self::GOODS_PAYMENT_CATEGORY_ID;
+
+    return "SELECT COALESCE(SUM(def_amount), 0) FROM transactions WHERE source_type = '{$type}' AND source_id = wh_purchases.id AND type = 0 AND category_id = {$categoryId} AND is_debt = 0 AND is_deleted = 0";
   }
 
   private function receiptGoodsPaidSubquerySql(): string
@@ -252,7 +259,7 @@ class WarehouseDocumentPaymentStatusService
     }
 
     $ids = $collection->pluck('id')->map(fn ($id) => (int) $id)->all();
-    $paidMap = $this->batchPaidDefaultBySourceIds(WhPurchase::class, $ids);
+    $paidMap = $this->batchPaidDefaultBySourceIds(WhPurchase::class, $ids, self::GOODS_PAYMENT_CATEGORY_ID);
 
     foreach ($collection as $purchase) {
       if (! $purchase instanceof WhPurchase) {

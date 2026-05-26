@@ -138,6 +138,20 @@ class DocumentPaymentTransactionValidationTest extends TestCase
         ])->assertStatus(200);
     }
 
+    public function test_store_wh_receipt_delivery_expense_allows_manual_is_debt_with_supplier_balance(): void
+    {
+        $receipt = $this->createWhReceipt();
+
+        $this->postPayment([
+            'source_type' => 'App\\Models\\WhReceipt',
+            'source_id' => $receipt->id,
+            'client_id' => $this->client->id,
+            'client_balance_id' => $this->clientBalance->id,
+            'category_id' => 16,
+            'is_debt' => true,
+        ])->assertStatus(200);
+    }
+
     public function test_store_wh_purchase_payment_requires_matching_document_balance(): void
     {
         $purchase = $this->createWhPurchase();

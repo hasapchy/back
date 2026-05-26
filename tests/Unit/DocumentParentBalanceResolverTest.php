@@ -66,7 +66,7 @@ class DocumentParentBalanceResolverTest extends TestCase
         $this->assertFalse($this->resolver->isDocumentLinked(null, null, null));
     }
 
-    public function test_manual_payment_rejects_is_debt_for_document_link(): void
+    public function test_manual_payment_rejects_is_debt_for_order(): void
     {
         $order = $this->createOrder();
 
@@ -77,6 +77,24 @@ class DocumentParentBalanceResolverTest extends TestCase
         ]);
 
         $this->assertTrue($validator->errors()->has('is_debt'));
+    }
+
+    public function test_wh_receipt_manual_payment_allows_is_debt(): void
+    {
+        $receipt = WhReceipt::factory()->create([
+            'supplier_id' => $this->client->id,
+            'creator_id' => $this->user->id,
+        ]);
+
+        $validator = $this->runManualPaymentValidation([
+            'source_type' => 'App\\Models\\WhReceipt',
+            'source_id' => $receipt->id,
+            'category_id' => 16,
+            'is_debt' => true,
+            'client_balance_id' => null,
+        ]);
+
+        $this->assertFalse($validator->errors()->has('is_debt'));
     }
 
     public function test_manual_payment_requires_balance_when_order_has_client_balance_id(): void
@@ -384,6 +402,16 @@ class DocumentParentBalanceResolverTest extends TestCase
             'type' => 1,
             'balance' => 0,
             'is_default' => true,
+        ]);
+    }
+
+    private function createAlternateClientBalance(): ClientBalance
+    {
+        return ClientBalance::query()->create([
+            'client_id' => $this->client->id,
+            'currency_id' => $this->currency->id,
+            'type' => 1,
+            'balance' => 0,
         ]);
     }
 }
