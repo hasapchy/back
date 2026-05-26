@@ -2,13 +2,11 @@
 
 namespace App\Http\Requests;
 
-use App\Http\Requests\Concerns\PreparesCompanyRequestData;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 
 class UpdateCompanyRequest extends FormRequest
 {
-    use PreparesCompanyRequestData;
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
@@ -55,13 +53,47 @@ class UpdateCompanyRequest extends FormRequest
     }
 
     /**
-     * Подготовить данные для валидации
-     *
      * @return void
      */
     protected function prepareForValidation(): void
     {
-        $this->prepareCompanyRequestData();
+        $data = $this->all();
+
+        foreach ([
+            'show_deleted_transactions',
+            'rounding_enabled',
+            'rounding_orders_enabled',
+            'rounding_contracts_enabled',
+            'rounding_warehouse_enabled',
+            'rounding_quantity_enabled',
+            'skip_project_order_balance',
+        ] as $field) {
+            if (isset($data[$field])) {
+                $data[$field] = filter_var($data[$field], FILTER_VALIDATE_BOOLEAN);
+            }
+        }
+
+        if (isset($data['rounding_custom_threshold']) && $data['rounding_custom_threshold'] === '') {
+            $data['rounding_custom_threshold'] = null;
+        }
+        if (isset($data['rounding_quantity_custom_threshold']) && $data['rounding_quantity_custom_threshold'] === '') {
+            $data['rounding_quantity_custom_threshold'] = null;
+        }
+
+        if (isset($data['rounding_enabled']) && ! $data['rounding_enabled']) {
+            $data['rounding_direction'] = null;
+            $data['rounding_custom_threshold'] = null;
+            $data['rounding_orders_enabled'] = false;
+            $data['rounding_contracts_enabled'] = false;
+            $data['rounding_warehouse_enabled'] = false;
+        }
+
+        if (isset($data['rounding_quantity_enabled']) && ! $data['rounding_quantity_enabled']) {
+            $data['rounding_quantity_direction'] = null;
+            $data['rounding_quantity_custom_threshold'] = null;
+        }
+
+        $this->merge($data);
     }
 
     /**
@@ -75,4 +107,3 @@ class UpdateCompanyRequest extends FormRequest
         throw new \Illuminate\Validation\ValidationException($validator);
     }
 }
-

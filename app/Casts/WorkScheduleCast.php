@@ -26,9 +26,8 @@ class WorkScheduleCast implements CastsAttributes
 
     /**
      * @param  mixed  $value
-     * @return array<int, array{enabled: bool, start: string, end: string}>|null
      */
-    public function set(Model $model, string $key, mixed $value, array $attributes): ?array
+    public function set(Model $model, string $key, mixed $value, array $attributes): ?string
     {
         if ($value === null || $value === '') {
             return null;
@@ -38,6 +37,11 @@ class WorkScheduleCast implements CastsAttributes
             $value = json_decode($value, true);
         }
 
-        return WorkScheduleNormalizer::normalize($value);
+        $normalized = WorkScheduleNormalizer::normalize($value);
+        if ($normalized === null) {
+            return null;
+        }
+
+        return json_encode($normalized, JSON_FORCE_OBJECT);
     }
 }
