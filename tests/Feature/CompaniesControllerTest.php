@@ -147,6 +147,41 @@ class CompaniesControllerTest extends TestCase
         $response->assertJsonValidationErrors(['name']);
     }
 
+    public function test_update_company_persists_work_schedule(): void
+    {
+        $company = Company::factory()->create(['name' => 'Schedule Co']);
+
+        $workSchedule = [
+            1 => ['enabled' => false, 'start' => '10:00', 'end' => '19:00'],
+            2 => ['enabled' => true, 'start' => '09:00', 'end' => '18:00'],
+            3 => ['enabled' => true, 'start' => '09:00', 'end' => '18:00'],
+            4 => ['enabled' => true, 'start' => '09:00', 'end' => '18:00'],
+            5 => ['enabled' => true, 'start' => '09:00', 'end' => '18:00'],
+            6 => ['enabled' => false, 'start' => '10:00', 'end' => '14:00'],
+            7 => ['enabled' => false, 'start' => '00:00', 'end' => '00:00'],
+        ];
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->patchJson("/api/companies/{$company->id}", [
+                'name' => $company->name,
+                'work_schedule' => $workSchedule,
+            ]);
+
+        $response->assertStatus(200);
+        $company->refresh();
+
+        $this->assertIsArray($company->work_schedule);
+        $this->assertFalse($company->work_schedule[1]['enabled']);
+        $this->assertSame('10:00', $company->work_schedule[1]['start']);
+
+        $responseSchedule = $response->json('data.work_schedule');
+        $this->assertIsArray($responseSchedule);
+        $this->assertArrayHasKey('1', $responseSchedule);
+        $monday = $responseSchedule['1'];
+        $this->assertFalse($monday['enabled']);
+        $this->assertSame('10:00', $monday['start']);
+    }
+
     public function test_update_company_with_valid_data(): void
     {
         $company = Company::factory()->create(['name' => 'Old Name']);

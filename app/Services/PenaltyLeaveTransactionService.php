@@ -70,7 +70,7 @@ class PenaltyLeaveTransactionService
         }
 
         $workingDays = $this->countWorkingDays(
-            $company->work_schedule ?? [],
+            $company->effectiveWorkSchedule(),
             Carbon::parse($leave->date_from),
             Carbon::parse($leave->date_to)
         );

@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
+use App\Casts\WorkScheduleCast;
 use App\Support\DefaultWorkSchedule;
-use App\Support\WorkScheduleNormalizer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -32,6 +32,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $rounding_quantity_direction Направление округления количества
  * @property float|null $rounding_quantity_custom_threshold Порог для кастомного округления количества
  * @property bool $skip_project_order_balance Пропускать ли обновление баланса для заказов проекта
+ * @property array|null $work_schedule Рабочий график (сырое значение из БД)
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -89,7 +90,7 @@ class Company extends Model
         'rounding_warehouse_enabled' => 'boolean',
         'rounding_quantity_enabled' => 'boolean',
         'skip_project_order_balance' => 'boolean',
-        'work_schedule' => 'array',
+        'work_schedule' => WorkScheduleCast::class,
     ];
 
     /**
@@ -120,11 +121,8 @@ class Company extends Model
     /**
      * @return array<int, array{enabled: bool, start: string, end: string}>
      */
-    public function getWorkScheduleAttribute($value): array
+    public function effectiveWorkSchedule(): array
     {
-        $raw = $this->getAttributes()['work_schedule'] ?? null;
-
-        return WorkScheduleNormalizer::normalize(is_array($raw) ? $raw : null)
-            ?? DefaultWorkSchedule::get();
+        return $this->work_schedule ?? DefaultWorkSchedule::get();
     }
 }
