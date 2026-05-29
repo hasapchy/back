@@ -18,12 +18,10 @@ use App\Models\WhPurchase;
 use App\Models\WhReceipt;
 use App\Repositories\WarehouseReceiptRepository;
 use App\Services\CacheService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class WarehouseReceiptControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
     protected Company $company;
@@ -108,7 +106,7 @@ class WarehouseReceiptControllerTest extends TestCase
             ->postJson('/api/warehouse_receipts', $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Оприходование создано']);
+        $response->assertJson(['message' => 'РћРїСЂРёС…РѕРґРѕРІР°РЅРёРµ СЃРѕР·РґР°РЅРѕ']);
 
         $receiptId = (int) WhReceipt::query()->orderByDesc('id')->value('id');
         $this->assertDatabaseHas('wh_receipts', [
@@ -188,8 +186,8 @@ class WarehouseReceiptControllerTest extends TestCase
 
     public function test_store_warehouse_receipt_rejects_inconsistent_orig_quantity(): void
     {
-        $piece = Unit::create(['name' => 'Piece r '.uniqid(), 'short_name' => 'шт']);
-        $box = Unit::create(['name' => 'Box r '.uniqid(), 'short_name' => 'кор']);
+        $piece = Unit::create(['name' => 'Piece r '.uniqid(), 'short_name' => 'С€С‚']);
+        $box = Unit::create(['name' => 'Box r '.uniqid(), 'short_name' => 'РєРѕСЂ']);
         $this->product->update(['unit_id' => $piece->id]);
         ProductUnitConversion::create([
             'product_id' => $this->product->id,
@@ -245,7 +243,7 @@ class WarehouseReceiptControllerTest extends TestCase
             ->putJson("/api/warehouse_receipts/{$receipt->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Оприходование обновлено']);
+        $response->assertJson(['message' => 'РћРїСЂРёС…РѕРґРѕРІР°РЅРёРµ РѕР±РЅРѕРІР»РµРЅРѕ']);
     }
 
     public function test_update_draft_receipt_note_preserves_foreign_currency_amounts(): void
@@ -327,7 +325,7 @@ class WarehouseReceiptControllerTest extends TestCase
             ->deleteJson("/api/warehouse_receipts/{$receipt->id}");
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Оприходование удалено']);
+        $response->assertJson(['message' => 'РћРїСЂРёС…РѕРґРѕРІР°РЅРёРµ СѓРґР°Р»РµРЅРѕ']);
     }
 
     public function test_draft_receipt_update_recalculates_auto_transactions_and_posts_stock_on_complete(): void

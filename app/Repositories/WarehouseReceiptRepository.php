@@ -524,10 +524,12 @@ class WarehouseReceiptRepository extends BaseRepository
         }
 
         /** @var Transaction|null $debtTx */
+        $goodsCategoryId = $this->resolveTransactionCategoryBinding('warehouse.receipt', 6);
+
         $debtTx = Transaction::query()
             ->where('source_type', WhReceipt::class)
             ->where('source_id', (int) $receipt->id)
-            ->where('category_id', 6)
+            ->where('category_id', $goodsCategoryId)
             ->where('is_debt', true)
             ->where('is_deleted', false)
             ->orderBy('id')
@@ -541,7 +543,7 @@ class WarehouseReceiptRepository extends BaseRepository
 
         app(TransactionsRepository::class)->updateItem((int) $debtTx->id, [
             'type' => 0,
-            'category_id' => 6,
+            'category_id' => $goodsCategoryId,
             'client_id' => (int) $receipt->supplier_id,
             'project_id' => null,
             'date' => $receipt->date,
@@ -552,6 +554,7 @@ class WarehouseReceiptRepository extends BaseRepository
             'client_balance_id' => $receipt->client_balance_id,
             'is_debt' => true,
             'orig_amount' => $totalInDefault,
+            'skip_amount_rounding' => true,
             'currency_id' => (int) $defaultCurrency->id,
         ]);
     }
@@ -1008,9 +1011,10 @@ class WarehouseReceiptRepository extends BaseRepository
             'creator_id' => auth('api')->id(),
             'amount' => $data['amount'],
             'orig_amount' => $data['amount'],
+            'skip_amount_rounding' => true,
             'currency_id' => $data['currency_id'],
             'cash_id' => $data['cash_id'],
-            'category_id' => 6,
+            'category_id' => $this->resolveTransactionCategoryBinding('warehouse.receipt', 6),
             'client_id' => $data['client_id'],
             'client_balance_id' => $data['client_balance_id'] ?? null,
             'note' => $data['note'],

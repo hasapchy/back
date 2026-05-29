@@ -2,14 +2,12 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\Support\Concerns\BuildsDocumentPaymentApiContext;
 use Tests\TestCase;
 
 class DocumentPaymentTransactionValidationTest extends TestCase
 {
     use BuildsDocumentPaymentApiContext;
-    use DatabaseTransactions;
 
     protected function setUp(): void
     {

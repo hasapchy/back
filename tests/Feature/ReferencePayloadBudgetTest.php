@@ -6,14 +6,12 @@ use App\Models\Company;
 use App\Models\User;
 use App\Support\ReferencePayloadBudget;
 use App\Support\ReferenceTelemetry;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Testing\TestResponse;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class ReferencePayloadBudgetTest extends TestCase
 {
-    use DatabaseTransactions;
 
     /**
      * @return void
@@ -50,7 +48,7 @@ class ReferencePayloadBudgetTest extends TestCase
     private function assertResponseDataWithinBudget(TestResponse $response, string $budgetKey, string $uri): void
     {
         $limit = ReferencePayloadBudget::limitFor($budgetKey);
-        $this->assertNotNull($limit, 'Не задан payload_budget_bytes.'.$budgetKey);
+        $this->assertNotNull($limit, 'РќРµ Р·Р°РґР°РЅ payload_budget_bytes.'.$budgetKey);
 
         $response->assertStatus(200);
         $json = $response->json();
@@ -59,7 +57,7 @@ class ReferencePayloadBudgetTest extends TestCase
         $this->assertLessThanOrEqual(
             $limit,
             $bytes,
-            sprintf('%s: data JSON %d bytes, лимит %d', $uri, $bytes, $limit)
+            sprintf('%s: data JSON %d bytes, Р»РёРјРёС‚ %d', $uri, $bytes, $limit)
         );
 
         ReferenceTelemetry::maybeLogReferenceRequest($uri, $bytes);
@@ -139,8 +137,8 @@ class ReferencePayloadBudgetTest extends TestCase
             ['/api/departments/all', 'departments_all'],
             ['/api/message-templates?page=1&per_page=20', 'message_templates_index'],
             ['/api/message-templates/all', 'message_templates_all'],
-            ['/api/company-holidays?page=1&per_page=20', 'company_holidays_index'],
-            ['/api/company-holidays/all', 'company_holidays_all'],
+            ['/api/holidays?page=1&per_page=20', 'holidays_index'],
+            ['/api/holidays/all', 'holidays_all'],
         ];
 
         foreach ($cases as [$uri, $budgetKey]) {

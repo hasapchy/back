@@ -36,8 +36,7 @@ class StoreProjectRequest extends FormRequest
             'description' => 'nullable|string',
         ];
 
-        if ($this->has('budget') || $this->has('currency_id')) {
-            $rules['budget'] = 'required|numeric';
+        if ($this->has('currency_id')) {
             $rules['currency_id'] = 'nullable|exists:currencies,id';
         }
 

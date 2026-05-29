@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class CompanyHolidayResource extends JsonResource
+class HolidayResource extends JsonResource
 {
     /**
      * @param \Illuminate\Http\Request $request

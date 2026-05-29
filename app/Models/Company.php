@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $logo Логотип компании
  * @property bool $show_deleted_transactions Показывать ли удаленные транзакции
  * @property int $rounding_decimals Количество знаков после запятой для округления
+ * @property int $display_decimals Количество знаков после запятой для отображения
  * @property bool $rounding_enabled Включено ли округление
  * @property string $rounding_direction Направление округления
  * @property float|null $rounding_custom_threshold Порог для кастомного округления
@@ -33,6 +34,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property float|null $rounding_quantity_custom_threshold Порог для кастомного округления количества
  * @property bool $skip_project_order_balance Пропускать ли обновление баланса для заказов проекта
  * @property array|null $work_schedule Рабочий график (сырое значение из БД)
+ * @property array<string, int> $transaction_category_bindings Привязки категорий транзакций по ключам
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -53,6 +55,7 @@ class Company extends Model
         'logo',
         'show_deleted_transactions',
         'rounding_decimals',
+        'display_decimals',
         'rounding_enabled',
         'rounding_direction',
         'rounding_custom_threshold',
@@ -71,6 +74,7 @@ class Company extends Model
         'logo' => 'logo.png',
         'show_deleted_transactions' => false,
         'rounding_decimals' => 2,
+        'display_decimals' => 2,
         'rounding_enabled' => true,
         'rounding_direction' => 'standard',
         'rounding_orders_enabled' => true,
@@ -110,12 +114,35 @@ class Company extends Model
 
     public function holidays()
     {
-        return $this->hasMany(CompanyHoliday::class);
+        return $this->hasMany(Holiday::class);
     }
 
     public function productionCalendarDays()
     {
-        return $this->hasMany(CompanyProductionCalendarDay::class);
+        return $this->hasMany(ProductionCalendarDay::class);
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function transactionCategoryBindings()
+    {
+        return $this->hasMany(TransactionCategoryBinding::class);
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function getTransactionCategoryBindingsAttribute(): array
+    {
+        $bindings = $this->relationLoaded('transactionCategoryBindings')
+            ? $this->getRelationValue('transactionCategoryBindings')
+            : $this->transactionCategoryBindings()->get(['binding_key', 'transaction_category_id']);
+
+        return $bindings
+            ->pluck('transaction_category_id', 'binding_key')
+            ->map(fn ($value) => (int) $value)
+            ->toArray();
     }
 
     /**

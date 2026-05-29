@@ -6,15 +6,12 @@ use App\Models\Company;
 use App\Models\Task;
 use App\Models\TaskStatus;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class BatchControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
 
@@ -201,12 +198,8 @@ class BatchControllerTest extends TestCase
             'guard_name' => 'api',
         ]);
         $role->givePermissionTo('tasks_delete_all');
-        DB::table('company_user_role')->insert([
-            'company_id' => $this->company->id,
-            'creator_id' => $privileged->id,
-            'role_id' => $role->id,
-            'created_at' => now(),
-            'updated_at' => now(),
+        $privileged->companyRoles()->syncWithoutDetaching([
+            $role->id => ['company_id' => $this->company->id],
         ]);
 
         $status = TaskStatus::query()->create([

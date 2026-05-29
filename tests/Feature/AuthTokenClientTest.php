@@ -5,13 +5,11 @@ namespace Tests\Feature;
 use App\Enums\TokenClient;
 use App\Models\Company;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class AuthTokenClientTest extends TestCase
 {
-    use DatabaseTransactions;
 
     public function test_mobile_login_revokes_only_mobile_tokens(): void
     {

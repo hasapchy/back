@@ -6,12 +6,10 @@ use App\Models\User;
 use App\Models\Company;
 use App\Models\CashRegister;
 use App\Models\Currency;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class CashRegistersControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
     protected Company $company;
@@ -19,14 +17,7 @@ class CashRegistersControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-
-        $this->company = Company::factory()->create();
-        $this->adminUser = User::factory()->create([
-            'is_admin' => true,
-            'is_active' => true,
-        ]);
-        $this->adminUser->companies()->attach($this->company->id);
+        [$this->company, $this->adminUser] = $this->createCompanyWithAdminUser();
     }
 
     protected function actingAsApi(User $user)
@@ -58,7 +49,12 @@ class CashRegistersControllerTest extends TestCase
             ->postJson('/api/cash_registers', $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Касса создана']);
+        $response->assertJsonPath('message', 'Касса создана');
+        $this->assertDatabaseHas('cash_registers', [
+            'company_id' => $this->company->id,
+            'name' => 'Test Cash Register',
+            'balance' => 1000.00,
+        ]);
     }
 
     public function test_update_cash_register_success(): void
@@ -77,7 +73,111 @@ class CashRegistersControllerTest extends TestCase
             ->putJson("/api/cash_registers/{$cashRegister->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Касса обновлена']);
+        $response->assertJsonPath('message', 'Касса обновлена');
+        $this->assertDatabaseHas('cash_registers', [
+            'id' => $cashRegister->id,
+            'name' => 'Updated Cash Register',
+            'balance' => 2000.00,
+        ]);
+    }
+
+    public function test_destroy_cash_register_success(): void
+    {
+        $cashRegister = CashRegister::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->deleteJson("/api/cash_registers/{$cashRegister->id}");
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('message', $response->json('message'));
+        $this->assertDatabaseMissing('cash_registers', ['id' => $cashRegister->id]);
+    }
+
+    public function test_index_returns_only_current_company_records(): void
+    {
+        $current = CashRegister::factory()->create(['company_id' => $this->company->id]);
+        [$otherCompany] = $this->createCompanyWithAdminUser();
+        $other = CashRegister::factory()->create(['company_id' => $otherCompany->id]);
+
+        $response = $this->actingAsApi($this->adminUser)->getJson('/api/cash_registers');
+
+        $response->assertStatus(200);
+        $items = $response->json('data.items') ?? $response->json('data') ?? [];
+        $ids = collect($items)->pluck('id')->map(static fn ($id) => (int) $id)->all();
+        $this->assertContains((int) $current->id, $ids);
+        $this->assertNotContains((int) $other->id, $ids);
+    }
+
+    public function test_user_cannot_view_resource_from_other_company(): void
+    {
+        $cashRegister = CashRegister::factory()->create(['company_id' => $this->company->id]);
+        [$otherCompany, $otherAdmin] = $this->createCompanyWithAdminUser();
+
+        $response = $this->withApiTokenForCompany($otherAdmin, (int) $otherCompany->id)
+            ->getJson('/api/cash_registers');
+
+        $response->assertStatus(200);
+        $items = $response->json('data.items') ?? $response->json('data') ?? [];
+        $ids = collect($items)->pluck('id')->map(static fn ($id) => (int) $id)->all();
+        $this->assertNotContains((int) $cashRegister->id, $ids);
+    }
+
+    public function test_user_cannot_update_resource_from_other_company(): void
+    {
+        $cashRegister = CashRegister::factory()->create(['company_id' => $this->company->id]);
+        [$otherCompany, $otherAdmin] = $this->createCompanyWithAdminUser();
+
+        $response = $this->withApiTokenForCompany($otherAdmin, (int) $otherCompany->id)
+            ->putJson("/api/cash_registers/{$cashRegister->id}", [
+                'name' => 'Other',
+                'balance' => 10,
+                'users' => [$otherAdmin->id],
+            ]);
+
+        $this->assertContains($response->getStatusCode(), [403, 404]);
+    }
+
+    public function test_non_admin_cannot_store_cash_register(): void
+    {
+        $user = User::factory()->create(['is_admin' => false, 'is_active' => true]);
+        $user->companies()->attach($this->company->id);
+        $currency = Currency::factory()->create();
+
+        $response = $this->actingAsApi($user)->postJson('/api/cash_registers', [
+            'name' => 'No Access',
+            'balance' => 100,
+            'currency_id' => $currency->id,
+            'users' => [$user->id],
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_non_admin_cannot_update_cash_register(): void
+    {
+        $cashRegister = CashRegister::factory()->create(['company_id' => $this->company->id]);
+        $user = User::factory()->create(['is_admin' => false, 'is_active' => true]);
+        $user->companies()->attach($this->company->id);
+
+        $response = $this->actingAsApi($user)->putJson("/api/cash_registers/{$cashRegister->id}", [
+            'name' => 'No Access',
+            'balance' => 10,
+            'users' => [$user->id],
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_non_admin_cannot_destroy_cash_register(): void
+    {
+        $cashRegister = CashRegister::factory()->create(['company_id' => $this->company->id]);
+        $user = User::factory()->create(['is_admin' => false, 'is_active' => true]);
+        $user->companies()->attach($this->company->id);
+
+        $response = $this->actingAsApi($user)->deleteJson("/api/cash_registers/{$cashRegister->id}");
+
+        $response->assertStatus(403);
     }
 }
-

@@ -109,7 +109,7 @@ class PublishTemplatesCommand extends Command
                     $companies->push($company->id);
                 }
             } else {
-                // Для других моделей (CompanyHoliday) берем напрямую
+                // Для других моделей (Holiday) берем напрямую
                 if ($item->company_id) {
                     $companies->push($item->company_id);
                 }
@@ -179,7 +179,7 @@ class PublishTemplatesCommand extends Command
     /**
      * Получить элементы (пользователей/праздники), у которых сегодня особая дата
      *
-     * @param  string  $modelClass  Класс модели (User, CompanyHoliday, и т.д.)
+     * @param  string  $modelClass  Класс модели (User, Holiday, и т.д.)
      * @param  string  $dateField  Название поля с датой
      * @param  Carbon  $today  Сегодняшняя дата
      */
@@ -205,7 +205,7 @@ class PublishTemplatesCommand extends Command
     /**
      * Построить массив переменных для подстановки в шаблон
      *
-     * @param  \App\Models\User|\App\Models\CompanyHoliday  $item  Элемент (пользователь или праздник)
+     * @param  \App\Models\User|\App\Models\Holiday  $item  Элемент (пользователь или праздник)
      * @param  array<string>  $variables  Массив имен переменных
      * @return array<string, string>
      */
@@ -236,7 +236,7 @@ class PublishTemplatesCommand extends Command
      * Проверить, была ли уже опубликована новость для этого элемента сегодня
      *
      * @param  string  $type  Тип шаблона
-     * @param  \App\Models\User|\App\Models\CompanyHoliday  $item  Элемент (пользователь или праздник)
+     * @param  \App\Models\User|\App\Models\Holiday  $item  Элемент (пользователь или праздник)
      * @param  int  $companyId  ID компании
      * @param  Carbon  $today  Сегодняшняя дата
      */

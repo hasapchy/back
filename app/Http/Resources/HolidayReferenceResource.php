@@ -4,7 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class CompanyHolidayReferenceResource extends JsonResource
+class HolidayReferenceResource extends JsonResource
 {
     /**
      * @param \Illuminate\Http\Request $request

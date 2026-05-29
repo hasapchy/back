@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesTransactionCategoryType;
 use App\Http\Requests\Concerns\ValidatesTransactionClientBalanceConsistency;
 use App\Models\Order;
 use App\Models\ProjectContract;
@@ -15,6 +16,7 @@ use Illuminate\Validation\ValidationException;
 class UpdateTransactionRequest extends FormRequest
 {
     use ValidatesTransactionClientBalanceConsistency;
+    use ValidatesTransactionCategoryType;
 
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
@@ -127,6 +129,30 @@ class UpdateTransactionRequest extends FormRequest
                 $isDebt,
                 $categoryId,
             );
+
+            $transactionType = $transaction?->type !== null ? (int) $transaction->type : null;
+            $this->assertTransactionCategoryMatchesType(
+                $validator,
+                $transactionType,
+                $categoryId,
+            );
+
+            if (
+                $transaction
+                && $this->has('orig_amount')
+                && ! $isDebt
+                && $sourceType
+                && $sourceId
+                && str_contains((string) $sourceType, 'ProjectContract')
+            ) {
+                $contract = ProjectContract::find($sourceId);
+                if ($contract) {
+                    $remaining = max(0, (float) $contract->amount - (float) $contract->paid_amount + (float) $transaction->orig_amount);
+                    if ((float) $this->input('orig_amount') > $remaining + 0.01) {
+                        $validator->errors()->add('orig_amount', __('project_contract.payment_exceeds_remaining'));
+                    }
+                }
+            }
         });
     }
 

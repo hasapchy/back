@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\ProjectContract;
 use App\Models\Transaction;
 use App\Services\CacheService;
+use App\Services\ProjectBudgetService;
 use App\Services\RoundingService;
 use App\Services\Timeline\TimelineCache;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -633,6 +634,7 @@ class ProjectContractsRepository extends BaseRepository
 
             $this->invalidateProjectContractsCache($data['project_id']);
             TimelineCache::forget('project_contract', (int) $contract->id);
+            app(ProjectBudgetService::class)->syncForProject((int) $data['project_id']);
 
             return $contract;
         });
@@ -689,9 +691,10 @@ class ProjectContractsRepository extends BaseRepository
                 $contract->client_id = $targetProject->client_id ? (int) $targetProject->client_id : null;
             }
             if (array_key_exists('amount', $data)) {
+                $rawAmount = (float) ($data['amount'] ?? 0);
                 $contract->amount = $rounding->roundContractAmountForCompany(
                     $companyId,
-                    (float) ($data['amount'] ?? 0)
+                    $rawAmount
                 );
             }
             if (array_key_exists('currency_id', $data)) {
@@ -774,6 +777,12 @@ class ProjectContractsRepository extends BaseRepository
             }
             TimelineCache::forget('project_contract', $id);
 
+            $budgetService = app(ProjectBudgetService::class);
+            $budgetService->syncForProject((int) $contract->project_id);
+            if ($oldProjectId !== (int) $contract->project_id) {
+                $budgetService->syncForProject($oldProjectId);
+            }
+
             return $contract;
         });
     }
@@ -834,6 +843,7 @@ class ProjectContractsRepository extends BaseRepository
 
             $this->invalidateProjectContractsCache($projectId, $id);
             TimelineCache::forget('project_contract', $id);
+            app(ProjectBudgetService::class)->syncForProject((int) $projectId);
 
             return true;
         });
@@ -899,10 +909,11 @@ class ProjectContractsRepository extends BaseRepository
             'client_id' => $clientId,
             'amount' => $contract->amount,
             'orig_amount' => $contract->amount,
+            'skip_amount_rounding' => true,
             'type' => 1,
             'is_debt' => true,
             'cash_id' => $contract->cash_id,
-            'category_id' => 30,
+            'category_id' => $this->resolveTransactionCategoryBinding('contract', 30),
             'date' => now(),
             'note' => $contract->note,
             'creator_id' => $userId ?? auth('api')->id(),

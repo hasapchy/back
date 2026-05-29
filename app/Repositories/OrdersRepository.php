@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use App\Services\RoundingService;
 use App\Services\Timeline\OrderTimelineSummaryLogger;
 use App\Http\Resources\OrderResource;
+use Illuminate\Support\Facades\Log;
 
 class OrdersRepository extends BaseRepository
 {
@@ -42,6 +43,10 @@ class OrdersRepository extends BaseRepository
         }
 
         $primaryId = SimpleUser::rootCategoryIdForCurrentCompany($currentUser);
+        Log::info('orders.repo.simple.category.filter', [
+            'user_id' => $currentUser?->id,
+            'primary_category_id' => $primaryId,
+        ]);
         if ($primaryId === null) {
             $query->whereRaw('1 = 0');
         } else {
@@ -1496,7 +1501,7 @@ class OrdersRepository extends BaseRepository
                             'client_id' => $client_id,
                             'project_id' => $project_id,
                             'cash_id' => $cash_id,
-                            'category_id' => 1,
+                            'category_id' => $this->resolveTransactionCategoryBinding('order', 1),
                             'date' => $date,
                             'note' => $note,
                             'client_balance_id' => $order->client_balance_id,
@@ -2138,14 +2143,22 @@ class OrdersRepository extends BaseRepository
         int $currencyId,
         ?int $clientBalanceId
     ): array {
+        $categoryId = $this->resolveTransactionCategoryBinding('order', 1);
+        Log::info('orders.repo.binding.order', [
+            'company_id' => $this->getCurrentCompanyId(),
+            'binding_key' => 'order',
+            'resolved_category_id' => $categoryId,
+        ]);
+
         return [
             'client_id' => $clientId,
             'amount' => $totalPrice,
             'orig_amount' => $totalPrice,
+            'skip_amount_rounding' => true,
             'type' => 1,
             'is_debt' => true,
             'cash_id' => $cashId,
-            'category_id' => 1,
+            'category_id' => $categoryId,
             'date' => $date,
             'note' => $note,
             'creator_id' => $creatorId,

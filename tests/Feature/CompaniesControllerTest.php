@@ -3,13 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\TransactionCategory;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use App\Support\TransactionCategoryBindingKeys;
 use Tests\TestCase;
 
 class CompaniesControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
 
@@ -261,6 +261,29 @@ class CompaniesControllerTest extends TestCase
         $company->refresh();
         $this->assertTrue($company->show_deleted_transactions);
         $this->assertTrue($company->rounding_enabled);
+    }
+
+    public function test_update_company_rejects_transaction_category_binding_type_mismatch(): void
+    {
+        $company = Company::factory()->create(['name' => 'Bindings Co']);
+        $incomeCategory = TransactionCategory::factory()->create([
+            'creator_id' => $this->adminUser->id,
+            'type' => 1,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->patchJson("/api/companies/{$company->id}", [
+                'name' => $company->name,
+                'transaction_category_bindings' => [
+                    [
+                        'binding_key' => TransactionCategoryBindingKeys::PRESET_EMPLOYEE_BONUS,
+                        'transaction_category_id' => $incomeCategory->id,
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['transaction_category_bindings']);
     }
 
     public function test_update_company_resets_rounding_fields_when_disabled(): void

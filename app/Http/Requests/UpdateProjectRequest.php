@@ -4,8 +4,8 @@ namespace App\Http\Requests;
 
 use App\Models\Project;
 use App\Rules\ClientAccessRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\ValidationException;
 
 class UpdateProjectRequest extends FormRequest
@@ -42,12 +42,39 @@ class UpdateProjectRequest extends FormRequest
             'description' => 'nullable|string',
         ];
 
-        if ($this->has('budget') || $this->has('currency_id')) {
-            $rules['budget'] = 'required|numeric';
+        if ($this->has('currency_id')) {
             $rules['currency_id'] = 'nullable|exists:currencies,id';
         }
 
         return $rules;
+    }
+
+    /**
+     * @param  Validator  $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if ($validator->errors()->isNotEmpty() || ! $this->has('currency_id')) {
+                return;
+            }
+
+            $project = Project::query()->select(['id', 'currency_id'])->find($this->route('id'));
+            if (! $project) {
+                return;
+            }
+
+            $raw = $this->input('currency_id');
+            $newCurrencyId = $raw !== null && $raw !== '' ? (int) $raw : null;
+
+            if (! $project->canChangeCurrencyTo($newCurrencyId)) {
+                $validator->errors()->add(
+                    'currency_id',
+                    __('Нельзя изменить валюту проекта: у проекта есть контракты.')
+                );
+            }
+        });
     }
 
     /**

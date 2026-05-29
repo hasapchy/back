@@ -11,12 +11,10 @@ use App\Services\ProductUnitToBaseFactorResolver;
 use App\Services\RoundingService;
 use App\Services\UnitConversionGraphService;
 use App\Services\WarehouseLineOrigValidationService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class WarehouseLineOrigValidationServiceTest extends TestCase
 {
-    use DatabaseTransactions;
 
     public function test_validate_line_accepts_consistent_orig_and_base(): void
     {
@@ -63,8 +61,8 @@ class WarehouseLineOrigValidationServiceTest extends TestCase
      */
     private function productWithBoxConversion(): array
     {
-        $piece = Unit::create(['name' => 'Piece v '.uniqid(), 'short_name' => 'шт']);
-        $box = Unit::create(['name' => 'Box v '.uniqid(), 'short_name' => 'кор']);
+        $piece = Unit::create(['name' => 'Piece v '.uniqid(), 'short_name' => 'С€С‚']);
+        $box = Unit::create(['name' => 'Box v '.uniqid(), 'short_name' => 'РєРѕСЂ']);
         $product = Product::factory()->create([
             'creator_id' => User::factory()->create()->id,
             'unit_id' => $piece->id,

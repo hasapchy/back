@@ -4,13 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class AuthLoginTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected function setUp(): void
     {
@@ -64,7 +62,7 @@ class AuthLoginTest extends TestCase
         ]);
 
         $response->assertUnauthorized();
-        $response->assertJsonPath('error', 'Неверный логин или пароль');
+        $response->assertJsonPath('error', 'РќРµРІРµСЂРЅС‹Р№ Р»РѕРіРёРЅ РёР»Рё РїР°СЂРѕР»СЊ');
     }
 
     public function test_login_fails_for_unknown_email(): void
@@ -75,7 +73,7 @@ class AuthLoginTest extends TestCase
         ]);
 
         $response->assertUnauthorized();
-        $response->assertJsonPath('error', 'Неверный логин или пароль');
+        $response->assertJsonPath('error', 'РќРµРІРµСЂРЅС‹Р№ Р»РѕРіРёРЅ РёР»Рё РїР°СЂРѕР»СЊ');
     }
 
     public function test_login_fails_when_user_is_inactive(): void

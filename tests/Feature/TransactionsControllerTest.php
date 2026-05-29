@@ -10,12 +10,10 @@ use App\Models\Transaction;
 use App\Models\ClientBalance;
 use App\Models\TransactionCategory;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class TransactionsControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
 
@@ -68,6 +66,27 @@ class TransactionsControllerTest extends TestCase
         $response->assertJsonValidationErrors(['type', 'orig_amount', 'currency_id', 'cash_id', 'category_id']);
     }
 
+    public function test_store_transaction_rejects_category_type_mismatch(): void
+    {
+        $incomeCategory = TransactionCategory::factory()->create([
+            'creator_id' => $this->adminUser->id,
+            'type' => 1,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/transactions', [
+                'type' => 0,
+                'orig_amount' => 500.00,
+                'currency_id' => $this->currency->id,
+                'cash_id' => $this->cashRegister->id,
+                'category_id' => $incomeCategory->id,
+                'date' => '2025-01-01',
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['category_id']);
+    }
+
     public function test_store_transaction_success(): void
     {
         $data = [
@@ -84,7 +103,7 @@ class TransactionsControllerTest extends TestCase
             ->postJson('/api/transactions', $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Транзакция создана']);
+        $response->assertJson(['message' => 'РўСЂР°РЅР·Р°РєС†РёСЏ СЃРѕР·РґР°РЅР°']);
     }
 
     public function test_update_transaction_success(): void
@@ -110,7 +129,7 @@ class TransactionsControllerTest extends TestCase
             ->putJson("/api/transactions/{$transaction->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Транзакция обновлена']);
+        $response->assertJson(['message' => 'РўСЂР°РЅР·Р°РєС†РёСЏ РѕР±РЅРѕРІР»РµРЅР°']);
     }
 
     public function test_update_transaction_sets_client_balance_id_and_history_contains_transaction(): void
@@ -173,7 +192,36 @@ class TransactionsControllerTest extends TestCase
             ->deleteJson("/api/transactions/{$transaction->id}");
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Транзакция удалена']);
+        $response->assertJson(['message' => 'РўСЂР°РЅР·Р°РєС†РёСЏ СѓРґР°Р»РµРЅР°']);
+    }
+
+    public function test_destroy_transaction_is_idempotent_and_second_delete_fails(): void
+    {
+        $transaction = Transaction::factory()->create([
+            'type' => 1,
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $this->currency->id,
+            'category_id' => $this->category->id,
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
+        ]);
+
+        $firstResponse = $this->actingAsApi($this->adminUser)
+            ->deleteJson("/api/transactions/{$transaction->id}");
+        $firstResponse->assertStatus(200);
+        $this->assertDatabaseHas('transactions', [
+            'id' => $transaction->id,
+            'is_deleted' => true,
+        ]);
+
+        $secondResponse = $this->actingAsApi($this->adminUser)
+            ->deleteJson("/api/transactions/{$transaction->id}");
+        $secondResponse->assertStatus(404);
+
+        $this->assertDatabaseHas('transactions', [
+            'id' => $transaction->id,
+            'is_deleted' => true,
+        ]);
     }
 
     public function test_batch_destroy_transactions_success(): void
@@ -207,5 +255,65 @@ class TransactionsControllerTest extends TestCase
         $this->assertSame(2, $response->json('data.success_count'));
         $this->assertSame([], $response->json('data.failed_ids'));
         $this->assertSame([], $response->json('data.errors'));
+    }
+
+    public function test_update_then_delete_transaction_restores_client_and_cash_balances(): void
+    {
+        $clientBalance = ClientBalance::query()->create([
+            'client_id' => $this->client->id,
+            'currency_id' => $this->currency->id,
+            'type' => $this->cashRegister->is_cash ? 1 : 0,
+            'balance' => 0,
+            'is_default' => true,
+        ]);
+        $initialCashBalance = (float) $this->cashRegister->balance;
+
+        $storeResponse = $this->actingAsApi($this->adminUser)->postJson('/api/transactions', [
+            'type' => 1,
+            'orig_amount' => 100,
+            'currency_id' => $this->currency->id,
+            'cash_id' => $this->cashRegister->id,
+            'category_id' => $this->category->id,
+            'client_id' => $this->client->id,
+            'client_balance_id' => $clientBalance->id,
+            'is_debt' => false,
+            'date' => now()->toDateString(),
+        ]);
+        $storeResponse->assertStatus(200);
+        $transactionId = (int) $storeResponse->json('data.id');
+        $this->assertGreaterThan(0, $transactionId);
+
+        $this->cashRegister->refresh();
+        $clientBalance->refresh();
+        $this->assertEqualsWithDelta($initialCashBalance + 100, (float) $this->cashRegister->balance, 0.0001);
+        $this->assertEqualsWithDelta(100, (float) $clientBalance->balance, 0.0001);
+
+        $updateResponse = $this->actingAsApi($this->adminUser)->putJson("/api/transactions/{$transactionId}", [
+            'type' => 0,
+            'orig_amount' => 40,
+            'currency_id' => $this->currency->id,
+            'cash_id' => $this->cashRegister->id,
+            'category_id' => $this->category->id,
+            'client_id' => $this->client->id,
+            'client_balance_id' => $clientBalance->id,
+            'is_debt' => false,
+            'date' => now()->toDateString(),
+        ]);
+        $updateResponse->assertStatus(200);
+
+        $this->cashRegister->refresh();
+        $clientBalance->refresh();
+        $this->assertEqualsWithDelta($initialCashBalance - 40, (float) $this->cashRegister->balance, 0.0001);
+        $this->assertEqualsWithDelta(-40, (float) $clientBalance->balance, 0.0001);
+
+        $deleteResponse = $this->actingAsApi($this->adminUser)->deleteJson("/api/transactions/{$transactionId}");
+        $deleteResponse->assertStatus(200);
+
+        $this->cashRegister->refresh();
+        $clientBalance->refresh();
+        $transaction = Transaction::query()->findOrFail($transactionId);
+        $this->assertTrue((bool) $transaction->is_deleted);
+        $this->assertEqualsWithDelta($initialCashBalance, (float) $this->cashRegister->balance, 0.0001);
+        $this->assertEqualsWithDelta(0, (float) $clientBalance->balance, 0.0001);
     }
 }

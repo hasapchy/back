@@ -8,17 +8,15 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Services\ProductUnitToBaseFactorResolver;
 use App\Services\UnitConversionGraphService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class ProductUnitToBaseFactorResolverTest extends TestCase
 {
-    use DatabaseTransactions;
 
     public function test_factor_alternate_to_base_via_conversion_edge(): void
     {
-        $piece = Unit::create(['name' => 'Piece '.uniqid(), 'short_name' => 'шт']);
-        $box = Unit::create(['name' => 'Box '.uniqid(), 'short_name' => 'кор']);
+        $piece = Unit::create(['name' => 'Piece '.uniqid(), 'short_name' => 'С€С‚']);
+        $box = Unit::create(['name' => 'Box '.uniqid(), 'short_name' => 'РєРѕСЂ']);
         $product = Product::factory()->create([
             'creator_id' => User::factory()->create()->id,
             'unit_id' => $piece->id,
@@ -40,8 +38,8 @@ class ProductUnitToBaseFactorResolverTest extends TestCase
 
     public function test_unknown_unit_returns_null(): void
     {
-        $piece = Unit::create(['name' => 'Piece2 '.uniqid(), 'short_name' => 'шт']);
-        $other = Unit::create(['name' => 'Other '.uniqid(), 'short_name' => 'др']);
+        $piece = Unit::create(['name' => 'Piece2 '.uniqid(), 'short_name' => 'С€С‚']);
+        $other = Unit::create(['name' => 'Other '.uniqid(), 'short_name' => 'РґСЂ']);
         $product = Product::factory()->create([
             'creator_id' => User::factory()->create()->id,
             'unit_id' => $piece->id,

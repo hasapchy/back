@@ -2,7 +2,7 @@
 
 namespace App\Repositories;
 
-use App\Models\CompanyHoliday;
+use App\Models\Holiday;
 use App\Services\CacheService;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-class CompanyHolidayRepository extends BaseRepository
+class HolidayRepository extends BaseRepository
 {
     /**
      * Получить базовые связи для праздников компании
@@ -36,20 +36,20 @@ class CompanyHolidayRepository extends BaseRepository
         $currentUser = auth('api')->user();
         $companyId = array_key_exists('company_id', $filters) ? $filters['company_id'] : $this->getCurrentCompanyId();
         $filtersKey = ! empty($filters) ? md5(json_encode($filters)) : 'no_filters';
-        $cacheKey = $this->generateCacheKey('company_holidays_paginated', [$userUuid, $perPage, $filtersKey, $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('holidays_paginated', [$userUuid, $perPage, $filtersKey, $currentUser?->id, $companyId]);
+        $table = (new Holiday)->getTable();
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $filters, $companyId) {
-            $query = CompanyHoliday::select(['company_holidays.*'])
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $filters, $companyId, $table) {
+            $query = Holiday::select(["{$table}.*"])
                 ->with($this->getBaseRelations());
 
-            // Фильтрация по компании (используем переданный company_id или из заголовка)
             if ($companyId) {
-                $query->where('company_holidays.company_id', $companyId);
+                $query->where("{$table}.company_id", $companyId);
             }
 
             $this->applyFilters($query, $filters);
 
-            return $query->orderBy('company_holidays.date', 'desc')
+            return $query->orderBy("{$table}.date", 'desc')
                 ->paginate($perPage);
         }, 1);
     }
@@ -66,20 +66,20 @@ class CompanyHolidayRepository extends BaseRepository
         $currentUser = auth('api')->user();
         $companyId = array_key_exists('company_id', $filters) ? $filters['company_id'] : $this->getCurrentCompanyId();
         $filtersKey = ! empty($filters) ? md5(json_encode($filters)) : 'no_filters';
-        $cacheKey = $this->generateCacheKey('company_holidays_all', [$userUuid, $filtersKey, $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('holidays_all', [$userUuid, $filtersKey, $currentUser?->id, $companyId]);
+        $table = (new Holiday)->getTable();
 
-        return CacheService::getReferenceData($cacheKey, function () use ($filters, $companyId) {
-            $query = CompanyHoliday::select(['company_holidays.*'])
+        return CacheService::getReferenceData($cacheKey, function () use ($filters, $companyId, $table) {
+            $query = Holiday::select(["{$table}.*"])
                 ->with($this->getBaseRelations());
 
-            // Фильтрация по компании (используем переданный company_id или из заголовка)
             if ($companyId) {
-                $query->where('company_holidays.company_id', $companyId);
+                $query->where("{$table}.company_id", $companyId);
             }
 
             $this->applyFilters($query, $filters);
 
-            return $query->orderBy('company_holidays.date', 'asc')->get();
+            return $query->orderBy("{$table}.date", 'asc')->get();
         });
     }
 
@@ -87,15 +87,15 @@ class CompanyHolidayRepository extends BaseRepository
      * Получить праздник по ID
      *
      * @param  int  $id  ID праздника
-     * @return CompanyHoliday|null
+     * @return Holiday|null
      */
     public function getItemById($id)
     {
-        $query = CompanyHoliday::with($this->getBaseRelations())->where('id', $id);
+        $query = Holiday::with($this->getBaseRelations())->where('id', $id);
         $this->applyCompanyFilter($query);
         $item = $query->first();
         if (! $item) {
-            throw new ModelNotFoundException('CompanyHoliday not found');
+            throw new ModelNotFoundException('Holiday not found');
         }
 
         return $item;
@@ -105,19 +105,18 @@ class CompanyHolidayRepository extends BaseRepository
      * Создать праздник
      *
      * @param  array  $data  Данные праздника (включая company_id)
-     * @return CompanyHoliday
+     * @return Holiday
      */
     public function createItem($data)
     {
-        // Используем company_id из данных или из заголовка
         $companyId = array_key_exists('company_id', $data) ? $data['company_id'] : $this->getCurrentCompanyId();
 
         $itemData = array_merge($data, [
             'company_id' => $companyId,
         ]);
 
-        $item = CompanyHoliday::create($itemData);
-        CacheService::invalidateCompanyHolidaysCache();
+        $item = Holiday::create($itemData);
+        CacheService::invalidateHolidaysCache();
 
         return $item->load($this->getBaseRelations());
     }
@@ -127,13 +126,13 @@ class CompanyHolidayRepository extends BaseRepository
      *
      * @param  int  $id  ID праздника
      * @param  array  $data  Данные для обновления
-     * @return CompanyHoliday
+     * @return Holiday
      */
     public function updateItem($id, $data)
     {
         $item = $this->getItemById($id);
         $item->update($data);
-        CacheService::invalidateCompanyHolidaysCache();
+        CacheService::invalidateHolidaysCache();
 
         return $item->load($this->getBaseRelations());
     }
@@ -148,7 +147,7 @@ class CompanyHolidayRepository extends BaseRepository
     {
         $item = $this->getItemById($id);
         $item->delete();
-        CacheService::invalidateCompanyHolidaysCache();
+        CacheService::invalidateHolidaysCache();
 
         return true;
     }
@@ -159,7 +158,7 @@ class CompanyHolidayRepository extends BaseRepository
         if ($ids === []) {
             return collect();
         }
-        $query = CompanyHoliday::query()->whereIn('id', $ids);
+        $query = Holiday::query()->whereIn('id', $ids);
         $this->applyCompanyFilter($query);
 
         return $query->get();
@@ -173,10 +172,10 @@ class CompanyHolidayRepository extends BaseRepository
         }
 
         return (int) DB::transaction(function () use ($ids) {
-            $query = CompanyHoliday::query();
+            $query = Holiday::query();
             $this->applyCompanyFilter($query);
             $deleted = (int) $query->whereIn('id', $ids)->delete();
-            CacheService::invalidateCompanyHolidaysCache();
+            CacheService::invalidateHolidaysCache();
 
             return $deleted;
         });
@@ -195,7 +194,7 @@ class CompanyHolidayRepository extends BaseRepository
         $dateFromStr = $dateFrom->toDateString();
         $dateToStr = $dateTo->toDateString();
 
-        return CompanyHoliday::where('company_id', $companyId)
+        return Holiday::where('company_id', $companyId)
             ->where('date', '<=', $dateToStr)
             ->whereRaw('COALESCE(end_date, date) >= ?', [$dateFromStr])
             ->orderBy('date', 'asc')

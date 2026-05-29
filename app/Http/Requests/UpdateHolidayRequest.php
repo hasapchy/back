@@ -2,16 +2,16 @@
 
 namespace App\Http\Requests;
 
-use App\Models\CompanyHoliday;
+use App\Models\Holiday;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-class StoreCompanyHolidayRequest extends FormRequest
+class UpdateHolidayRequest extends FormRequest
 {
     /**
-     * Определить, авторизован ли пользователь для выполнения этого запроса
+     * @return bool
      */
     public function authorize(): bool
     {
@@ -19,17 +19,15 @@ class StoreCompanyHolidayRequest extends FormRequest
     }
 
     /**
-     * Получить правила валидации
-     *
      * @return array<string, \Illuminate\Contracts\Validation\Rule|array|string>
      */
     public function rules(): array
     {
         return [
-            'company_id' => 'required|integer|exists:companies,id',
-            'name' => 'required|string|max:255',
-            'date' => 'required|date',
-            'end_date' => 'nullable|date|after_or_equal:date',
+            'company_id' => 'sometimes|integer|exists:companies,id',
+            'name' => 'nullable|string|max:255',
+            'date' => 'nullable|date',
+            'end_date' => 'nullable|date',
             'is_recurring' => 'nullable|boolean',
             'color' => 'nullable|string|max:7',
             'icon' => ['required', 'string', 'max:100', Rule::in($this->allowedIcons())],
@@ -51,12 +49,10 @@ class StoreCompanyHolidayRequest extends FormRequest
      */
     private function allowedIcons(): array
     {
-        return CompanyHoliday::ALLOWED_ICONS;
+        return Holiday::ALLOWED_ICONS;
     }
 
     /**
-     * Обработать неудачную валидацию
-     *
      * @return void
      */
     protected function failedValidation(Validator $validator)

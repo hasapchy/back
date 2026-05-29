@@ -8,10 +8,10 @@
 
 ## Уже примененные ограничения
 
-- Тесты запускаются только в `APP_ENV=testing`.
-- Небезопасная БД блокируется в `tests/TestCase.php` (разрешены только `:memory:` или `*_testing`).
-- Запрещено использование `markTestSkipped()` в тестах: выполнение падает с ошибкой, если шаблон найден.
-- В `phpunit.xml` задана тестовая БД `hasapchy_testing`.
+- Тесты используют подключение к БД только из `.env`.
+- Базовый `tests/TestCase.php` использует `DatabaseTransactions` для изоляции всех Laravel-тестов.
+- В тестах запрещены `markTestSkipped()`, `RefreshDatabase`, `LazilyRefreshDatabase`, `DatabaseMigrations`, `migrate:fresh`, `migrateFreshUsing`, `Schema::drop`.
+- В `phpunit.xml` удален `APP_ENV=testing`.
 
 ## Приоритет P0
 

@@ -8,13 +8,11 @@ use App\Models\Company;
 use App\Models\User;
 use Database\Seeders\PermissionsSeeder;
 use App\Http\Middleware\VerifyCsrfToken;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class BroadcastChatChannelTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected function setUp(): void
     {
@@ -31,8 +29,8 @@ class BroadcastChatChannelTest extends TestCase
 
         $company->users()->attach($user->id);
 
-        // В проекте роли/права привязаны к company_user_role, поэтому для теста просто делаем админом,
-        // либо назначаем роль с chats_view_all. Здесь проще: даём is_admin=true на время.
+        // Р’ РїСЂРѕРµРєС‚Рµ СЂРѕР»Рё/РїСЂР°РІР° РїСЂРёРІСЏР·Р°РЅС‹ Рє company_user_role, РїРѕСЌС‚РѕРјСѓ РґР»СЏ С‚РµСЃС‚Р° РїСЂРѕСЃС‚Рѕ РґРµР»Р°РµРј Р°РґРјРёРЅРѕРј,
+        // Р»РёР±Рѕ РЅР°Р·РЅР°С‡Р°РµРј СЂРѕР»СЊ СЃ chats_view_all. Р—РґРµСЃСЊ РїСЂРѕС‰Рµ: РґР°С‘Рј is_admin=true РЅР° РІСЂРµРјСЏ.
         $user->forceFill(['is_admin' => true])->save();
 
         $chat = Chat::query()->create([

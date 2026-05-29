@@ -1,0 +1,146 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\CashRegister;
+use App\Models\Client;
+use App\Models\Company;
+use App\Models\Currency;
+use App\Models\Project;
+use App\Models\ProjectContract;
+use App\Models\Transaction;
+use App\Models\TransactionCategory;
+use App\Models\User;
+use Tests\TestCase;
+
+class ProjectBalanceTest extends TestCase
+{
+    protected User $adminUser;
+
+    protected Company $company;
+
+    protected Project $project;
+
+    protected Currency $currency;
+
+    protected Client $client;
+
+    protected CashRegister $cashRegister;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->company = Company::factory()->create();
+        $this->adminUser = User::factory()->create([
+            'is_admin' => true,
+            'is_active' => true,
+        ]);
+        $this->adminUser->companies()->attach($this->company->id);
+
+        $this->currency = Currency::query()
+            ->where('company_id', $this->company->id)
+            ->where('is_default', true)
+            ->first()
+            ?? Currency::factory()->create([
+                'company_id' => $this->company->id,
+                'is_default' => true,
+                'is_report' => true,
+            ]);
+
+        TransactionCategory::query()->updateOrCreate(
+            ['id' => 30],
+            ['name' => 'CONTRACT', 'type' => 1, 'creator_id' => $this->adminUser->id]
+        );
+
+        $this->client = Client::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+        ]);
+
+        $this->project = Project::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
+            'currency_id' => $this->currency->id,
+        ]);
+
+        $this->cashRegister = CashRegister::factory()->create([
+            'company_id' => $this->company->id,
+            'currency_id' => $this->currency->id,
+            'is_cash' => true,
+        ]);
+    }
+
+    protected function actingAsApi(User $user)
+    {
+        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+    }
+
+    public function test_contract_debt_transaction_excluded_from_project_balance(): void
+    {
+        $contract = ProjectContract::factory()->create([
+            'project_id' => $this->project->id,
+            'currency_id' => $this->currency->id,
+            'client_id' => $this->client->id,
+            'amount' => 5000,
+        ]);
+
+        Transaction::factory()->create([
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
+            'project_id' => $this->project->id,
+            'currency_id' => $this->currency->id,
+            'cash_id' => $this->cashRegister->id,
+            'category_id' => 30,
+            'source_type' => ProjectContract::class,
+            'source_id' => $contract->id,
+            'is_debt' => true,
+            'type' => 1,
+            'orig_amount' => 5000,
+            'amount' => 5000,
+            'def_amount' => 5000,
+            'rep_amount' => 5000,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson("/api/projects/{$this->project->id}/balance-history?t=".time());
+
+        $response->assertStatus(200);
+        $this->assertSame(0.0, (float) $response->json('data.balance'));
+        $this->assertEmpty($response->json('data.history'));
+    }
+
+    public function test_contract_payment_transaction_included_in_project_balance(): void
+    {
+        $contract = ProjectContract::factory()->create([
+            'project_id' => $this->project->id,
+            'currency_id' => $this->currency->id,
+            'client_id' => $this->client->id,
+            'amount' => 5000,
+        ]);
+
+        Transaction::factory()->create([
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
+            'project_id' => $this->project->id,
+            'currency_id' => $this->currency->id,
+            'cash_id' => $this->cashRegister->id,
+            'category_id' => 30,
+            'source_type' => ProjectContract::class,
+            'source_id' => $contract->id,
+            'is_debt' => false,
+            'type' => 1,
+            'orig_amount' => 2000,
+            'amount' => 2000,
+            'def_amount' => 2000,
+            'rep_amount' => 2000,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson("/api/projects/{$this->project->id}/balance-history?t=".time());
+
+        $response->assertStatus(200);
+        $this->assertSame(2000.0, (float) $response->json('data.balance'));
+    }
+}

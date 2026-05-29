@@ -16,12 +16,10 @@ use App\Models\WhReceipt;
 use App\Models\WhReceiptExpenseAllocation;
 use App\Models\WhReceiptProduct;
 use App\Services\ReceiptExpenseAllocationService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class ReceiptExpenseAllocationTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
 
@@ -123,7 +121,7 @@ class ReceiptExpenseAllocationTest extends TestCase
     public function test_excludes_goods_payment_category(): void
     {
         if (! TransactionCategory::query()->whereKey(6)->exists()) {
-            $this->fail('Категория 6 (оплата товара) не найдена в БД.');
+            $this->fail('РљР°С‚РµРіРѕСЂРёСЏ 6 (РѕРїР»Р°С‚Р° С‚РѕРІР°СЂР°) РЅРµ РЅР°Р№РґРµРЅР° РІ Р‘Р”.');
         }
         $receipt = WhReceipt::factory()->create([
             'warehouse_id' => $this->warehouse->id,

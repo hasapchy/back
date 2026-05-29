@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Company;
-use App\Models\CompanyProductionCalendarDay;
+use App\Models\ProductionCalendarDay;
 use App\Models\Leave;
 use App\Models\LeaveType;
 use App\Models\User;
@@ -17,7 +17,7 @@ class PayrollOfficialWorkingDaysCalculator
      */
     public function nonWorkingDateKeySet(int $companyId, Carbon $from, Carbon $to): array
     {
-        return CompanyProductionCalendarDay::query()
+        return ProductionCalendarDay::query()
             ->where('company_id', $companyId)
             ->where('date', '>=', $from->toDateString())
             ->where('date', '<=', $to->toDateString())

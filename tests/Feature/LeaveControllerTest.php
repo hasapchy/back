@@ -7,13 +7,11 @@ use App\Models\Company;
 use App\Models\Leave;
 use App\Models\LeaveType;
 use Spatie\Permission\Models\Permission;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class LeaveControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
     protected User $regularUser;
@@ -41,7 +39,7 @@ class LeaveControllerTest extends TestCase
 
         $this->leaveType = LeaveType::factory()->create();
 
-        // Создаем необходимые права
+        // РЎРѕР·РґР°РµРј РЅРµРѕР±С…РѕРґРёРјС‹Рµ РїСЂР°РІР°
         Permission::firstOrCreate(['name' => 'leaves_view_all', 'guard_name' => 'api']);
         Permission::firstOrCreate(['name' => 'leaves_create_all', 'guard_name' => 'api']);
         Permission::firstOrCreate(['name' => 'leaves_update_all', 'guard_name' => 'api']);
@@ -149,7 +147,7 @@ class LeaveControllerTest extends TestCase
         }
 
         $response->assertStatus(200);
-        // Проверяем, что добавлено минимум 3 записи
+        // РџСЂРѕРІРµСЂСЏРµРј, С‡С‚Рѕ РґРѕР±Р°РІР»РµРЅРѕ РјРёРЅРёРјСѓРј 3 Р·Р°РїРёСЃРё
         $response->assertJsonCount($countBefore + 3);
     }
 
@@ -191,7 +189,7 @@ class LeaveControllerTest extends TestCase
         $leaveData = [
             'leave_type_id' => $this->leaveType->id,
             'date_from' => now()->addDays(5)->format('Y-m-d'),
-            'date_to' => now()->format('Y-m-d'), // date_to раньше date_from
+            'date_to' => now()->format('Y-m-d'), // date_to СЂР°РЅСЊС€Рµ date_from
         ];
 
         $response = $this->actingAsApi($this->adminUser)
@@ -206,7 +204,7 @@ class LeaveControllerTest extends TestCase
         $leaveData = [
             'leave_type_id' => $this->leaveType->id,
             'user_id' => $this->regularUser->id,
-            'comment' => 'Тестовый комментарий',
+            'comment' => 'РўРµСЃС‚РѕРІС‹Р№ РєРѕРјРјРµРЅС‚Р°СЂРёР№',
             'date_from' => now()->format('Y-m-d'),
             'date_to' => now()->addDays(5)->format('Y-m-d'),
         ];
@@ -218,7 +216,7 @@ class LeaveControllerTest extends TestCase
         $this->assertDatabaseHas('leaves', [
             'leave_type_id' => $this->leaveType->id,
             'user_id' => $this->regularUser->id,
-            'comment' => 'Тестовый комментарий',
+            'comment' => 'РўРµСЃС‚РѕРІС‹Р№ РєРѕРјРјРµРЅС‚Р°СЂРёР№',
         ]);
     }
 
@@ -250,7 +248,7 @@ class LeaveControllerTest extends TestCase
         $response = $this->actingAsApi($this->adminUser)
             ->putJson("/api/leaves/{$leave->id}", [
                 'date_to' => now()->format('Y-m-d'),
-                'date_from' => now()->addDays(5)->format('Y-m-d'), // date_from позже date_to
+                'date_from' => now()->addDays(5)->format('Y-m-d'), // date_from РїРѕР·Р¶Рµ date_to
             ]);
 
         $response->assertStatus(422);
@@ -262,14 +260,14 @@ class LeaveControllerTest extends TestCase
         $leave = Leave::factory()->create([
             'leave_type_id' => $this->leaveType->id,
             'user_id' => $this->regularUser->id,
-            'comment' => 'Старый комментарий',
+            'comment' => 'РЎС‚Р°СЂС‹Р№ РєРѕРјРјРµРЅС‚Р°СЂРёР№',
         ]);
 
         $newLeaveType = LeaveType::factory()->create();
 
         $updateData = [
             'leave_type_id' => $newLeaveType->id,
-            'comment' => 'Новый комментарий',
+            'comment' => 'РќРѕРІС‹Р№ РєРѕРјРјРµРЅС‚Р°СЂРёР№',
             'date_from' => now()->addDays(10)->format('Y-m-d'),
             'date_to' => now()->addDays(15)->format('Y-m-d'),
         ];
@@ -281,14 +279,14 @@ class LeaveControllerTest extends TestCase
         $this->assertDatabaseHas('leaves', [
             'id' => $leave->id,
             'leave_type_id' => $newLeaveType->id,
-            'comment' => 'Новый комментарий',
+            'comment' => 'РќРѕРІС‹Р№ РєРѕРјРјРµРЅС‚Р°СЂРёР№',
         ]);
     }
 
     public function test_update_returns_error_for_nonexistent_leave(): void
     {
         $updateData = [
-            'comment' => 'Новый комментарий',
+            'comment' => 'РќРѕРІС‹Р№ РєРѕРјРјРµРЅС‚Р°СЂРёР№',
         ];
 
         $response = $this->actingAsApi($this->adminUser)

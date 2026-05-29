@@ -6,13 +6,11 @@ use App\Models\User;
 use App\Models\Company;
 use App\Models\LeaveType;
 use Spatie\Permission\Models\Permission;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class LeaveTypeControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
     protected Company $company;
@@ -30,7 +28,7 @@ class LeaveTypeControllerTest extends TestCase
         ]);
         $this->adminUser->companies()->attach($this->company->id);
 
-        // Создаем необходимые права
+        // РЎРѕР·РґР°РµРј РЅРµРѕР±С…РѕРґРёРјС‹Рµ РїСЂР°РІР°
         Permission::firstOrCreate(['name' => 'leave_types_view_all', 'guard_name' => 'api']);
         Permission::firstOrCreate(['name' => 'leave_types_create_all', 'guard_name' => 'api']);
         Permission::firstOrCreate(['name' => 'leave_types_update_all', 'guard_name' => 'api']);
@@ -77,7 +75,7 @@ class LeaveTypeControllerTest extends TestCase
             ->getJson('/api/leave_types/all');
 
         $response->assertStatus(200);
-        // Проверяем, что добавлено минимум 3 записи
+        // РџСЂРѕРІРµСЂСЏРµРј, С‡С‚Рѕ РґРѕР±Р°РІР»РµРЅРѕ РјРёРЅРёРјСѓРј 3 Р·Р°РїРёСЃРё
         $response->assertJsonCount($countBefore + 3);
     }
 
@@ -93,7 +91,7 @@ class LeaveTypeControllerTest extends TestCase
     public function test_store_creates_leave_type_with_valid_data(): void
     {
         $leaveTypeData = [
-            'name' => 'Ежегодный отпуск',
+            'name' => 'Р•Р¶РµРіРѕРґРЅС‹Р№ РѕС‚РїСѓСЃРє',
             'color' => '#3B82F6',
         ];
 
@@ -101,8 +99,9 @@ class LeaveTypeControllerTest extends TestCase
             ->postJson('/api/leave_types', $leaveTypeData);
 
         $response->assertStatus(200);
+        $response->assertJsonPath('name', $response->json('name'));
         $this->assertDatabaseHas('leave_types', [
-            'name' => 'Ежегодный отпуск',
+            'name' => 'Р•Р¶РµРіРѕРґРЅС‹Р№ РѕС‚РїСѓСЃРє',
             'color' => '#3B82F6',
         ]);
     }
@@ -110,7 +109,7 @@ class LeaveTypeControllerTest extends TestCase
     public function test_store_creates_leave_type_without_color(): void
     {
         $leaveTypeData = [
-            'name' => 'Ежегодный отпуск',
+            'name' => 'Р•Р¶РµРіРѕРґРЅС‹Р№ РѕС‚РїСѓСЃРє',
         ];
 
         $response = $this->actingAsApi($this->adminUser)
@@ -118,7 +117,7 @@ class LeaveTypeControllerTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('leave_types', [
-            'name' => 'Ежегодный отпуск',
+            'name' => 'Р•Р¶РµРіРѕРґРЅС‹Р№ РѕС‚РїСѓСЃРє',
             'color' => null,
         ]);
     }
@@ -137,12 +136,12 @@ class LeaveTypeControllerTest extends TestCase
     public function test_update_modifies_leave_type_with_valid_data(): void
     {
         $leaveType = LeaveType::factory()->create([
-            'name' => 'Старое название',
+            'name' => 'РЎС‚Р°СЂРѕРµ РЅР°Р·РІР°РЅРёРµ',
             'color' => '#3B82F6',
         ]);
 
         $updateData = [
-            'name' => 'Новое название',
+            'name' => 'РќРѕРІРѕРµ РЅР°Р·РІР°РЅРёРµ',
             'color' => '#10B981',
         ];
 
@@ -152,7 +151,7 @@ class LeaveTypeControllerTest extends TestCase
         $response->assertStatus(200);
         $this->assertDatabaseHas('leave_types', [
             'id' => $leaveType->id,
-            'name' => 'Новое название',
+            'name' => 'РќРѕРІРѕРµ РЅР°Р·РІР°РЅРёРµ',
             'color' => '#10B981',
         ]);
     }
@@ -160,16 +159,14 @@ class LeaveTypeControllerTest extends TestCase
     public function test_update_returns_error_for_nonexistent_leave_type(): void
     {
         $updateData = [
-            'name' => 'Новое название',
+            'name' => 'РќРѕРІРѕРµ РЅР°Р·РІР°РЅРёРµ',
             'color' => '#3B82F6',
         ];
 
         $response = $this->actingAsApi($this->adminUser)
             ->putJson('/api/leave_types/99999', $updateData);
 
-        // Контроллер возвращает 400, но если запись не найдена через findOrFail, будет 404
-        // Проверяем, что это ошибка (не 200)
-        $this->assertNotEquals(200, $response->status());
+        $response->assertStatus(404);
     }
 
     public function test_destroy_deletes_leave_type(): void
@@ -190,9 +187,8 @@ class LeaveTypeControllerTest extends TestCase
         $response = $this->actingAsApi($this->adminUser)
             ->deleteJson('/api/leave_types/99999');
 
-        // Контроллер возвращает 422 при исключении, 400 при ошибке удаления
-        // Проверяем, что это ошибка (не 200)
-        $this->assertNotEquals(200, $response->status());
+        $response->assertStatus(422);
+        $response->assertJsonPath('error', $response->json('error'));
     }
 
     public function test_destroy_prevents_deletion_if_leave_type_has_leaves(): void
@@ -200,7 +196,6 @@ class LeaveTypeControllerTest extends TestCase
         $leaveType = LeaveType::factory()->create();
         $user = User::factory()->create();
         
-        // Создаем отпуск с этим типом
         \App\Models\Leave::factory()->create([
             'leave_type_id' => $leaveType->id,
             'user_id' => $user->id,
@@ -211,9 +206,7 @@ class LeaveTypeControllerTest extends TestCase
         $response = $this->actingAsApi($this->adminUser)
             ->deleteJson("/api/leave_types/{$leaveType->id}");
 
-        // В зависимости от реализации, может быть либо ошибка, либо каскадное удаление
-        // Проверяем, что запрос обработан (не 500 ошибка)
-        $this->assertNotEquals(500, $response->status());
+        $response->assertStatus(422);
     }
 }
 

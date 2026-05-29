@@ -12,12 +12,10 @@ use App\Models\ProjectContract;
 use App\Models\Transaction;
 use App\Models\TransactionCategory;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class ProjectContractsControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
 
@@ -237,12 +235,12 @@ class ProjectContractsControllerTest extends TestCase
 
         $response = $this->actingAsApi($this->adminUser)
             ->patchJson("/api/contracts/{$contract->id}", [
-                'note' => 'Только примечание',
+                'note' => 'РўРѕР»СЊРєРѕ РїСЂРёРјРµС‡Р°РЅРёРµ',
             ]);
 
         $response->assertStatus(200);
         $contract->refresh();
-        $this->assertSame('Только примечание', $contract->note);
+        $this->assertSame('РўРѕР»СЊРєРѕ РїСЂРёРјРµС‡Р°РЅРёРµ', $contract->note);
         $this->assertSame('KEEP-NUM', $contract->number);
     }
 
@@ -257,7 +255,7 @@ class ProjectContractsControllerTest extends TestCase
             ->deleteJson("/api/contracts/{$contract->id}");
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Контракт успешно удален']);
+        $response->assertJson(['message' => 'РљРѕРЅС‚СЂР°РєС‚ СѓСЃРїРµС€РЅРѕ СѓРґР°Р»РµРЅ']);
     }
 
     public function test_store_contract_preserves_fractional_amount_when_contract_rounding_disabled(): void

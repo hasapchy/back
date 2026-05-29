@@ -4,8 +4,8 @@ namespace App\Support;
 
 use App\Http\Resources\CashRegisterReferenceResource;
 use App\Http\Resources\CashRegisterResource;
-use App\Http\Resources\CompanyHolidayReferenceResource;
-use App\Http\Resources\CompanyHolidayResource;
+use App\Http\Resources\HolidayReferenceResource;
+use App\Http\Resources\HolidayResource;
 use App\Http\Resources\DepartmentReferenceResource;
 use App\Http\Resources\DepartmentResource;
 use App\Http\Resources\LeaveReferenceResource;
@@ -25,7 +25,7 @@ use App\Http\Resources\WarehouseResource;
 use App\Models\CashRegister;
 use App\Models\Client;
 use App\Models\Company;
-use App\Models\CompanyHoliday;
+use App\Models\Holiday;
 use App\Models\Currency;
 use App\Models\Department;
 use App\Models\Leave;
@@ -155,18 +155,18 @@ final class ReferencePayloadBenchmark
      * @param  list<int>  $counts
      * @return list<array<string, mixed>>
      */
-    public static function runCompanyHolidays(array $counts): array
+    public static function runHolidays(array $counts): array
     {
         $company = Company::make(['name' => 'Bench Co'])->forceFill(['id' => 1]);
 
         $rows = [];
         foreach ($counts as $n) {
             $items = self::companyHolidayItems($n, $company);
-            $full = self::measureResolvedPayload(fn () => CompanyHolidayResource::collection($items)->resolve());
-            $reference = self::measureResolvedPayload(fn () => CompanyHolidayReferenceResource::collection($items)->resolve());
-            $rows[] = self::metricsRow('company_holidays', $n, $full, $reference);
-            self::emitTelemetry('benchmark.company_holidays.full', $n, $full['bytes']);
-            self::emitTelemetry('benchmark.company_holidays.reference', $n, $reference['bytes']);
+            $full = self::measureResolvedPayload(fn () => HolidayResource::collection($items)->resolve());
+            $reference = self::measureResolvedPayload(fn () => HolidayReferenceResource::collection($items)->resolve());
+            $rows[] = self::metricsRow('holidays', $n, $full, $reference);
+            self::emitTelemetry('benchmark.holidays.full', $n, $full['bytes']);
+            self::emitTelemetry('benchmark.holidays.reference', $n, $reference['bytes']);
         }
 
         return $rows;
@@ -516,13 +516,13 @@ final class ReferencePayloadBenchmark
     }
 
     /**
-     * @return EloquentCollection<int, CompanyHoliday>
+     * @return EloquentCollection<int, Holiday>
      */
     private static function companyHolidayItems(int $n, Company $company): EloquentCollection
     {
         $list = [];
         foreach (range(1, $n) as $i) {
-            $holiday = CompanyHoliday::make([
+            $holiday = Holiday::make([
                 'id' => $i,
                 'company_id' => $company->id,
                 'name' => 'Holiday '.$i,

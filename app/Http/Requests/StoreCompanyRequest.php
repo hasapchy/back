@@ -2,11 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesCompanyTransactionCategoryBindings;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 
 class StoreCompanyRequest extends FormRequest
 {
+    use ValidatesCompanyTransactionCategoryBindings;
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
@@ -35,6 +37,7 @@ class StoreCompanyRequest extends FormRequest
             'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
             'show_deleted_transactions' => 'nullable|boolean',
             'rounding_decimals' => 'nullable|integer|min:0|max:2',
+            'display_decimals' => 'nullable|integer|min:0|max:5',
             'rounding_enabled' => 'nullable|boolean',
             'rounding_direction' => 'nullable|in:standard,up,down,custom',
             'rounding_custom_threshold' => 'nullable|numeric|min:0|max:1',
@@ -47,6 +50,7 @@ class StoreCompanyRequest extends FormRequest
             'rounding_quantity_custom_threshold' => 'nullable|numeric|min:0|max:1',
             'skip_project_order_balance' => 'nullable|boolean',
             'work_schedule' => 'nullable|array',
+            'transaction_category_bindings' => 'nullable|array',
         ];
     }
 
@@ -92,6 +96,19 @@ class StoreCompanyRequest extends FormRequest
         }
 
         $this->merge($data);
+    }
+
+    /**
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $this->assertCompanyTransactionCategoryBindings(
+                $validator,
+                $this->input('transaction_category_bindings'),
+            );
+        });
     }
 
     /**

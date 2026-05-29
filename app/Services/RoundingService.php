@@ -92,7 +92,11 @@ class RoundingService
      */
     public function roundContractAmountForCompany(?int $companyId, float $value): float
     {
-        return $this->roundModuleAmountForCompany($companyId, $value, 'rounding_contracts_enabled');
+        if ($this->shouldRoundContractAmounts($companyId)) {
+            return $this->roundForCompany($companyId, $value);
+        }
+
+        return $value;
     }
 
     /**
@@ -113,11 +117,11 @@ class RoundingService
      */
     protected function roundModuleAmountForCompany(?int $companyId, float $value, string $moduleEnabledField): float
     {
-        if (! $this->isModuleAmountRoundingEnabled($companyId, $moduleEnabledField)) {
-            return $value;
+        if ($this->isModuleAmountRoundingEnabled($companyId, $moduleEnabledField)) {
+            return $this->roundForCompany($companyId, $value);
         }
 
-        return $this->roundForCompany($companyId, $value);
+        return $value;
     }
 
     /**

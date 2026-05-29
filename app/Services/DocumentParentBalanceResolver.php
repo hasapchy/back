@@ -7,18 +7,21 @@ use App\Models\Order;
 use App\Models\ProjectContract;
 use App\Models\WhPurchase;
 use App\Models\WhReceipt;
+use App\Support\TransactionCategoryBindingKeys;
 use Illuminate\Contracts\Validation\Validator;
 
 final class DocumentParentBalanceResolver
 {
-    public const WH_RECEIPT_GOODS_CATEGORY_ID = 6;
-
     private const SOURCE_MODELS = [
         'Order' => Order::class,
         'WhReceipt' => WhReceipt::class,
         'WhPurchase' => WhPurchase::class,
         'ProjectContract' => ProjectContract::class,
     ];
+
+    public function __construct(
+        private readonly TransactionCategoryBindingResolver $bindingResolver,
+    ) {}
 
     /**
      * @return int|null ID записи client_balances на родительском документе
@@ -61,6 +64,7 @@ final class DocumentParentBalanceResolver
         mixed $clientBalanceId,
         bool $isDebt,
         ?int $categoryId = null,
+        ?int $companyId = null,
     ): void {
         if (! $this->isDocumentLinked($orderId, $sourceType, $sourceId)) {
             return;
@@ -77,19 +81,19 @@ final class DocumentParentBalanceResolver
 
         $parentBalanceId = $this->resolve($orderId, $sourceType, $sourceId);
 
-        if ($parentBalanceId !== null && $this->requiresParentBalanceExactMatch($sourceType, $categoryId)) {
+        if ($parentBalanceId !== null && $this->requiresParentBalanceExactMatch($sourceType, $categoryId, $companyId)) {
             $this->assertClientBalanceMatchesParent($validator, $parentBalanceId, $clientBalanceId);
 
+            return;
+        }
+
+        if ($sourceType && str_contains($sourceType, 'WhReceipt') && ! $this->isWhReceiptGoodsPaymentCategory($categoryId, $companyId)) {
             return;
         }
 
         $payeeClientId = $this->resolvePayeeClientId($orderId, $sourceType, $sourceId);
 
         if ($payeeClientId === null) {
-            return;
-        }
-
-        if ($this->isWhReceiptNonGoodsExpenseWithoutBalance($sourceType, $categoryId, $clientBalanceId)) {
             return;
         }
 
@@ -188,32 +192,30 @@ final class DocumentParentBalanceResolver
     }
 
     /**
-     * Доставка и прочие расходы по оприходованию (не категория «товар») — баланс в транзакции не обязателен.
+     * @return bool
      */
-    private function isWhReceiptNonGoodsExpenseWithoutBalance(
-        ?string $sourceType,
-        ?int $categoryId,
-        mixed $clientBalanceId,
-    ): bool {
-        if (! $sourceType || ! str_contains($sourceType, 'WhReceipt')) {
+    private function isWhReceiptGoodsPaymentCategory(?int $categoryId, ?int $companyId): bool
+    {
+        if ($categoryId === null) {
             return false;
         }
 
-        if ($categoryId !== null && (int) $categoryId === self::WH_RECEIPT_GOODS_CATEGORY_ID) {
-            return false;
-        }
+        $goodsCategoryId = $this->bindingResolver->resolve(
+            $companyId,
+            TransactionCategoryBindingKeys::WAREHOUSE_RECEIPT,
+            6,
+        );
 
-        return $clientBalanceId === null || $clientBalanceId === '';
+        return $goodsCategoryId !== null && (int) $categoryId === (int) $goodsCategoryId;
     }
 
     /**
-     * Оплата за товар по оприходованию — баланс как на документе; логистика и прочие расходы — любой баланс поставщика.
+     * Оплата за товар по оприходованию — баланс как на документе.
      */
-    private function requiresParentBalanceExactMatch(?string $sourceType, ?int $categoryId): bool
+    private function requiresParentBalanceExactMatch(?string $sourceType, ?int $categoryId, ?int $companyId): bool
     {
         if ($sourceType && str_contains($sourceType, 'WhReceipt')) {
-            return $categoryId !== null
-                && (int) $categoryId === self::WH_RECEIPT_GOODS_CATEGORY_ID;
+            return $this->isWhReceiptGoodsPaymentCategory($categoryId, $companyId);
         }
 
         return true;

@@ -2,11 +2,14 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesTransactionCategoryType;
 use App\Models\Template;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateTransactionTemplateRequest extends FormRequest
 {
+    use ValidatesTransactionCategoryType;
     public function authorize(): bool
     {
         $template = Template::query()->find($this->route('id'));
@@ -35,5 +38,31 @@ class UpdateTransactionTemplateRequest extends FormRequest
             'project_id' => 'nullable|integer|exists:projects,id',
             'note' => 'nullable|string|max:65535',
         ];
+    }
+
+    /**
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $template = Template::query()->find($this->route('id'));
+            $categoryId = $this->has('category_id')
+                ? $this->input('category_id')
+                : $template?->category_id;
+            if ($categoryId === null || $categoryId === '') {
+                return;
+            }
+
+            $transactionType = $this->has('type')
+                ? (int) $this->input('type')
+                : ($template?->type !== null ? (int) $template->type : null);
+
+            $this->assertTransactionCategoryMatchesType(
+                $validator,
+                $transactionType,
+                (int) $categoryId,
+            );
+        });
     }
 }

@@ -11,12 +11,10 @@ use App\Models\Warehouse;
 use App\Models\WarehouseStock;
 use App\Models\WhReceipt;
 use App\Models\WhWriteoff;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class InventoryControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
 
@@ -155,7 +153,7 @@ class InventoryControllerTest extends TestCase
 
         $wo = WhWriteoff::query()->find($writeOffId);
         $this->assertNotNull($wo);
-        $this->assertStringContainsString('Недостача', (string) $wo->note);
+        $this->assertStringContainsString('РќРµРґРѕСЃС‚Р°С‡Р°', (string) $wo->note);
         $this->assertSame(WhWriteoffReason::Shortage, $wo->reason);
 
         $show = $this->actingAsApi($this->adminUser)->getJson("/api/inventories/{$id}");
@@ -265,7 +263,7 @@ class InventoryControllerTest extends TestCase
 
         $receipt = WhReceipt::query()->find($receiptId);
         $this->assertNotNull($receipt);
-        $this->assertStringContainsString('Излишек', (string) $receipt->note);
+        $this->assertStringContainsString('РР·Р»РёС€РµРє', (string) $receipt->note);
     }
 
     public function test_apply_stock_adjustment_no_lines_returns_400(): void

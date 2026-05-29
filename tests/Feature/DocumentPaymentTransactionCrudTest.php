@@ -4,14 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Order;
 use App\Models\Transaction;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\Support\Concerns\BuildsDocumentPaymentApiContext;
 use Tests\TestCase;
 
 class DocumentPaymentTransactionCrudTest extends TestCase
 {
     use BuildsDocumentPaymentApiContext;
-    use DatabaseTransactions;
 
     protected function setUp(): void
     {
@@ -156,6 +154,49 @@ class DocumentPaymentTransactionCrudTest extends TestCase
 
         $destroy = $this->actingAsDocumentPaymentApi()->deleteJson("/api/transactions/{$transaction->id}");
         $destroy->assertStatus(200);
+    }
+
+    public function test_store_contract_payment_rejects_overpayment(): void
+    {
+        $contract = $this->createProjectContract(['amount' => 100, 'paid_amount' => 0]);
+
+        $response = $this->postPayment([
+            'source_type' => 'App\\Models\\ProjectContract',
+            'source_id' => $contract->id,
+            'client_id' => $this->client->id,
+            'client_balance_id' => $this->clientBalance->id,
+            'is_debt' => false,
+            'orig_amount' => 150,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['orig_amount']);
+    }
+
+    public function test_store_contract_second_payment_rejects_when_total_exceeds_contract(): void
+    {
+        $contract = $this->createProjectContract(['amount' => 100, 'paid_amount' => 0]);
+
+        $this->postPayment([
+            'source_type' => 'App\\Models\\ProjectContract',
+            'source_id' => $contract->id,
+            'client_id' => $this->client->id,
+            'client_balance_id' => $this->clientBalance->id,
+            'is_debt' => false,
+            'orig_amount' => 100,
+        ])->assertStatus(200);
+
+        $second = $this->postPayment([
+            'source_type' => 'App\\Models\\ProjectContract',
+            'source_id' => $contract->id,
+            'client_id' => $this->client->id,
+            'client_balance_id' => $this->clientBalance->id,
+            'is_debt' => false,
+            'orig_amount' => 2,
+        ]);
+
+        $second->assertStatus(422);
+        $second->assertJsonValidationErrors(['orig_amount']);
     }
 
     public function test_store_purchase_goods_payment_rejects_overpayment(): void

@@ -3,14 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
-use App\Models\CompanyHoliday;
+use App\Models\Holiday;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
-class CompanyHolidaysControllerTest extends TestCase
+class HolidaysControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
 
@@ -46,7 +44,7 @@ class CompanyHolidaysControllerTest extends TestCase
     public function test_store_company_holiday_requires_icon(): void
     {
         $response = $this->actingAsApi($this->adminUser)
-            ->postJson('/api/company-holidays', [
+            ->postJson('/api/holidays', [
                 'company_id' => $this->company->id,
                 'name' => 'Test Event',
                 'date' => '2026-12-31',
@@ -62,7 +60,7 @@ class CompanyHolidaysControllerTest extends TestCase
     public function test_store_company_holiday_rejects_invalid_icon(): void
     {
         $response = $this->actingAsApi($this->adminUser)
-            ->postJson('/api/company-holidays', [
+            ->postJson('/api/holidays', [
                 'company_id' => $this->company->id,
                 'name' => 'Test Event',
                 'date' => '2026-12-31',
@@ -78,10 +76,10 @@ class CompanyHolidaysControllerTest extends TestCase
      */
     public function test_store_company_holiday_persists_icon(): void
     {
-        $icon = CompanyHoliday::ALLOWED_ICONS[1];
+        $icon = Holiday::ALLOWED_ICONS[1];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->postJson('/api/company-holidays', [
+            ->postJson('/api/holidays', [
                 'company_id' => $this->company->id,
                 'name' => 'Test Event',
                 'date' => '2026-12-31',
@@ -90,7 +88,7 @@ class CompanyHolidaysControllerTest extends TestCase
 
         $response->assertStatus(200);
 
-        $this->assertDatabaseHas('company_holidays', [
+        $this->assertDatabaseHas('holidays', [
             'company_id' => $this->company->id,
             'name' => 'Test Event',
             'icon' => $icon,
@@ -102,17 +100,17 @@ class CompanyHolidaysControllerTest extends TestCase
      */
     public function test_update_company_holiday_persists_icon(): void
     {
-        $holiday = CompanyHoliday::query()->create([
+        $holiday = Holiday::query()->create([
             'company_id' => $this->company->id,
             'name' => 'Old Event',
             'date' => '2026-01-01',
-            'icon' => CompanyHoliday::DEFAULT_ICON,
+            'icon' => Holiday::DEFAULT_ICON,
         ]);
 
-        $newIcon = CompanyHoliday::ALLOWED_ICONS[2];
+        $newIcon = Holiday::ALLOWED_ICONS[2];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->putJson("/api/company-holidays/{$holiday->id}", [
+            ->putJson("/api/holidays/{$holiday->id}", [
                 'name' => 'Updated Event',
                 'date' => '2026-01-02',
                 'icon' => $newIcon,
@@ -120,7 +118,7 @@ class CompanyHolidaysControllerTest extends TestCase
 
         $response->assertStatus(200);
 
-        $this->assertDatabaseHas('company_holidays', [
+        $this->assertDatabaseHas('holidays', [
             'id' => $holiday->id,
             'name' => 'Updated Event',
             'icon' => $newIcon,

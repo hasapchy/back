@@ -9,21 +9,19 @@ use App\Models\Currency;
 use App\Models\CurrencyHistory;
 use App\Models\Product;
 use App\Models\Transaction;
+use App\Models\TransactionCategory;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WhPurchase;
 use App\Models\WhPurchaseProduct;
 use App\Repositories\WarehouseReceiptRepository;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class WarehousePurchaseControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
     protected User $regularUser;
@@ -89,15 +87,14 @@ class WarehousePurchaseControllerTest extends TestCase
             'is_working_minus' => true,
         ]);
 
-        if (!DB::table('transaction_categories')->where('id', 6)->exists()) {
-            DB::table('transaction_categories')->insert([
-                'id' => 6,
-                'name' => 'Закупка товаров',
-                'is_default' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
+        TransactionCategory::query()->updateOrCreate([
+            'id' => 6,
+        ], [
+            'name' => 'Р—Р°РєСѓРїРєР° С‚РѕРІР°СЂРѕРІ',
+            'is_default' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         Permission::firstOrCreate(['name' => 'warehouse_purchases_view', 'guard_name' => 'api']);
         Permission::firstOrCreate(['name' => 'warehouse_purchases_create', 'guard_name' => 'api']);
@@ -180,6 +177,56 @@ class WarehousePurchaseControllerTest extends TestCase
         ]);
     }
 
+    public function test_store_warehouse_purchase_rejects_invalid_nested_products_payload(): void
+    {
+        $response = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', [
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['products.0.quantity']);
+    }
+
+    public function test_store_warehouse_purchase_rejects_nested_product_with_invalid_price(): void
+    {
+        $response = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', [
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                    'price' => 'invalid',
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['products.0.price']);
+    }
+
+    public function test_store_warehouse_purchase_rejects_empty_products_array(): void
+    {
+        $response = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', [
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'products' => [],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['products']);
+    }
+
     public function test_destroy_draft_purchase_soft_deletes_linked_transactions(): void
     {
         $createResponse = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', [
@@ -232,7 +279,7 @@ class WarehousePurchaseControllerTest extends TestCase
         ]);
 
         $response->assertStatus(400);
-        $response->assertJsonFragment(['error' => 'Редактирование доступно только для закупки в статусе Черновик']);
+        $response->assertJsonFragment(['error' => 'Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ РґРѕСЃС‚СѓРїРЅРѕ С‚РѕР»СЊРєРѕ РґР»СЏ Р·Р°РєСѓРїРєРё РІ СЃС‚Р°С‚СѓСЃРµ Р§РµСЂРЅРѕРІРёРє']);
     }
 
     public function test_manual_purchase_completion_via_api_is_forbidden(): void
@@ -547,7 +594,7 @@ class WarehousePurchaseControllerTest extends TestCase
         ]);
 
         $response->assertStatus(400);
-        $response->assertJsonFragment(['error' => 'Ошибка оприходования: Нельзя создать оприходование из закупки в статусе Черновик']);
+        $response->assertJsonFragment(['error' => 'РћС€РёР±РєР° РѕРїСЂРёС…РѕРґРѕРІР°РЅРёСЏ: РќРµР»СЊР·СЏ СЃРѕР·РґР°С‚СЊ РѕРїСЂРёС…РѕРґРѕРІР°РЅРёРµ РёР· Р·Р°РєСѓРїРєРё РІ СЃС‚Р°С‚СѓСЃРµ Р§РµСЂРЅРѕРІРёРє']);
     }
 
     public function test_purchase_index_forbidden_without_view_permission_for_non_admin(): void
@@ -563,12 +610,8 @@ class WarehousePurchaseControllerTest extends TestCase
             'guard_name' => 'api',
         ]);
         $role->givePermissionTo('warehouse_purchases_view');
-        DB::table('company_user_role')->insert([
-            'company_id' => $this->company->id,
-            'creator_id' => $this->regularUser->id,
-            'role_id' => $role->id,
-            'created_at' => now(),
-            'updated_at' => now(),
+        $this->regularUser->companyRoles()->syncWithoutDetaching([
+            $role->id => ['company_id' => $this->company->id],
         ]);
 
         $response = $this->actingAsApi($this->regularUser)->getJson('/api/warehouse_purchases');
