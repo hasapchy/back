@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Requests\StoreCompanyHolidayRequest;
-use App\Http\Requests\UpdateCompanyHolidayRequest;
-use App\Http\Resources\CompanyHolidayReferenceResource;
-use App\Http\Resources\CompanyHolidayResource;
-use App\Models\CompanyHoliday;
-use App\Repositories\CompanyHolidayRepository;
+use App\Http\Requests\StoreHolidayRequest;
+use App\Http\Requests\UpdateHolidayRequest;
+use App\Http\Resources\HolidayReferenceResource;
+use App\Http\Resources\HolidayResource;
+use App\Models\Holiday;
+use App\Repositories\HolidayRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,11 +18,11 @@ use Illuminate\Http\Request;
  * @group Кадры
  * @subgroup Праздники
  */
-class CompanyHolidayController extends BaseController
+class HolidayController extends BaseController
 {
-    protected CompanyHolidayRepository $repository;
+    protected HolidayRepository $repository;
 
-    public function __construct(CompanyHolidayRepository $repository)
+    public function __construct(HolidayRepository $repository)
     {
         $this->repository = $repository;
     }
@@ -51,8 +51,8 @@ class CompanyHolidayController extends BaseController
         return $this->successResponse([
             'items' => $this->wave1IndexCollection(
                 $items->items(),
-                CompanyHolidayReferenceResource::class,
-                CompanyHolidayResource::class,
+                HolidayReferenceResource::class,
+                HolidayResource::class,
                 $companyId
             ),
             'meta' => [
@@ -84,8 +84,8 @@ class CompanyHolidayController extends BaseController
         $companyId = $this->getCurrentCompanyId();
         $useReference = $this->useReferenceContractsForWave1All($companyId);
         $collection = $useReference
-            ? CompanyHolidayReferenceResource::collection($items)
-            : CompanyHolidayResource::collection($items);
+            ? HolidayReferenceResource::collection($items)
+            : HolidayResource::collection($items);
 
         return $this->successResponse($collection->resolve());
     }
@@ -103,7 +103,7 @@ class CompanyHolidayController extends BaseController
         try {
             $holiday = $this->repository->getItemById($id);
 
-            return $this->successResponse(new CompanyHolidayResource($holiday));
+            return $this->successResponse(new HolidayResource($holiday));
         } catch (\Exception $e) {
             return $this->errorResponse('Праздник не найден', 404);
         }
@@ -114,7 +114,7 @@ class CompanyHolidayController extends BaseController
      *
      * @return JsonResponse
      */
-    public function store(StoreCompanyHolidayRequest $request)
+    public function store(StoreHolidayRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
@@ -138,7 +138,7 @@ class CompanyHolidayController extends BaseController
         $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse(
-            $this->wave1SingleResource($created, CompanyHolidayReferenceResource::class, CompanyHolidayResource::class, $companyId),
+            $this->wave1SingleResource($created, HolidayReferenceResource::class, HolidayResource::class, $companyId),
             'Праздник создан'
         );
     }
@@ -149,14 +149,14 @@ class CompanyHolidayController extends BaseController
      * @param  int  $id  ID праздника
      * @return JsonResponse
      */
-    public function update(UpdateCompanyHolidayRequest $request, $id)
+    public function update(UpdateHolidayRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $validatedData = $request->validated();
 
         try {
-            $holiday = CompanyHoliday::findOrFail($id);
+            $holiday = Holiday::findOrFail($id);
 
             $data = array_filter([
                 'name' => $validatedData['name'] ?? null,
@@ -175,7 +175,7 @@ class CompanyHolidayController extends BaseController
             $companyId = $this->getCurrentCompanyId();
 
             return $this->successResponse(
-                $this->wave1SingleResource($updated, CompanyHolidayReferenceResource::class, CompanyHolidayResource::class, $companyId),
+                $this->wave1SingleResource($updated, HolidayReferenceResource::class, HolidayResource::class, $companyId),
                 'Праздник обновлен'
             );
         } catch (\Exception $e) {
@@ -194,7 +194,7 @@ class CompanyHolidayController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         try {
-            $holiday = CompanyHoliday::findOrFail($id);
+            $holiday = Holiday::findOrFail($id);
 
             $deleted = $this->repository->deleteItem($id);
             if (! $deleted) {

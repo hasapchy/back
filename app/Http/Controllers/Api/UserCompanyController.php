@@ -10,6 +10,7 @@ use App\Services\CacheService;
 use App\Services\MobileSanctumTokenService;
 use App\Support\ResolvedCompany;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 /**
@@ -18,6 +19,8 @@ use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
  */
 class UserCompanyController extends BaseController
 {
+    private ?bool $hasTransactionCategoryBindingsTable = null;
+
     public function __construct(
         private readonly MobileSanctumTokenService $mobileSanctumTokenService
     ) {
@@ -41,11 +44,16 @@ class UserCompanyController extends BaseController
             return $this->errorResponse('Company context missing', 409);
         }
 
-        $company = Company::where('id', $selectedCompanyId)
+        $query = Company::where('id', $selectedCompanyId)
             ->whereHas('users', function ($query) use ($user) {
                 $query->where('users.id', $user->id);
-            })
-            ->first();
+            });
+
+        if ($this->canLoadTransactionCategoryBindings()) {
+            $query->with(['transactionCategoryBindings:company_id,binding_key,transaction_category_id']);
+        }
+
+        $company = $query->first();
 
         if (! $company) {
             return $this->errorResponse('Company not found or access denied', 404);
@@ -107,10 +115,18 @@ class UserCompanyController extends BaseController
             $remember = $request->boolean('remember');
             $tokens = $this->mobileSanctumTokenService->issueTokenPair($user, $remember, $companyIdInt);
 
+            if ($this->canLoadTransactionCategoryBindings()) {
+                $company->loadMissing(['transactionCategoryBindings:company_id,binding_key,transaction_category_id']);
+            }
+
             return $this->successResponse(array_merge(
                 (new CompanyResource($company))->resolve(),
                 $tokens
             ), 'Company selected successfully');
+        }
+
+        if ($this->canLoadTransactionCategoryBindings()) {
+            $company->loadMissing(['transactionCategoryBindings:company_id,binding_key,transaction_category_id']);
         }
 
         return $this->successResponse(
@@ -131,7 +147,7 @@ class UserCompanyController extends BaseController
             return $this->errorResponse(null, 401);
         }
 
-        $companies = $user->companies()->select(
+        $query = $user->companies()->select(
             'companies.id',
             'companies.name',
             'companies.full_name',
@@ -143,6 +159,7 @@ class UserCompanyController extends BaseController
             'companies.warehouse_number',
             'companies.show_deleted_transactions',
             'companies.rounding_decimals',
+            'companies.display_decimals',
             'companies.rounding_enabled',
             'companies.rounding_direction',
             'companies.rounding_custom_threshold',
@@ -157,8 +174,32 @@ class UserCompanyController extends BaseController
             'companies.work_schedule',
             'companies.created_at',
             'companies.updated_at'
-        )->get();
+        );
+
+        if ($this->canLoadTransactionCategoryBindings()) {
+            $query->with(['transactionCategoryBindings:company_id,binding_key,transaction_category_id']);
+        }
+
+        $companies = $query->get();
 
         return $this->successResponse(CompanyResource::collection($companies)->resolve());
     }
+
+    /**
+     * Проверяет доступность таблицы привязок категорий транзакций.
+     *
+     * @return bool
+     */
+    private function canLoadTransactionCategoryBindings(): bool
+    {
+        if ($this->hasTransactionCategoryBindingsTable !== null) {
+            return $this->hasTransactionCategoryBindingsTable;
+        }
+
+        $this->hasTransactionCategoryBindingsTable = Schema::hasTable('transaction_category_bindings')
+            || Schema::hasTable('company_transaction_category_bindings');
+
+        return $this->hasTransactionCategoryBindingsTable;
+    }
+
 }

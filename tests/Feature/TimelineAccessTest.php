@@ -7,12 +7,10 @@ use App\Models\Client;
 use App\Models\Company;
 use App\Models\Order;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class TimelineAccessTest extends TestCase
 {
-    use DatabaseTransactions;
 
     public function test_timeline_returns_404_for_order_in_other_company(): void
     {

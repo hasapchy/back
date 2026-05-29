@@ -9,12 +9,12 @@ use Illuminate\Support\Facades\File;
 class BenchmarkReferencePayloadCommand extends Command
 {
     protected $signature = 'reference:benchmark-payload
-                            {--entity=warehouses : warehouses|cash_registers|departments|message_templates|company_holidays|transaction_templates|leaves|projects|tasks|all_wave2|all_wave3|all_wave5|projects_tasks}
+                            {--entity=warehouses : warehouses|cash_registers|departments|message_templates|holidays|transaction_templates|leaves|projects|tasks|all_wave2|all_wave3|all_wave5|projects_tasks}
                             {--counts=1000,5000,10000 : Список размеров выборки через запятую}
                             {--json : Вывести результат одним JSON в stdout}
                             {--save= : Путь файла относительно корня проекта для сохранения JSON}';
 
-    protected $description = 'Сравнить размер JSON и время сериализации полного Resource и ReferenceResource (in-memory, без БД). Сущности: warehouses, cash_registers, departments, message_templates, company_holidays, transaction_templates, leaves, projects, tasks. Группы: all_wave2, all_wave3, all_wave5 (алиас к projects_tasks), projects_tasks (projects+tasks). При REFERENCE_TELEMETRY=true — логи benchmark.<entity>.(full|reference).<count>.';
+    protected $description = 'Сравнить размер JSON и время сериализации полного Resource и ReferenceResource (in-memory, без БД). Сущности: warehouses, cash_registers, departments, message_templates, holidays, transaction_templates, leaves, projects, tasks. Группы: all_wave2, all_wave3, all_wave5 (алиас к projects_tasks), projects_tasks (projects+tasks). При REFERENCE_TELEMETRY=true — логи benchmark.<entity>.(full|reference).<count>.';
 
     /**
      * @return int
@@ -52,7 +52,7 @@ class BenchmarkReferencePayloadCommand extends Command
                 'groups' => [
                     'departments' => ReferencePayloadBenchmark::runDepartments($counts),
                     'message_templates' => ReferencePayloadBenchmark::runMessageTemplates($counts),
-                    'company_holidays' => ReferencePayloadBenchmark::runCompanyHolidays($counts),
+                    'holidays' => ReferencePayloadBenchmark::runHolidays($counts),
                 ],
             ];
             $this->outputBenchmarkPayload($payload, true);
@@ -97,7 +97,7 @@ class BenchmarkReferencePayloadCommand extends Command
             'cash_registers' => ReferencePayloadBenchmark::runCashRegisters($counts),
             'departments' => ReferencePayloadBenchmark::runDepartments($counts),
             'message_templates' => ReferencePayloadBenchmark::runMessageTemplates($counts),
-            'company_holidays' => ReferencePayloadBenchmark::runCompanyHolidays($counts),
+            'holidays' => ReferencePayloadBenchmark::runHolidays($counts),
             'transaction_templates' => ReferencePayloadBenchmark::runTransactionTemplates($counts),
             'leaves' => ReferencePayloadBenchmark::runLeaves($counts),
             'projects' => ReferencePayloadBenchmark::runProjects($counts),
@@ -106,7 +106,7 @@ class BenchmarkReferencePayloadCommand extends Command
         };
 
         if ($rows === null) {
-            $this->error('Неизвестная сущность. Допустимо: warehouses, cash_registers, departments, message_templates, company_holidays, transaction_templates, leaves, projects, tasks, all_wave2, all_wave3, all_wave5, projects_tasks');
+            $this->error('Неизвестная сущность. Допустимо: warehouses, cash_registers, departments, message_templates, holidays, transaction_templates, leaves, projects, tasks, all_wave2, all_wave3, all_wave5, projects_tasks');
 
             return self::INVALID;
         }

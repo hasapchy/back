@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Transaction;
 use App\Models\WhPurchase;
 use App\Models\WhReceipt;
+use App\Support\ResolvedCompany;
 use Illuminate\Support\Facades\DB;
 
 class WarehouseDocumentPaymentStatusService
@@ -120,7 +121,8 @@ class WarehouseDocumentPaymentStatusService
       ->select('source_id', DB::raw('COALESCE(SUM(def_amount), 0) as paid_total'))
       ->where('source_type', $sourceType)
       ->whereIn('source_id', $ids)
-      ->where('is_debt', false)
+      ->where('type', 0)
+      ->where('is_debt', 0)
       ->where('is_deleted', false)
       ->groupBy('source_id');
 
@@ -144,7 +146,11 @@ class WarehouseDocumentPaymentStatusService
   public function enrichPurchase(WhPurchase $purchase, ?float $paidDefault = null): array
   {
     $total = (float) ($purchase->amount ?? 0);
-    $paid = $paidDefault ?? $this->batchPaidDefaultBySourceIds(WhPurchase::class, [(int) $purchase->id])[(int) $purchase->id] ?? 0.0;
+    $paid = $paidDefault ?? $this->batchPaidDefaultBySourceIds(
+      WhPurchase::class,
+      [(int) $purchase->id],
+      $this->goodsPaymentCategoryId()
+    )[(int) $purchase->id] ?? 0.0;
     $symbol = $purchase->origCurrency?->symbol ?? $purchase->currency?->symbol ?? null;
 
     return $this->resolveStatus($paid, $total, $symbol);
@@ -163,7 +169,7 @@ class WarehouseDocumentPaymentStatusService
     $paid = $paidDefault ?? $this->batchPaidDefaultBySourceIds(
       WhReceipt::class,
       [(int) $receipt->id],
-      self::GOODS_PAYMENT_CATEGORY_ID
+      $this->goodsPaymentCategoryId()
     )[(int) $receipt->id] ?? 0.0;
     $symbol = $receipt->origCurrency?->symbol ?? null;
 
@@ -230,13 +236,15 @@ class WarehouseDocumentPaymentStatusService
   {
     $type = addslashes(WhPurchase::class);
 
-    return "SELECT COALESCE(SUM(def_amount), 0) FROM transactions WHERE source_type = '{$type}' AND source_id = wh_purchases.id AND is_debt = 0 AND is_deleted = 0";
+    $categoryId = $this->goodsPaymentCategoryId();
+
+    return "SELECT COALESCE(SUM(def_amount), 0) FROM transactions WHERE source_type = '{$type}' AND source_id = wh_purchases.id AND type = 0 AND category_id = {$categoryId} AND is_debt = 0 AND is_deleted = 0";
   }
 
   private function receiptGoodsPaidSubquerySql(): string
   {
     $type = addslashes(WhReceipt::class);
-    $categoryId = self::GOODS_PAYMENT_CATEGORY_ID;
+    $categoryId = $this->goodsPaymentCategoryId();
 
     return "SELECT COALESCE(SUM(def_amount), 0) FROM transactions WHERE source_type = '{$type}' AND source_id = wh_receipts.id AND category_id = {$categoryId} AND is_debt = 0 AND is_deleted = 0";
   }
@@ -252,7 +260,7 @@ class WarehouseDocumentPaymentStatusService
     }
 
     $ids = $collection->pluck('id')->map(fn ($id) => (int) $id)->all();
-    $paidMap = $this->batchPaidDefaultBySourceIds(WhPurchase::class, $ids);
+    $paidMap = $this->batchPaidDefaultBySourceIds(WhPurchase::class, $ids, $this->goodsPaymentCategoryId());
 
     foreach ($collection as $purchase) {
       if (! $purchase instanceof WhPurchase) {
@@ -282,7 +290,7 @@ class WarehouseDocumentPaymentStatusService
     $paidMap = $this->batchPaidDefaultBySourceIds(
       WhReceipt::class,
       $standaloneIds,
-      self::GOODS_PAYMENT_CATEGORY_ID
+      $this->goodsPaymentCategoryId()
     );
 
     foreach ($collection as $receipt) {
@@ -307,5 +315,11 @@ class WarehouseDocumentPaymentStatusService
     $model->setAttribute('paid_amount', $payload['paid_amount']);
     $model->setAttribute('total_amount', $payload['total_amount']);
     $model->makeVisible(['payment_status', 'payment_status_text', 'paid_amount', 'total_amount']);
+  }
+
+  private function goodsPaymentCategoryId(): int
+  {
+    $companyId = ResolvedCompany::fromRequest();
+    return (int) app(TransactionCategoryBindingResolver::class)->resolve($companyId, 'warehouse.purchase', self::GOODS_PAYMENT_CATEGORY_ID);
   }
 }

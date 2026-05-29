@@ -10,13 +10,11 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WarehouseStock;
 use App\Services\ProductLowStockNotifier;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ProductLowStockNotifierTest extends TestCase
 {
-    use DatabaseTransactions;
 
     private function prepareLowStockContext(): array
     {

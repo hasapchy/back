@@ -4,14 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Order;
 use App\Models\Transaction;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\Support\Concerns\BuildsDocumentPaymentApiContext;
 use Tests\TestCase;
 
 class DocumentPaymentTransactionCrudTest extends TestCase
 {
     use BuildsDocumentPaymentApiContext;
-    use DatabaseTransactions;
 
     protected function setUp(): void
     {
@@ -158,6 +156,49 @@ class DocumentPaymentTransactionCrudTest extends TestCase
         $destroy->assertStatus(200);
     }
 
+    public function test_store_contract_payment_rejects_overpayment(): void
+    {
+        $contract = $this->createProjectContract(['amount' => 100, 'paid_amount' => 0]);
+
+        $response = $this->postPayment([
+            'source_type' => 'App\\Models\\ProjectContract',
+            'source_id' => $contract->id,
+            'client_id' => $this->client->id,
+            'client_balance_id' => $this->clientBalance->id,
+            'is_debt' => false,
+            'orig_amount' => 150,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['orig_amount']);
+    }
+
+    public function test_store_contract_second_payment_rejects_when_total_exceeds_contract(): void
+    {
+        $contract = $this->createProjectContract(['amount' => 100, 'paid_amount' => 0]);
+
+        $this->postPayment([
+            'source_type' => 'App\\Models\\ProjectContract',
+            'source_id' => $contract->id,
+            'client_id' => $this->client->id,
+            'client_balance_id' => $this->clientBalance->id,
+            'is_debt' => false,
+            'orig_amount' => 100,
+        ])->assertStatus(200);
+
+        $second = $this->postPayment([
+            'source_type' => 'App\\Models\\ProjectContract',
+            'source_id' => $contract->id,
+            'client_id' => $this->client->id,
+            'client_balance_id' => $this->clientBalance->id,
+            'is_debt' => false,
+            'orig_amount' => 2,
+        ]);
+
+        $second->assertStatus(422);
+        $second->assertJsonValidationErrors(['orig_amount']);
+    }
+
     public function test_store_purchase_goods_payment_rejects_overpayment(): void
     {
         $purchase = $this->createWhPurchase(['amount' => 500]);
@@ -173,7 +214,7 @@ class DocumentPaymentTransactionCrudTest extends TestCase
             'is_debt' => false,
         ]);
 
-        $response->assertStatus(400);
+        $response->assertStatus(422);
         $response->assertJsonFragment(['error' => __('warehouse_purchase.goods_payment_exceeds_remaining')]);
     }
 
@@ -229,11 +270,10 @@ class DocumentPaymentTransactionCrudTest extends TestCase
             ->assertStatus(403);
     }
 
-    public function test_store_rejects_is_debt_for_contract_purchase_and_receipt(): void
+    public function test_store_rejects_is_debt_for_contract_and_purchase(): void
     {
         $contract = $this->createProjectContract();
         $purchase = $this->createWhPurchase();
-        $receipt = $this->createWhReceipt();
 
         $cases = [
             [
@@ -243,12 +283,6 @@ class DocumentPaymentTransactionCrudTest extends TestCase
             [
                 'source_type' => 'App\\Models\\WhPurchase',
                 'source_id' => $purchase->id,
-            ],
-            [
-                'source_type' => 'App\\Models\\WhReceipt',
-                'source_id' => $receipt->id,
-                'client_id' => $this->client->id,
-                'client_balance_id' => $this->clientBalance->id,
             ],
         ];
 

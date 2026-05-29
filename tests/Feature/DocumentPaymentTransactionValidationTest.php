@@ -2,14 +2,12 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\Support\Concerns\BuildsDocumentPaymentApiContext;
 use Tests\TestCase;
 
 class DocumentPaymentTransactionValidationTest extends TestCase
 {
     use BuildsDocumentPaymentApiContext;
-    use DatabaseTransactions;
 
     protected function setUp(): void
     {
@@ -135,6 +133,20 @@ class DocumentPaymentTransactionValidationTest extends TestCase
             'source_id' => $receipt->id,
             'category_id' => 16,
             'is_debt' => false,
+        ])->assertStatus(200);
+    }
+
+    public function test_store_wh_receipt_delivery_expense_allows_manual_is_debt_with_supplier_balance(): void
+    {
+        $receipt = $this->createWhReceipt();
+
+        $this->postPayment([
+            'source_type' => 'App\\Models\\WhReceipt',
+            'source_id' => $receipt->id,
+            'client_id' => $this->client->id,
+            'client_balance_id' => $this->clientBalance->id,
+            'category_id' => 16,
+            'is_debt' => true,
         ])->assertStatus(200);
     }
 

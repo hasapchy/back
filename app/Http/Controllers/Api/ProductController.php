@@ -23,6 +23,7 @@ use App\Repositories\ProductsRepository;
 use App\Support\SimpleUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -62,6 +63,14 @@ class ProductController extends BaseController
         $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, true, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy, $categoryIds);
+        Log::info('products.list', [
+            'user_id' => auth('api')->id(),
+            'page' => (int) $page,
+            'per_page' => (int) $per_page,
+            'warehouse_id' => $warehouseId,
+            'items_count' => count($items->items()),
+            'total' => $items->total(),
+        ]);
 
         return $this->successResponse([
             'items' => ProductResource::collection($items->items())->resolve(),
@@ -142,6 +151,14 @@ class ProductController extends BaseController
         $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, false, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy, $categoryIds);
+        Log::info('services.list', [
+            'user_id' => auth('api')->id(),
+            'page' => (int) $page,
+            'per_page' => (int) $per_page,
+            'warehouse_id' => $warehouseId,
+            'items_count' => count($items->items()),
+            'total' => $items->total(),
+        ]);
 
         return $this->successResponse([
             'items' => ProductResource::collection($items->items())->resolve(),

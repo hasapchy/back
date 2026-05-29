@@ -231,4 +231,20 @@ class Project extends Model implements SupportsTimeline
     {
         return $this->hasMany(ProjectContract::class);
     }
+
+    /**
+     * @param  int|null  $currencyId
+     * @return bool
+     */
+    public function canChangeCurrencyTo(?int $currencyId): bool
+    {
+        if (! $this->contracts()->exists()) {
+            return true;
+        }
+
+        $current = $this->currency_id !== null ? (int) $this->currency_id : null;
+        $next = $currencyId !== null ? (int) $currencyId : null;
+
+        return $current === $next;
+    }
 }

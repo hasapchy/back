@@ -5,14 +5,12 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\Company;
 use Spatie\Permission\Models\Role;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class UsersControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
     protected Company $company;
@@ -24,7 +22,7 @@ class UsersControllerTest extends TestCase
         try {
             DB::connection()->getPdo();
         } catch (\Throwable $e) {
-            $this->fail('Нет подключения к тестовой БД: ' . $e->getMessage());
+            $this->fail('РќРµС‚ РїРѕРґРєР»СЋС‡РµРЅРёСЏ Рє С‚РµСЃС‚РѕРІРѕР№ Р‘Р”: ' . $e->getMessage());
         }
 
 
@@ -306,7 +304,7 @@ class UsersControllerTest extends TestCase
             ]);
 
         $response->assertStatus(400);
-        $this->assertStringContainsString('Нельзя убрать права администратора', (string) $response->json('message'));
+        $this->assertStringContainsString('РќРµР»СЊР·СЏ СѓР±СЂР°С‚СЊ РїСЂР°РІР° Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР°', (string) $response->json('message'));
         $this->assertDatabaseHas('users', ['id' => 1, 'is_admin' => true]);
     }
 
@@ -329,7 +327,7 @@ class UsersControllerTest extends TestCase
             ->deleteJson('/api/users/1');
 
         $response->assertStatus(400);
-        $this->assertStringContainsString('Нельзя удалить главного администратора', (string) $response->json('message'));
+        $this->assertStringContainsString('РќРµР»СЊР·СЏ СѓРґР°Р»РёС‚СЊ РіР»Р°РІРЅРѕРіРѕ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР°', (string) $response->json('message'));
         $this->assertDatabaseHas('users', ['id' => 1]);
     }
 

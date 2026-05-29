@@ -7,7 +7,7 @@ return [
         'variables' => ['name', 'surname', 'fullName'],
     ],
     'holiday' => [
-        'model' => \App\Models\CompanyHoliday::class,
+        'model' => \App\Models\Holiday::class,
         'date_field' => 'date',
         'variables' => ['name'],
     ],

@@ -35,21 +35,6 @@ class BalanceScenariosTest extends TestCase
         ];
     }
 
-    protected function tearDown(): void
-    {
-        // Очистка тестовых данных
-        if (!empty($this->testData['client'])) {
-            $clientId = $this->testData['client']->id;
-            Transaction::where('client_id', $clientId)->delete();
-            ClientBalance::where('client_id', $clientId)->delete();
-            Sale::where('client_id', $clientId)->delete();
-            Order::where('client_id', $clientId)->delete();
-            WhReceipt::where('supplier_id', $clientId)->delete();
-            Client::where('id', $clientId)->delete();
-        }
-        parent::tearDown();
-    }
-
     /**
      * Проверка баланса клиента и кассы
      */
@@ -126,8 +111,6 @@ class BalanceScenariosTest extends TestCase
 
     public function test_client_balance_scenarios()
     {
-        DB::beginTransaction();
-
         try {
             // Получаем необходимые данные
             $defaultCurrency = Currency::where('is_default', true)->first();
@@ -533,9 +516,7 @@ class BalanceScenariosTest extends TestCase
                 'Итоговое изменение баланса кассы неверное'
             );
 
-            DB::rollBack(); // Откатываем транзакцию, чтобы не сохранять тестовые данные
         } catch (\Exception $e) {
-            DB::rollBack();
             $this->fail("Ошибка при выполнении теста: {$e->getMessage()}\n{$e->getTraceAsString()}");
         }
     }

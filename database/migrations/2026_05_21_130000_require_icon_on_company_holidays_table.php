@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\CompanyHoliday;
+use App\Models\Holiday;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -16,7 +16,7 @@ return new class extends Migration
             return;
         }
 
-        $default = CompanyHoliday::DEFAULT_ICON;
+        $default = Holiday::DEFAULT_ICON;
 
         DB::table('company_holidays')
             ->whereNull('icon')

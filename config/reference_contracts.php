@@ -40,8 +40,8 @@ return [
         'departments_index' => 256_000,
         'message_templates_all' => 512_000,
         'message_templates_index' => 512_000,
-        'company_holidays_all' => 256_000,
-        'company_holidays_index' => 256_000,
+        'holidays_all' => 256_000,
+        'holidays_index' => 256_000,
         'transaction_templates_all' => 512_000,
         'transaction_templates_index' => 512_000,
         'leaves_all' => 512_000,
@@ -71,7 +71,7 @@ return [
         'message_templates' => [
             'company', 'company_id', 'created_at', 'creator', 'creator_id', 'id', 'is_active', 'name', 'type', 'updated_at',
         ],
-        'company_holidays' => ['color', 'company_id', 'created_at', 'date', 'end_date', 'icon', 'id', 'is_recurring', 'name', 'updated_at'],
+        'holidays' => ['color', 'company_id', 'created_at', 'date', 'end_date', 'icon', 'id', 'is_recurring', 'name', 'updated_at'],
         'transaction_templates' => [
             'amount', 'cash_id', 'cash_register', 'category', 'category_id', 'client', 'client_id', 'created_at', 'creator', 'creator_id', 'currency', 'currency_id', 'icon', 'id', 'name', 'note', 'project', 'project_id', 'type', 'updated_at',
         ],

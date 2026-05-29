@@ -17,13 +17,10 @@ use App\Models\Transaction;
 use App\Models\TransactionCategory;
 use App\Models\OrderStatus;
 use App\Models\OrderStatusCategory;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class OrderControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
     protected Company $company;
@@ -77,12 +74,9 @@ class OrderControllerTest extends TestCase
 
     private function ensureOrderDebtTransactionCategoryExists(): void
     {
-        if (TransactionCategory::query()->whereKey(1)->exists()) {
-            return;
-        }
-
-        DB::table('transaction_categories')->insert([
+        TransactionCategory::query()->updateOrCreate([
             'id' => 1,
+        ], [
             'name' => 'Order debt',
             'type' => 1,
             'creator_id' => null,
@@ -126,7 +120,66 @@ class OrderControllerTest extends TestCase
             ->postJson('/api/orders', $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Заказ успешно создан']);
+        $response->assertJson(['message' => 'Р—Р°РєР°Р· СѓСЃРїРµС€РЅРѕ СЃРѕР·РґР°РЅ']);
+    }
+
+    public function test_store_order_rejects_invalid_nested_products_payload(): void
+    {
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/orders', [
+                'client_id' => $this->client->id,
+                'warehouse_id' => $this->warehouse->id,
+                'category_id' => $this->category->id,
+                'cash_id' => $this->cashRegister->id,
+                'currency_id' => $this->currency->id,
+                'products' => [
+                    [
+                        'quantity' => 2,
+                        'price' => 100,
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['products.0.product_id']);
+    }
+
+    public function test_store_order_rejects_nested_product_with_non_numeric_quantity(): void
+    {
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/orders', [
+                'client_id' => $this->client->id,
+                'warehouse_id' => $this->warehouse->id,
+                'category_id' => $this->category->id,
+                'cash_id' => $this->cashRegister->id,
+                'currency_id' => $this->currency->id,
+                'products' => [
+                    [
+                        'product_id' => $this->product->id,
+                        'quantity' => 'invalid',
+                        'price' => 100,
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['products.0.quantity']);
+    }
+
+    public function test_store_order_rejects_empty_products_array(): void
+    {
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/orders', [
+                'client_id' => $this->client->id,
+                'warehouse_id' => $this->warehouse->id,
+                'category_id' => $this->category->id,
+                'cash_id' => $this->cashRegister->id,
+                'currency_id' => $this->currency->id,
+                'products' => [],
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['products']);
     }
 
     public function test_update_order_success(): void
@@ -153,7 +206,7 @@ class OrderControllerTest extends TestCase
             ->putJson("/api/orders/{$order->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Заказ сохранён']);
+        $response->assertJson(['message' => 'Р—Р°РєР°Р· СЃРѕС…СЂР°РЅС‘РЅ']);
     }
 
     public function test_destroy_order_success(): void
@@ -171,7 +224,30 @@ class OrderControllerTest extends TestCase
             ->deleteJson("/api/orders/{$order->id}");
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Заказ успешно удалён']);
+        $response->assertJson(['message' => 'Р—Р°РєР°Р· СѓСЃРїРµС€РЅРѕ СѓРґР°Р»С‘РЅ']);
+    }
+
+    public function test_destroy_order_is_idempotent_and_returns_not_found_on_second_delete(): void
+    {
+        $order = Order::factory()->create([
+            'client_id' => $this->client->id,
+            'creator_id' => $this->adminUser->id,
+            'warehouse_id' => $this->warehouse->id,
+            'category_id' => $this->category->id,
+            'cash_id' => $this->cashRegister->id,
+            'project_id' => null,
+        ]);
+
+        $firstResponse = $this->actingAsApi($this->adminUser)
+            ->deleteJson("/api/orders/{$order->id}");
+        $firstResponse->assertStatus(200);
+        $this->assertDatabaseMissing('orders', ['id' => $order->id]);
+
+        $secondResponse = $this->actingAsApi($this->adminUser)
+            ->deleteJson("/api/orders/{$order->id}");
+        $secondResponse->assertStatus(404);
+
+        $this->assertDatabaseMissing('orders', ['id' => $order->id]);
     }
 
     public function test_get_orders_can_filter_by_category(): void
@@ -215,22 +291,22 @@ class OrderControllerTest extends TestCase
     public function test_get_orders_meta_contains_status_counts_with_name_color_and_count(): void
     {
         $statusCategoryA = OrderStatusCategory::factory()->create([
-            'name' => 'В работе',
+            'name' => 'Р’ СЂР°Р±РѕС‚Рµ',
             'color' => '#FF8800',
             'creator_id' => $this->adminUser->id,
         ]);
         $statusCategoryB = OrderStatusCategory::factory()->create([
-            'name' => 'Закрыто',
+            'name' => 'Р—Р°РєСЂС‹С‚Рѕ',
             'color' => '#00AA55',
             'creator_id' => $this->adminUser->id,
         ]);
 
         $statusA = OrderStatus::factory()->create([
-            'name' => 'Новый',
+            'name' => 'РќРѕРІС‹Р№',
             'category_id' => $statusCategoryA->id,
         ]);
         $statusB = OrderStatus::factory()->create([
-            'name' => 'Готов',
+            'name' => 'Р“РѕС‚РѕРІ',
             'category_id' => $statusCategoryB->id,
         ]);
 
@@ -276,11 +352,11 @@ class OrderControllerTest extends TestCase
         $this->assertNotNull($statusAItem);
         $this->assertNotNull($statusBItem);
 
-        $this->assertSame('Новый', $statusAItem['name']);
+        $this->assertSame('РќРѕРІС‹Р№', $statusAItem['name']);
         $this->assertSame('#FF8800', $statusAItem['color']);
         $this->assertSame(2, (int) $statusAItem['count']);
 
-        $this->assertSame('Готов', $statusBItem['name']);
+        $this->assertSame('Р“РѕС‚РѕРІ', $statusBItem['name']);
         $this->assertSame('#00AA55', $statusBItem['color']);
         $this->assertSame(1, (int) $statusBItem['count']);
     }
@@ -342,6 +418,61 @@ class OrderControllerTest extends TestCase
 
         $clientBalance->refresh();
         $this->assertSame(0.0, (float) $clientBalance->balance);
+    }
+
+    public function test_store_and_delete_order_keeps_debt_transaction_and_client_balance_consistent(): void
+    {
+        $clientBalance = ClientBalance::query()->create([
+            'client_id' => $this->client->id,
+            'currency_id' => $this->currency->id,
+            'type' => $this->cashRegister->is_cash ? 1 : 0,
+            'balance' => 0,
+            'is_default' => true,
+        ]);
+
+        $storeResponse = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/orders', [
+                'client_id' => $this->client->id,
+                'warehouse_id' => $this->warehouse->id,
+                'category_id' => $this->category->id,
+                'cash_id' => $this->cashRegister->id,
+                'currency_id' => $this->currency->id,
+                'client_balance_id' => $clientBalance->id,
+                'products' => [
+                    [
+                        'product_id' => $this->product->id,
+                        'quantity' => 2,
+                        'price' => 150,
+                    ],
+                ],
+            ]);
+        $storeResponse->assertStatus(200);
+        $orderId = (int) $storeResponse->json('data.id');
+        $this->assertGreaterThan(0, $orderId);
+
+        $order = Order::query()->findOrFail($orderId);
+        $expectedDebtAmount = (float) ($order->price - $order->discount);
+        $debtTransaction = Transaction::query()
+            ->where('source_type', Order::class)
+            ->where('source_id', $orderId)
+            ->where('is_debt', true)
+            ->where('is_deleted', false)
+            ->first();
+        $this->assertNotNull($debtTransaction);
+        $this->assertSame((int) $clientBalance->id, (int) $debtTransaction->client_balance_id);
+        $this->assertEqualsWithDelta($expectedDebtAmount, (float) $debtTransaction->orig_amount, 0.0001);
+
+        $clientBalance->refresh();
+        $this->assertEqualsWithDelta($expectedDebtAmount, (float) $clientBalance->balance, 0.0001);
+
+        $deleteResponse = $this->actingAsApi($this->adminUser)
+            ->deleteJson("/api/orders/{$orderId}");
+        $deleteResponse->assertStatus(200);
+
+        $debtTransaction->refresh();
+        $this->assertTrue((bool) $debtTransaction->is_deleted);
+        $clientBalance->refresh();
+        $this->assertEqualsWithDelta(0.0, (float) $clientBalance->balance, 0.0001);
     }
 }
 

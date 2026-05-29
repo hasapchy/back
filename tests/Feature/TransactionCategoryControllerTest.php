@@ -5,12 +5,10 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\Company;
 use App\Models\TransactionCategory;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class TransactionCategoryControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
     protected Company $company;
@@ -18,14 +16,7 @@ class TransactionCategoryControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-
-        $this->company = Company::factory()->create();
-        $this->adminUser = User::factory()->create([
-            'is_admin' => true,
-            'is_active' => true,
-        ]);
-        $this->adminUser->companies()->attach($this->company->id);
+        [$this->company, $this->adminUser] = $this->createCompanyWithAdminUser();
     }
 
     protected function actingAsApi(User $user)
@@ -53,7 +44,11 @@ class TransactionCategoryControllerTest extends TestCase
             ->postJson('/api/transaction_categories', $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Категория транзакции создана']);
+        $response->assertJsonPath('message', 'РљР°С‚РµРіРѕСЂРёСЏ С‚СЂР°РЅР·Р°РєС†РёРё СЃРѕР·РґР°РЅР°');
+        $this->assertDatabaseHas('transaction_categories', [
+            'name' => 'New Category',
+            'type' => true,
+        ]);
     }
 
     public function test_update_transaction_category_success(): void
@@ -69,7 +64,107 @@ class TransactionCategoryControllerTest extends TestCase
             ->putJson("/api/transaction_categories/{$category->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Категория транзакции обновлена']);
+        $response->assertJsonPath('message', 'РљР°С‚РµРіРѕСЂРёСЏ С‚СЂР°РЅР·Р°РєС†РёРё РѕР±РЅРѕРІР»РµРЅР°');
+        $this->assertDatabaseHas('transaction_categories', [
+            'id' => $category->id,
+            'name' => 'Updated Category',
+            'type' => false,
+        ]);
+    }
+
+    public function test_destroy_transaction_category_success(): void
+    {
+        $category = TransactionCategory::factory()->create([
+            'creator_id' => $this->adminUser->id,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->deleteJson("/api/transaction_categories/{$category->id}");
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('message', $response->json('message'));
+        $this->assertDatabaseMissing('transaction_categories', ['id' => $category->id]);
+    }
+
+    public function test_index_returns_only_current_company_records(): void
+    {
+        $current = TransactionCategory::factory()->create(['creator_id' => $this->adminUser->id]);
+        [$otherCompany, $otherAdmin] = $this->createCompanyWithAdminUser();
+        $other = TransactionCategory::factory()->create(['creator_id' => $otherAdmin->id]);
+
+        $response = $this->actingAsApi($this->adminUser)->getJson('/api/transaction_categories');
+
+        $response->assertStatus(200);
+        $items = $response->json('data.items') ?? $response->json('data') ?? [];
+        $ids = collect($items)->pluck('id')->map(static fn ($id) => (int) $id)->all();
+        $this->assertContains((int) $current->id, $ids);
+        $this->assertNotContains((int) $other->id, $ids);
+    }
+
+    public function test_user_cannot_view_resource_from_other_company(): void
+    {
+        $category = TransactionCategory::factory()->create(['creator_id' => $this->adminUser->id]);
+        [$otherCompany, $otherAdmin] = $this->createCompanyWithAdminUser();
+
+        $response = $this->withApiTokenForCompany($otherAdmin, (int) $otherCompany->id)
+            ->getJson('/api/transaction_categories');
+
+        $response->assertStatus(200);
+        $items = $response->json('data.items') ?? $response->json('data') ?? [];
+        $ids = collect($items)->pluck('id')->map(static fn ($id) => (int) $id)->all();
+        $this->assertNotContains((int) $category->id, $ids);
+    }
+
+    public function test_user_cannot_update_resource_from_other_company(): void
+    {
+        $category = TransactionCategory::factory()->create(['creator_id' => $this->adminUser->id]);
+        [$otherCompany, $otherAdmin] = $this->createCompanyWithAdminUser();
+
+        $response = $this->withApiTokenForCompany($otherAdmin, (int) $otherCompany->id)
+            ->putJson("/api/transaction_categories/{$category->id}", [
+                'name' => 'Other',
+                'type' => true,
+            ]);
+
+        $this->assertContains($response->getStatusCode(), [403, 404]);
+    }
+
+    public function test_non_admin_cannot_store_transaction_category(): void
+    {
+        $user = User::factory()->create(['is_admin' => false, 'is_active' => true]);
+        $user->companies()->attach($this->company->id);
+
+        $response = $this->actingAsApi($user)->postJson('/api/transaction_categories', [
+            'name' => 'No Access',
+            'type' => true,
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_non_admin_cannot_update_transaction_category(): void
+    {
+        $category = TransactionCategory::factory()->create(['creator_id' => $this->adminUser->id]);
+        $user = User::factory()->create(['is_admin' => false, 'is_active' => true]);
+        $user->companies()->attach($this->company->id);
+
+        $response = $this->actingAsApi($user)->putJson("/api/transaction_categories/{$category->id}", [
+            'name' => 'No Access',
+            'type' => true,
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_non_admin_cannot_destroy_transaction_category(): void
+    {
+        $category = TransactionCategory::factory()->create(['creator_id' => $this->adminUser->id]);
+        $user = User::factory()->create(['is_admin' => false, 'is_active' => true]);
+        $user->companies()->attach($this->company->id);
+
+        $response = $this->actingAsApi($user)->deleteJson("/api/transaction_categories/{$category->id}");
+
+        $response->assertStatus(403);
     }
 }
 

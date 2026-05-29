@@ -20,20 +20,11 @@ use App\Services\ReceiptExpenseAllocationService;
 use App\Services\Timeline\TimelineCache;
 use App\Services\ClientBalanceService;
 use App\Services\WarehouseDocumentPaymentStatusService;
+use App\Support\TransactionCategoryTypeGuard;
 use Illuminate\Support\Facades\DB;
 
 class TransactionsRepository extends BaseRepository
 {
-    /**
-     * ID категории транзакций для корректировок расходов
-     */
-    private const ADJUSTMENT_EXPENSE_CATEGORY_ID = 21;
-
-    /**
-     * ID категории транзакций для корректировок приходов
-     */
-    private const ADJUSTMENT_INCOME_CATEGORY_ID = 22;
-
     /**
      * Получить транзакции с пагинацией
      *
@@ -405,6 +396,7 @@ class TransactionsRepository extends BaseRepository
 
         $cashRegister = CashRegister::findOrFail($data['cash_id']);
         $originalAmount = $data['orig_amount'];
+        $skipAmountRounding = (bool) ($data['skip_amount_rounding'] ?? false);
         $companyId = $this->getCurrentCompanyId();
         $defaultCurrency = Currency::where('is_default', true)
             ->where(function ($q) use ($companyId) {
@@ -457,7 +449,9 @@ class TransactionsRepository extends BaseRepository
             }
         }
 
-        $convertedAmount = $roundingService->roundForCompany($companyId, (float) $convertedAmount);
+        $convertedAmount = $skipAmountRounding
+            ? (float) $convertedAmount
+            : $roundingService->roundForCompany($companyId, (float) $convertedAmount);
 
         if ($fromCurrency->id !== $defaultCurrency->id) {
             $convertedAmountDefault = CurrencyConverter::convert($originalAmount, $fromCurrency, $defaultCurrency, null, $companyId, $transactionDate);
@@ -465,14 +459,18 @@ class TransactionsRepository extends BaseRepository
             $convertedAmountDefault = $originalAmount;
         }
 
-        $roundedConvertedAmountDefault = $roundingService->roundForCompany($companyId, (float) $convertedAmountDefault);
+        $roundedConvertedAmountDefault = $skipAmountRounding
+            ? (float) $convertedAmountDefault
+            : $roundingService->roundForCompany($companyId, (float) $convertedAmountDefault);
 
         if (! $reportCurrency) {
             throw new \Exception('Валюта отчетов не найдена для компании');
         }
 
         $repAmount = CurrencyConverter::convert($originalAmount, $fromCurrency, $reportCurrency, $defaultCurrency, $companyId, $transactionDate);
-        $repAmount = $roundingService->roundForCompany($companyId, $repAmount);
+        $repAmount = $skipAmountRounding
+            ? (float) $repAmount
+            : $roundingService->roundForCompany($companyId, $repAmount);
 
         if ($fromCurrency->id === $reportCurrency->id) {
             $repRate = 1.0;
@@ -504,6 +502,10 @@ class TransactionsRepository extends BaseRepository
 
         $this->assertWarehouseGoodsPaymentCap($data, (float) $defAmount, null);
 
+        if (empty($data['is_adjustment']) && isset($data['type'], $data['category_id'])) {
+            TransactionCategoryTypeGuard::assertMatch((int) $data['type'], (int) $data['category_id']);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -517,8 +519,8 @@ class TransactionsRepository extends BaseRepository
 
             if (isset($data['is_adjustment']) && $data['is_adjustment']) {
                 $adjustmentCategoryId = $data['type'] == 1
-                    ? self::ADJUSTMENT_INCOME_CATEGORY_ID
-                    : self::ADJUSTMENT_EXPENSE_CATEGORY_ID;
+                    ? $this->resolveTransactionCategoryBinding('adjustment.income', 22)
+                    : $this->resolveTransactionCategoryBinding('adjustment.outcome', 21);
                 $transaction->category_id = $adjustmentCategoryId;
             } else {
                 $transaction->category_id = $data['category_id'];
@@ -666,6 +668,10 @@ class TransactionsRepository extends BaseRepository
             return $this->updateItemWithBalanceRecalculation($id, $data);
         }
 
+        if (isset($data['category_id'])) {
+            TransactionCategoryTypeGuard::assertMatch((int) $transaction->type, (int) $data['category_id']);
+        }
+
         $transaction->client_id = $data['client_id'];
         $transaction->category_id = $data['category_id'];
         if (array_key_exists('project_id', $data)) {
@@ -736,7 +742,12 @@ class TransactionsRepository extends BaseRepository
     private function updateItemWithBalanceRecalculation($id, $data)
     {
         $transaction = Transaction::findOrFail($id);
+        $skipAmountRounding = (bool) ($data['skip_amount_rounding'] ?? false);
         $this->assertWarehouseReceiptNotCompletedIfLinked($transaction);
+
+        if (isset($data['category_id'])) {
+            TransactionCategoryTypeGuard::assertMatch((int) $transaction->type, (int) $data['category_id']);
+        }
 
         DB::beginTransaction();
 
@@ -847,7 +858,9 @@ class TransactionsRepository extends BaseRepository
                 }
             }
 
-            $newConvertedAmount = $roundingService->roundForCompany($companyId, (float) $newConvertedAmount);
+            $newConvertedAmount = $skipAmountRounding
+                ? (float) $newConvertedAmount
+                : $roundingService->roundForCompany($companyId, (float) $newConvertedAmount);
 
             if ($fromCurrency->id !== $defaultCurrency->id) {
                 $newConvertedAmountDefault = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $defaultCurrency, null, $companyId, $transactionDate);
@@ -855,14 +868,18 @@ class TransactionsRepository extends BaseRepository
                 $newConvertedAmountDefault = $newOrigAmount;
             }
 
-            $roundedNewConvertedAmountDefault = $roundingService->roundForCompany($companyId, (float) $newConvertedAmountDefault);
+            $roundedNewConvertedAmountDefault = $skipAmountRounding
+                ? (float) $newConvertedAmountDefault
+                : $roundingService->roundForCompany($companyId, (float) $newConvertedAmountDefault);
 
             if (! $reportCurrency) {
                 throw new \Exception('Валюта отчетов не найдена для компании');
             }
 
             $repAmount = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $reportCurrency, $defaultCurrency, $companyId, $transactionDate);
-            $repAmount = $roundingService->roundForCompany($companyId, $repAmount);
+            $repAmount = $skipAmountRounding
+                ? (float) $repAmount
+                : $roundingService->roundForCompany($companyId, $repAmount);
 
             if ($fromCurrency->id === $reportCurrency->id) {
                 $repRate = 1.0;
@@ -1816,7 +1833,10 @@ class TransactionsRepository extends BaseRepository
         if ((bool) ($data['is_debt'] ?? false)) {
             return;
         }
-        if ((int) ($data['category_id'] ?? 0) !== 6) {
+        $purchasePaymentCategoryId = $this->resolveTransactionCategoryBinding('warehouse.purchase', 6);
+        $receiptPaymentCategoryId = $this->resolveTransactionCategoryBinding('warehouse.receipt', 6);
+
+        if (! in_array((int) ($data['category_id'] ?? 0), [$purchasePaymentCategoryId, $receiptPaymentCategoryId], true)) {
             return;
         }
         $sourceType = (string) ($data['source_type'] ?? '');
@@ -1870,7 +1890,8 @@ class TransactionsRepository extends BaseRepository
         if ($transaction->is_debt || $transaction->is_deleted) {
             return;
         }
-        if ((int) ($transaction->category_id ?? 0) !== WarehouseDocumentPaymentStatusService::GOODS_PAYMENT_CATEGORY_ID) {
+        $purchasePaymentCategoryId = $this->resolveTransactionCategoryBinding('warehouse.purchase', WarehouseDocumentPaymentStatusService::GOODS_PAYMENT_CATEGORY_ID);
+        if ((int) ($transaction->category_id ?? 0) !== (int) $purchasePaymentCategoryId) {
             return;
         }
         $sourceType = (string) ($transaction->source_type ?? '');

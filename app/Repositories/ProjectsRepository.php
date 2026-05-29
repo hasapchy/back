@@ -4,11 +4,14 @@ namespace App\Repositories;
 
 use App\Models\Currency;
 use App\Models\Project;
+use App\Models\ProjectContract;
 use App\Models\ProjectStatus;
 use App\Models\ProjectUser;
 use App\Models\Transaction;
+use Illuminate\Database\Eloquent\Builder;
 use App\Models\User;
 use App\Services\CacheService;
+use App\Services\ProjectBudgetService;
 use App\Services\Timeline\TimelineCache;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -246,7 +249,7 @@ class ProjectsRepository extends BaseRepository
 
             $item = new Project;
             $item->name = $data['name'];
-            $item->budget = $data['budget'] ?? 0;
+            $item->budget = 0;
             $item->currency_id = $data['currency_id'] ?? null;
             $item->date = $data['date'];
             $item->creator_id = $data['creator_id'];
@@ -280,15 +283,26 @@ class ProjectsRepository extends BaseRepository
     {
         return DB::transaction(function () use ($id, $data) {
             $item = Project::findOrFail($id);
+            $previousCurrencyId = $item->currency_id;
 
             if (isset($data['files']) && is_array($data['files'])) {
                 $item->files = $data['files'];
             }
 
             $item->name = $data['name'];
-            $item->budget = $data['budget'] ?? $item->budget;
-            $item->currency_id = $data['currency_id'] ?? $item->currency_id;
-            $item->date = $data['date'];
+            if (array_key_exists('currency_id', $data)) {
+                $rawCurrencyId = $data['currency_id'];
+                $newCurrencyId = $rawCurrencyId !== null && $rawCurrencyId !== ''
+                    ? (int) $rawCurrencyId
+                    : null;
+                if (! $item->canChangeCurrencyTo($newCurrencyId)) {
+                    throw new \DomainException(__('Нельзя изменить валюту проекта: у проекта есть контракты.'));
+                }
+                $item->currency_id = $newCurrencyId;
+            }
+            if (array_key_exists('date', $data)) {
+                $item->date = $data['date'];
+            }
             $item->client_id = $data['client_id'];
             $item->description = $data['description'] ?? null;
             $item->status_id = $data['status_id'] ?? $item->status_id;
@@ -297,6 +311,12 @@ class ProjectsRepository extends BaseRepository
 
             if (isset($data['users']) && is_array($data['users'])) {
                 $this->syncProjectUsers($id, $data['users']);
+            }
+
+            $previousCurrencyNormalized = $previousCurrencyId !== null ? (int) $previousCurrencyId : null;
+            $currentCurrencyNormalized = $item->currency_id !== null ? (int) $item->currency_id : null;
+            if (array_key_exists('currency_id', $data) && $previousCurrencyNormalized !== $currentCurrencyNormalized) {
+                app(ProjectBudgetService::class)->syncForProject($id);
             }
 
             CacheService::invalidateProjectsCache();
@@ -407,8 +427,7 @@ class ProjectsRepository extends BaseRepository
             $isProjectReportCurrency = $projectCurrency && $reportCurrency && $projectCurrency->id === $reportCurrency->id;
             $isProjectDefaultCurrency = $projectCurrency && $defaultCurrency && $projectCurrency->id === $defaultCurrency->id;
 
-            $query = Transaction::where('project_id', $projectId)
-                ->where('is_deleted', false)
+            $query = $this->projectBalanceTransactionsQuery($projectId)
                 ->orderBy('created_at', 'desc')
                 ->with([
                     'cashRegister.currency:id,symbol',
@@ -496,6 +515,23 @@ class ProjectsRepository extends BaseRepository
 
             return $transactionsResult;
         }, 900);
+    }
+
+    /**
+     * Транзакции, участвующие в балансе проекта (без долговых начислений по контрактам).
+     *
+     * @param  int  $projectId
+     * @return Builder
+     */
+    private function projectBalanceTransactionsQuery(int $projectId): Builder
+    {
+        return Transaction::query()
+            ->where('project_id', $projectId)
+            ->where('is_deleted', false)
+            ->whereNot(function ($query) {
+                $query->where('source_type', ProjectContract::class)
+                    ->where('is_debt', true);
+            });
     }
 
     /**

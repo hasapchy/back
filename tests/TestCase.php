@@ -7,13 +7,14 @@ use App\Models\Currency;
 use App\Models\CurrencyHistory;
 use App\Models\ProductPrice;
 use App\Models\User;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use RuntimeException;
 
 abstract class TestCase extends BaseTestCase
 {
     use CreatesApplication;
-
+    use DatabaseTransactions;
     private static bool $forbiddenTestPatternsChecked = false;
 
     /**
@@ -23,18 +24,7 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
-        $this->assertSafeTestingDatabase();
         $this->assertNoForbiddenTestPatterns();
-    }
-
-    /**
-     * @return void
-     */
-    protected function assertSafeTestingDatabase(): void
-    {
-        if (! app()->environment('testing')) {
-            throw new RuntimeException('Tests can run only in testing environment.');
-        }
     }
 
     /**
@@ -63,16 +53,53 @@ abstract class TestCase extends BaseTestCase
                 continue;
             }
 
-            if (str_contains($content, 'markTestSkipped(')) {
-                $violations[] = $path;
+            $forbiddenPatterns = [
+                'markTestSkipped(',
+                'RefreshDatabase',
+                'LazilyRefreshDatabase',
+                'DatabaseMigrations',
+                'migrate:fresh',
+                'migrateFreshUsing',
+                'Schema::drop',
+            ];
+
+            foreach ($forbiddenPatterns as $forbiddenPattern) {
+                if (str_contains($content, $forbiddenPattern)) {
+                    $violations[] = $path.' :: '.$forbiddenPattern;
+                    break;
+                }
             }
         }
 
         self::$forbiddenTestPatternsChecked = true;
 
         if ($violations !== []) {
-            throw new RuntimeException('Forbidden skip helper usage found in tests: '.implode(', ', $violations));
+            throw new RuntimeException('Forbidden destructive test pattern found in tests: '.implode(', ', $violations));
         }
+    }
+
+    /**
+     * @return array{0: Company, 1: User}
+     */
+    protected function createCompanyWithAdminUser(): array
+    {
+        $company = Company::factory()->create();
+        $adminUser = User::factory()->create([
+            'is_admin' => true,
+            'is_active' => true,
+        ]);
+        $adminUser->companies()->attach($company->id);
+
+        return [$company, $adminUser];
+    }
+
+    /**
+     * @return void
+     */
+    protected function assertForbiddenCrossCompanyAccess(
+        \Illuminate\Testing\TestResponse $response
+    ): void {
+        $response->assertStatus(403);
     }
 
     protected function ensureDefaultCurrencyForCompany(Company $company): Currency

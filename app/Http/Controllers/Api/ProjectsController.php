@@ -47,16 +47,16 @@ class ProjectsController extends BaseController
     {
         $data = [
             'name' => $validatedData['name'],
-            'date' => $validatedData['date'] ?? null,
             'creator_id' => $userId,
             'client_id' => $validatedData['client_id'],
             'users' => $validatedData['users'] ?? null,
             'description' => $validatedData['description'] ?? null,
         ];
 
-        if (isset($validatedData['budget'])) {
-            $data['budget'] = $validatedData['budget'];
+        if (array_key_exists('date', $validatedData)) {
+            $data['date'] = $validatedData['date'];
         }
+
         if (isset($validatedData['currency_id'])) {
             $data['currency_id'] = $validatedData['currency_id'];
         }

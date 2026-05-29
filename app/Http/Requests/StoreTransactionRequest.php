@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesTransactionCategoryType;
 use App\Http\Requests\Concerns\ValidatesTransactionClientBalanceConsistency;
 use App\Models\ProjectContract;
 use App\Models\Transaction;
@@ -15,6 +16,7 @@ use Illuminate\Validation\ValidationException;
 class StoreTransactionRequest extends FormRequest
 {
     use ValidatesTransactionClientBalanceConsistency;
+    use ValidatesTransactionCategoryType;
 
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
@@ -80,6 +82,14 @@ class StoreTransactionRequest extends FormRequest
                 $this->normalizeOptionalInt($this->input('category_id')),
             );
 
+            if (! $this->requestBool($this->input('is_adjustment'))) {
+                $this->assertTransactionCategoryMatchesType(
+                    $validator,
+                    $this->normalizeOptionalInt($this->input('type')),
+                    $this->normalizeOptionalInt($this->input('category_id')),
+                );
+            }
+
             $sourceType = $this->input('source_type');
             $sourceId = $this->input('source_id');
             $projectId = $this->input('project_id');
@@ -93,6 +103,12 @@ class StoreTransactionRequest extends FormRequest
             }
             if ($projectId && (int) $contract->project_id !== (int) $projectId) {
                 $validator->errors()->add('source_id', __('Контракт не принадлежит выбранному проекту.'));
+            }
+            if (! $this->requestBool($this->input('is_debt'))) {
+                $remaining = max(0, (float) $contract->amount - (float) $contract->paid_amount);
+                if ((float) $this->input('orig_amount') > $remaining + 0.01) {
+                    $validator->errors()->add('orig_amount', __('project_contract.payment_exceeds_remaining'));
+                }
             }
         });
     }

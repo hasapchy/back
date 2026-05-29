@@ -5,13 +5,11 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\Company;
 use App\Models\Warehouse;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class WarehouseControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
     protected Company $company;
@@ -59,7 +57,7 @@ class WarehouseControllerTest extends TestCase
             ->postJson('/api/warehouses', $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Склад создан']);
+        $response->assertJson(['message' => 'РЎРєР»Р°Рґ СЃРѕР·РґР°РЅ']);
     }
 
     public function test_update_warehouse_success(): void
@@ -77,7 +75,7 @@ class WarehouseControllerTest extends TestCase
             ->putJson("/api/warehouses/{$warehouse->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Склад обновлен']);
+        $response->assertJson(['message' => 'РЎРєР»Р°Рґ РѕР±РЅРѕРІР»РµРЅ']);
     }
 
     /**

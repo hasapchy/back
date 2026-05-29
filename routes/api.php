@@ -10,8 +10,8 @@ use App\Http\Controllers\Api\ClientBalanceController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\CompaniesController;
-use App\Http\Controllers\Api\CompanyHolidayController;
-use App\Http\Controllers\Api\CompanyProductionCalendarController;
+use App\Http\Controllers\Api\HolidayController;
+use App\Http\Controllers\Api\ProductionCalendarController;
 use App\Http\Controllers\Api\CurrenciesController;
 use App\Http\Controllers\Api\CurrencyHistoryController;
 use App\Http\Controllers\Api\DepartmentController;
@@ -106,7 +106,7 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::post('user/notifications/read-all', [InAppNotificationController::class, 'markAllRead']);
     Route::post('user/notifications/{id}/read', [InAppNotificationController::class, 'markRead']);
 
-    Route::middleware('permission.scope:users_view_all,users_view')->get('users', [UsersController::class, 'index']);
+    Route::get('users', [UsersController::class, 'index']);
     Route::get('users/all', [UsersController::class, 'getAllUsers']);
     Route::get('users/search', [UsersController::class, 'search']);
     Route::get('users/{id}', [UsersController::class, 'show']);
@@ -230,9 +230,9 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission.scope:cash_registers_update_all,cash_registers_update')->put('cash_registers/{id}', [CashRegistersController::class, 'update']);
     Route::middleware('permission.scope:cash_registers_delete_all,cash_registers_delete')->delete('cash_registers/{id}', [CashRegistersController::class, 'destroy']);
 
-    Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects', [ProjectsController::class, 'index']);
+    Route::get('projects', [ProjectsController::class, 'index']);
     Route::get('projects/all', [ProjectsController::class, 'all']);
-    Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{id}', [ProjectsController::class, 'show']);
+    Route::get('projects/{id}', [ProjectsController::class, 'show']);
     Route::middleware('permission:projects_create')->post('projects', [ProjectsController::class, 'store']);
     Route::middleware('permission.scope:projects_update_all,projects_update')->put('projects/{id}', [ProjectsController::class, 'update']);
     Route::middleware(['permission.scope:projects_update_all,projects_update', 'throttle:20,1'])->post('projects/{id}/upload-files', [ProjectsController::class, 'uploadFiles']);
@@ -344,17 +344,16 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission:leaves_update_all')->put('leaves/{id}', [LeaveController::class, 'update']);
     Route::middleware('permission:leaves_delete_all')->delete('leaves/{id}', [LeaveController::class, 'destroy']);
 
-    // Company holidays - read operations accessible to all authenticated users
-    Route::get('company-holidays', [CompanyHolidayController::class, 'index']);
-    Route::get('company-holidays/all', [CompanyHolidayController::class, 'all']);
-    Route::get('company-holidays/{id}', [CompanyHolidayController::class, 'show']);
-    // Write operations require permissions
-    Route::middleware('permission:company_holidays_create')->post('company-holidays', [CompanyHolidayController::class, 'store']);
-    Route::middleware('permission:company_holidays_update_all')->put('company-holidays/{id}', [CompanyHolidayController::class, 'update']);
-    Route::middleware('permission:company_holidays_delete_all')->delete('company-holidays/{id}', [CompanyHolidayController::class, 'destroy']);
-    Route::get('company-production-calendar-days/all', [CompanyProductionCalendarController::class, 'all']);
-    Route::middleware('permission:company_production_calendar_create')->post('company-production-calendar-days', [CompanyProductionCalendarController::class, 'store']);
-    Route::middleware('permission:company_production_calendar_delete_all')->delete('company-production-calendar-days/{id}', [CompanyProductionCalendarController::class, 'destroy']);
+    Route::get('holidays', [HolidayController::class, 'index']);
+    Route::get('holidays/all', [HolidayController::class, 'all']);
+    Route::get('holidays/{id}', [HolidayController::class, 'show']);
+    Route::middleware('permission:holidays_create')->post('holidays', [HolidayController::class, 'store']);
+    Route::middleware('permission:holidays_update_all')->put('holidays/{id}', [HolidayController::class, 'update']);
+    Route::middleware('permission:holidays_delete_all')->delete('holidays/{id}', [HolidayController::class, 'destroy']);
+    Route::get('production-calendar-days/all', [ProductionCalendarController::class, 'all']);
+    Route::middleware('permission:production_calendar_create')->post('production-calendar-days', [ProductionCalendarController::class, 'store']);
+    Route::middleware('permission:production_calendar_update_all')->put('production-calendar-days/{id}', [ProductionCalendarController::class, 'update']);
+    Route::middleware('permission:production_calendar_delete_all')->delete('production-calendar-days/{id}', [ProductionCalendarController::class, 'destroy']);
 
     Route::get('transaction_categories', [TransactionCategoryController::class, 'index']);
     Route::get('transaction_categories/all', [TransactionCategoryController::class, 'all']);

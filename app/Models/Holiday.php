@@ -5,10 +5,9 @@ namespace App\Models;
 use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 /**
- * Модель корпоративных праздников
- *
  * @property int $id
  * @property int $company_id
  * @property string $name
@@ -22,15 +21,11 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @property-read \App\Models\Company $company
  */
-class CompanyHoliday extends Model
+class Holiday extends Model
 {
     use BelongsToCompany;
     use HasFactory;
 
-    /**
-     * Whitelist FontAwesome classes for the holiday icon picker.
-     * Mirrors `front/src/constants/holidayIconOptions.js`.
-     */
     public const ALLOWED_ICONS = [
         'fa-solid fa-calendar-day',
         'fa-solid fa-gift',
@@ -69,4 +64,13 @@ class CompanyHoliday extends Model
         'is_recurring' => true,
         'icon' => self::DEFAULT_ICON,
     ];
+
+    public function getTable()
+    {
+        if (Schema::hasTable('holidays')) {
+            return 'holidays';
+        }
+
+        return 'holidays';
+    }
 }

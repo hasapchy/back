@@ -5,6 +5,7 @@ namespace App\Http\Requests\Concerns;
 use App\Models\CashRegister;
 use App\Models\ClientBalance;
 use App\Services\DocumentParentBalanceResolver;
+use App\Support\ResolvedCompany;
 use Illuminate\Contracts\Validation\Validator;
 
 trait ValidatesTransactionClientBalanceConsistency
@@ -87,6 +88,7 @@ trait ValidatesTransactionClientBalanceConsistency
             $clientBalanceId,
             $isDebt,
             $categoryId,
+            ResolvedCompany::fromRequest(),
         );
     }
 

@@ -72,7 +72,7 @@ class ProjectContract extends Model implements SupportsTimeline
         'type' => 'integer',
         'returned' => 'boolean',
         'files' => 'array',
-        'amount' => 'decimal:2',
+        'amount' => 'decimal:5',
         'paid_amount' => 'decimal:5'
     ];
 

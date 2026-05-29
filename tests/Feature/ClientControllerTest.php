@@ -9,12 +9,10 @@ use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Transaction;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class ClientControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
 

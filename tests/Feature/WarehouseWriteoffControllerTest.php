@@ -9,12 +9,10 @@ use App\Models\Product;
 use App\Enums\WhWriteoffReason;
 use App\Models\WarehouseStock;
 use App\Models\WhWriteoff;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class WarehouseWriteoffControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
     protected Company $company;
@@ -78,7 +76,7 @@ class WarehouseWriteoffControllerTest extends TestCase
             ->postJson('/api/warehouse_writeoffs', $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Списание создано']);
+        $response->assertJson(['message' => 'РЎРїРёСЃР°РЅРёРµ СЃРѕР·РґР°РЅРѕ']);
     }
 
     public function test_update_warehouse_writeoff_success(): void
@@ -103,7 +101,7 @@ class WarehouseWriteoffControllerTest extends TestCase
             ->putJson("/api/warehouse_writeoffs/{$writeoff->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Списание обновлено']);
+        $response->assertJson(['message' => 'РЎРїРёСЃР°РЅРёРµ РѕР±РЅРѕРІР»РµРЅРѕ']);
     }
 
     public function test_destroy_warehouse_writeoff_success(): void
@@ -116,7 +114,7 @@ class WarehouseWriteoffControllerTest extends TestCase
             ->deleteJson("/api/warehouse_writeoffs/{$writeoff->id}");
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Списание удалено']);
+        $response->assertJson(['message' => 'РЎРїРёСЃР°РЅРёРµ СѓРґР°Р»РµРЅРѕ']);
     }
 
     public function test_index_filters_by_reason_and_exclude_reason(): void

@@ -9,13 +9,11 @@ use App\Models\Order;
 use App\Models\User;
 use App\Http\Middleware\VerifyCsrfToken;
 use Database\Seeders\PermissionsSeeder;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class TimelineBroadcastTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected function setUp(): void
     {

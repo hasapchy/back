@@ -10,12 +10,12 @@ use App\Models\Warehouse;
 use App\Models\Product;
 use App\Models\CashRegister;
 use App\Models\Currency;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use App\Models\SalesProduct;
+use App\Models\WarehouseStock;
 use Tests\TestCase;
 
 class SaleControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
     protected Company $company;
@@ -88,7 +88,7 @@ class SaleControllerTest extends TestCase
             ->postJson('/api/sales', $data);
 
         $response->assertStatus(201);
-        $response->assertJson(['message' => 'Продажа добавлена']);
+        $response->assertJson(['message' => 'РџСЂРѕРґР°Р¶Р° РґРѕР±Р°РІР»РµРЅР°']);
     }
 
     public function test_destroy_sale_success(): void
@@ -105,7 +105,109 @@ class SaleControllerTest extends TestCase
             ->deleteJson("/api/sales/{$sale->id}");
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Продажа удалена']);
+        $response->assertJson(['message' => 'РџСЂРѕРґР°Р¶Р° СѓРґР°Р»РµРЅР°']);
+    }
+
+    public function test_destroy_sale_is_idempotent_and_second_delete_fails(): void
+    {
+        $sale = Sale::factory()->create([
+            'client_id' => $this->client->id,
+            'creator_id' => $this->adminUser->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $this->currency->id,
+        ]);
+
+        $firstResponse = $this->actingAsApi($this->adminUser)
+            ->deleteJson("/api/sales/{$sale->id}");
+        $firstResponse->assertStatus(200);
+        $this->assertDatabaseMissing('sales', ['id' => $sale->id]);
+
+        $secondResponse = $this->actingAsApi($this->adminUser)
+            ->deleteJson("/api/sales/{$sale->id}");
+        $secondResponse->assertStatus(404);
+
+        $this->assertDatabaseMissing('sales', ['id' => $sale->id]);
+    }
+
+    public function test_store_sale_prevents_negative_stock(): void
+    {
+        $stockProduct = Product::factory()->create([
+            'creator_id' => $this->adminUser->id,
+            'type' => true,
+        ]);
+        WarehouseStock::query()->create([
+            'warehouse_id' => $this->warehouse->id,
+            'product_id' => $stockProduct->id,
+            'quantity' => 2,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)->postJson('/api/sales', [
+            'client_id' => $this->client->id,
+            'type' => 'cash',
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $this->currency->id,
+            'products' => [
+                [
+                    'product_id' => $stockProduct->id,
+                    'quantity' => 5,
+                    'price' => 100,
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(400);
+        $this->assertStringContainsStringIgnoringCase('недостат', (string) $response->json('error'));
+
+        $stock = WarehouseStock::query()
+            ->where('warehouse_id', $this->warehouse->id)
+            ->where('product_id', $stockProduct->id)
+            ->firstOrFail();
+        $this->assertEqualsWithDelta(2, (float) $stock->quantity, 0.0001);
+    }
+
+    public function test_store_sale_writes_off_stock_correctly_for_stock_product(): void
+    {
+        $stockProduct = Product::factory()->create([
+            'creator_id' => $this->adminUser->id,
+            'type' => true,
+        ]);
+        WarehouseStock::query()->create([
+            'warehouse_id' => $this->warehouse->id,
+            'product_id' => $stockProduct->id,
+            'quantity' => 10,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)->postJson('/api/sales', [
+            'client_id' => $this->client->id,
+            'type' => 'cash',
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $this->currency->id,
+            'products' => [
+                [
+                    'product_id' => $stockProduct->id,
+                    'quantity' => 4,
+                    'price' => 120,
+                ],
+            ],
+        ]);
+        $response->assertStatus(201);
+
+        $saleId = (int) SalesProduct::query()->latest('id')->value('sale_id');
+        $this->assertGreaterThan(0, $saleId);
+        $this->assertDatabaseHas('sales_products', [
+            'sale_id' => $saleId,
+            'product_id' => $stockProduct->id,
+            'quantity' => 4,
+        ]);
+
+        $stock = WarehouseStock::query()
+            ->where('warehouse_id', $this->warehouse->id)
+            ->where('product_id', $stockProduct->id)
+            ->firstOrFail();
+        $this->assertEqualsWithDelta(6, (float) $stock->quantity, 0.0001);
     }
 }
 

@@ -11,14 +11,12 @@ use App\Models\Unit;
 use App\Models\Warehouse;
 use App\Models\WhMovement;
 use App\Models\WhMovementProduct;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ProductControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
     protected Company $company;

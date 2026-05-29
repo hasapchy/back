@@ -11,15 +11,13 @@ use App\Models\Lead;
 use App\Models\LeadSource;
 use App\Models\LeadStatus;
 use App\Models\Order;
+use App\Models\TransactionCategory;
 use App\Models\User;
 use App\Models\Warehouse;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class LeadConversionTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
 
@@ -78,7 +76,7 @@ class LeadConversionTest extends TestCase
         $this->statusNew = LeadStatus::query()->create([
             'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
-            'name' => 'Новый',
+            'name' => 'РќРѕРІС‹Р№',
             'color' => '#207ac7',
             'is_active' => true,
             'sort' => 0,
@@ -87,7 +85,7 @@ class LeadConversionTest extends TestCase
         $this->statusSuccess = LeadStatus::query()->create([
             'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
-            'name' => 'Успех',
+            'name' => 'РЈСЃРїРµС…',
             'color' => '#6c757d',
             'is_active' => true,
             'sort' => 10,
@@ -96,18 +94,15 @@ class LeadConversionTest extends TestCase
         $this->source = LeadSource::query()->create([
             'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
-            'name' => 'Звонок',
+            'name' => 'Р—РІРѕРЅРѕРє',
         ]);
     }
 
     private function ensureOrderDebtTransactionCategoryExists(): void
     {
-        if (\App\Models\TransactionCategory::query()->whereKey(1)->exists()) {
-            return;
-        }
-
-        DB::table('transaction_categories')->insert([
+        TransactionCategory::query()->updateOrCreate([
             'id' => 1,
+        ], [
             'name' => 'Order debt',
             'type' => 1,
             'creator_id' => null,
@@ -126,7 +121,7 @@ class LeadConversionTest extends TestCase
         $response = $this->actingAsApi($this->adminUser)->postJson('/api/leads', [
             'client_id' => $this->client->id,
             'status_id' => $this->statusNew->id,
-            'comment' => 'Тестовый комментарий',
+            'comment' => 'РўРµСЃС‚РѕРІС‹Р№ РєРѕРјРјРµРЅС‚Р°СЂРёР№',
             'files' => ['https://example.com/a.pdf'],
         ]);
         $response->assertStatus(200);
@@ -145,7 +140,7 @@ class LeadConversionTest extends TestCase
         $this->assertSame((int) $orderId, (int) $lead->order_id);
 
         $response3 = $this->actingAsApi($this->adminUser)->putJson("/api/leads/{$leadId}", [
-            'comment' => 'Обновление без смены статуса',
+            'comment' => 'РћР±РЅРѕРІР»РµРЅРёРµ Р±РµР· СЃРјРµРЅС‹ СЃС‚Р°С‚СѓСЃР°',
         ]);
         $response3->assertStatus(200);
         $this->assertSame((int) $orderId, (int) $response3->json('data.order_id'));

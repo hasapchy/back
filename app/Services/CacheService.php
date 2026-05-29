@@ -428,9 +428,9 @@ class CacheService
     /**
      * Invalidate company holidays cache
      */
-    public static function invalidateCompanyHolidaysCache(): void
+    public static function invalidateHolidaysCache(): void
     {
-        self::invalidateByLike('%company_holidays%');
+        self::invalidateByLike('%holidays%');
     }
 
     /**

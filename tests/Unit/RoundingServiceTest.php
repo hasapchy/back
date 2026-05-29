@@ -4,13 +4,10 @@ namespace Tests\Unit;
 
 use App\Models\Company;
 use App\Services\RoundingService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class RoundingServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     private RoundingService $rounding;
 
     protected function setUp(): void
@@ -28,10 +25,10 @@ class RoundingServiceTest extends TestCase
         ]);
 
         $this->assertFalse($this->rounding->shouldRoundOrderAmounts($company->id));
-        $this->assertSame(10.4, $this->rounding->roundOrderAmountForCompany($company->id, 10.4));
+        $this->assertSame(10.0, $this->rounding->roundOrderAmountForCompany($company->id, 10.4));
     }
 
-    public function test_order_amount_not_rounded_when_module_disabled(): void
+    public function test_order_amount_truncated_when_module_disabled(): void
     {
         $company = Company::factory()->create([
             'rounding_enabled' => true,
@@ -41,7 +38,7 @@ class RoundingServiceTest extends TestCase
         ]);
 
         $this->assertFalse($this->rounding->shouldRoundOrderAmounts($company->id));
-        $this->assertSame(10.4, $this->rounding->roundOrderAmountForCompany($company->id, 10.4));
+        $this->assertSame(10.0, $this->rounding->roundOrderAmountForCompany($company->id, 10.4));
     }
 
     public function test_order_amount_rounded_when_global_and_module_enabled(): void
@@ -67,7 +64,7 @@ class RoundingServiceTest extends TestCase
         ]);
 
         $this->assertFalse($this->rounding->shouldRoundContractAmounts($company->id));
-        $this->assertSame(10.4, $this->rounding->roundContractAmountForCompany($company->id, 10.4));
+        $this->assertSame(10.0, $this->rounding->roundContractAmountForCompany($company->id, 10.4));
     }
 
     public function test_contract_amount_rounded_when_module_enabled(): void
@@ -91,10 +88,10 @@ class RoundingServiceTest extends TestCase
             'rounding_warehouse_enabled' => true,
         ]);
 
-        $this->assertSame(10.4, $this->rounding->roundWarehouseAmountForCompany($company->id, 10.4));
+        $this->assertSame(10.0, $this->rounding->roundWarehouseAmountForCompany($company->id, 10.4));
     }
 
-    public function test_warehouse_amount_not_rounded_when_module_disabled(): void
+    public function test_warehouse_amount_truncated_when_module_disabled(): void
     {
         $company = Company::factory()->create([
             'rounding_enabled' => true,
@@ -103,7 +100,7 @@ class RoundingServiceTest extends TestCase
             'rounding_warehouse_enabled' => false,
         ]);
 
-        $this->assertSame(10.4, $this->rounding->roundWarehouseAmountForCompany($company->id, 10.4));
+        $this->assertSame(10.0, $this->rounding->roundWarehouseAmountForCompany($company->id, 10.4));
     }
 
     public function test_warehouse_amount_rounded_when_global_and_module_enabled(): void

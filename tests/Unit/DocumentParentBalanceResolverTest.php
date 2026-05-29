@@ -11,17 +11,19 @@ use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Project;
 use App\Models\ProjectContract;
+use App\Models\TransactionCategory;
+use App\Models\TransactionCategoryBinding;
 use App\Models\User;
 use App\Models\WhPurchase;
 use App\Models\WhReceipt;
 use App\Services\DocumentParentBalanceResolver;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use App\Services\TransactionCategoryBindingResolver;
+use App\Support\TransactionCategoryBindingKeys;
 use Illuminate\Support\Facades\Validator;
 use Tests\TestCase;
 
 class DocumentParentBalanceResolverTest extends TestCase
 {
-    use DatabaseTransactions;
 
     private DocumentParentBalanceResolver $resolver;
 
@@ -33,11 +35,15 @@ class DocumentParentBalanceResolverTest extends TestCase
 
     private Client $client;
 
+    private int $goodsCategoryId = 6;
+
+    private int $deliveryCategoryId = 16;
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->resolver = new DocumentParentBalanceResolver;
+        $this->resolver = app(DocumentParentBalanceResolver::class);
         $this->company = Company::factory()->create();
         $this->user = User::factory()->create(['is_admin' => true, 'is_active' => true]);
         $this->currency = Currency::factory()->create([
@@ -49,6 +55,7 @@ class DocumentParentBalanceResolverTest extends TestCase
             'company_id' => $this->company->id,
             'creator_id' => $this->user->id,
         ]);
+        $this->seedReceiptCategoryBindings();
     }
 
     public function test_resolve_returns_order_client_balance_id(): void
@@ -66,7 +73,7 @@ class DocumentParentBalanceResolverTest extends TestCase
         $this->assertFalse($this->resolver->isDocumentLinked(null, null, null));
     }
 
-    public function test_manual_payment_rejects_is_debt_for_document_link(): void
+    public function test_manual_payment_rejects_is_debt_for_order(): void
     {
         $order = $this->createOrder();
 
@@ -77,6 +84,24 @@ class DocumentParentBalanceResolverTest extends TestCase
         ]);
 
         $this->assertTrue($validator->errors()->has('is_debt'));
+    }
+
+    public function test_wh_receipt_manual_payment_allows_is_debt(): void
+    {
+        $receipt = WhReceipt::factory()->create([
+            'supplier_id' => $this->client->id,
+            'creator_id' => $this->user->id,
+        ]);
+
+        $validator = $this->runManualPaymentValidation([
+            'source_type' => 'App\\Models\\WhReceipt',
+            'source_id' => $receipt->id,
+            'category_id' => $this->deliveryCategoryId,
+            'is_debt' => true,
+            'client_balance_id' => null,
+        ]);
+
+        $this->assertFalse($validator->errors()->has('is_debt'));
     }
 
     public function test_manual_payment_requires_balance_when_order_has_client_balance_id(): void
@@ -165,7 +190,7 @@ class DocumentParentBalanceResolverTest extends TestCase
         $missing = $this->runManualPaymentValidation([
             'source_type' => 'App\\Models\\WhReceipt',
             'source_id' => $receipt->id,
-            'category_id' => DocumentParentBalanceResolver::WH_RECEIPT_GOODS_CATEGORY_ID,
+            'category_id' => $this->goodsCategoryId,
             'is_debt' => false,
             'client_balance_id' => null,
         ]);
@@ -174,11 +199,40 @@ class DocumentParentBalanceResolverTest extends TestCase
         $ok = $this->runManualPaymentValidation([
             'source_type' => 'App\\Models\\WhReceipt',
             'source_id' => $receipt->id,
-            'category_id' => DocumentParentBalanceResolver::WH_RECEIPT_GOODS_CATEGORY_ID,
+            'category_id' => $this->goodsCategoryId,
             'is_debt' => false,
             'client_balance_id' => $balance->id,
         ]);
         $this->assertFalse($ok->errors()->has('client_balance_id'));
+    }
+
+    public function test_wh_receipt_goods_payment_rejects_foreign_client_balance(): void
+    {
+        $receipt = WhReceipt::factory()->create([
+            'supplier_id' => $this->client->id,
+            'client_balance_id' => null,
+            'creator_id' => $this->user->id,
+        ]);
+        $foreignClient = Client::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->user->id,
+        ]);
+        $foreignBalance = ClientBalance::query()->create([
+            'client_id' => $foreignClient->id,
+            'currency_id' => $this->currency->id,
+            'type' => 1,
+            'balance' => 0,
+        ]);
+
+        $validator = $this->runManualPaymentValidation([
+            'source_type' => 'App\\Models\\WhReceipt',
+            'source_id' => $receipt->id,
+            'category_id' => $this->goodsCategoryId,
+            'is_debt' => false,
+            'client_balance_id' => $foreignBalance->id,
+        ]);
+
+        $this->assertTrue($validator->errors()->has('client_balance_id'));
     }
 
     public function test_wh_receipt_delivery_expense_without_balance_does_not_require_balance(): void
@@ -192,7 +246,7 @@ class DocumentParentBalanceResolverTest extends TestCase
         $validator = $this->runManualPaymentValidation([
             'source_type' => 'App\\Models\\WhReceipt',
             'source_id' => $receipt->id,
-            'category_id' => 16,
+            'category_id' => $this->deliveryCategoryId,
             'is_debt' => false,
             'client_balance_id' => null,
         ]);
@@ -213,9 +267,38 @@ class DocumentParentBalanceResolverTest extends TestCase
         $validator = $this->runManualPaymentValidation([
             'source_type' => 'App\\Models\\WhReceipt',
             'source_id' => $receipt->id,
-            'category_id' => 16,
+            'category_id' => $this->deliveryCategoryId,
             'is_debt' => false,
             'client_balance_id' => $otherBalance->id,
+        ]);
+
+        $this->assertFalse($validator->errors()->has('client_balance_id'));
+    }
+
+    public function test_wh_receipt_delivery_credit_allows_balance_of_client_other_than_supplier(): void
+    {
+        $receipt = WhReceipt::factory()->create([
+            'supplier_id' => $this->client->id,
+            'client_balance_id' => null,
+            'creator_id' => $this->user->id,
+        ]);
+        $driver = Client::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->user->id,
+        ]);
+        $driverBalance = ClientBalance::query()->create([
+            'client_id' => $driver->id,
+            'currency_id' => $this->currency->id,
+            'type' => 1,
+            'balance' => 0,
+        ]);
+
+        $validator = $this->runManualPaymentValidation([
+            'source_type' => 'App\\Models\\WhReceipt',
+            'source_id' => $receipt->id,
+            'category_id' => $this->deliveryCategoryId,
+            'is_debt' => true,
+            'client_balance_id' => $driverBalance->id,
         ]);
 
         $this->assertFalse($validator->errors()->has('client_balance_id'));
@@ -345,13 +428,58 @@ class DocumentParentBalanceResolverTest extends TestCase
         $this->assertFalse($ok->errors()->has('client_balance_id'));
     }
 
+    public function test_wh_receipt_goods_category_resolved_from_company_binding(): void
+    {
+        $customGoodsCategory = TransactionCategory::factory()->create([
+            'type' => 0,
+            'creator_id' => $this->user->id,
+        ]);
+        TransactionCategoryBinding::query()->updateOrCreate(
+            [
+                'company_id' => $this->company->id,
+                'binding_key' => TransactionCategoryBindingKeys::WAREHOUSE_RECEIPT,
+            ],
+            ['transaction_category_id' => $customGoodsCategory->id],
+        );
+
+        $resolver = new DocumentParentBalanceResolver(new TransactionCategoryBindingResolver);
+        $balance = $this->createBalance();
+        $receipt = WhReceipt::factory()->create([
+            'supplier_id' => $this->client->id,
+            'client_balance_id' => null,
+            'creator_id' => $this->user->id,
+        ]);
+
+        $missing = $this->runManualPaymentValidation([
+            'source_type' => 'App\\Models\\WhReceipt',
+            'source_id' => $receipt->id,
+            'category_id' => $customGoodsCategory->id,
+            'is_debt' => false,
+            'client_balance_id' => null,
+            'company_id' => $this->company->id,
+        ], $resolver);
+        $this->assertTrue($missing->errors()->has('client_balance_id'));
+
+        $ok = $this->runManualPaymentValidation([
+            'source_type' => 'App\\Models\\WhReceipt',
+            'source_id' => $receipt->id,
+            'category_id' => $customGoodsCategory->id,
+            'is_debt' => false,
+            'client_balance_id' => $balance->id,
+            'company_id' => $this->company->id,
+        ], $resolver);
+        $this->assertFalse($ok->errors()->has('client_balance_id'));
+    }
+
     /**
      * @param  array<string, mixed>  $input
      */
-    private function runManualPaymentValidation(array $input): \Illuminate\Contracts\Validation\Validator
-    {
+    private function runManualPaymentValidation(
+        array $input,
+        ?DocumentParentBalanceResolver $resolver = null,
+    ): \Illuminate\Contracts\Validation\Validator {
         $validator = Validator::make([], []);
-        $this->resolver->assertManualDocumentPayment(
+        ($resolver ?? $this->resolver)->assertManualDocumentPayment(
             $validator,
             isset($input['order_id']) ? (int) $input['order_id'] : null,
             isset($input['source_type']) ? (string) $input['source_type'] : null,
@@ -359,9 +487,28 @@ class DocumentParentBalanceResolverTest extends TestCase
             $input['client_balance_id'] ?? null,
             filter_var($input['is_debt'] ?? false, FILTER_VALIDATE_BOOLEAN),
             isset($input['category_id']) ? (int) $input['category_id'] : null,
+            isset($input['company_id']) ? (int) $input['company_id'] : $this->company->id,
         );
 
         return $validator;
+    }
+
+    private function seedReceiptCategoryBindings(): void
+    {
+        TransactionCategoryBinding::query()->updateOrCreate(
+            [
+                'company_id' => $this->company->id,
+                'binding_key' => TransactionCategoryBindingKeys::WAREHOUSE_RECEIPT,
+            ],
+            ['transaction_category_id' => $this->goodsCategoryId],
+        );
+        TransactionCategoryBinding::query()->updateOrCreate(
+            [
+                'company_id' => $this->company->id,
+                'binding_key' => TransactionCategoryBindingKeys::PRESET_WAREHOUSE_RECEIPT_DELIVERY_EXPENSE,
+            ],
+            ['transaction_category_id' => $this->deliveryCategoryId],
+        );
     }
 
     /**
@@ -384,6 +531,16 @@ class DocumentParentBalanceResolverTest extends TestCase
             'type' => 1,
             'balance' => 0,
             'is_default' => true,
+        ]);
+    }
+
+    private function createAlternateClientBalance(): ClientBalance
+    {
+        return ClientBalance::query()->create([
+            'client_id' => $this->client->id,
+            'currency_id' => $this->currency->id,
+            'type' => 1,
+            'balance' => 0,
         ]);
     }
 }

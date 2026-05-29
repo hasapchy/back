@@ -8,6 +8,7 @@ use App\Models\CategoryUser;
 use App\Models\Currency;
 use App\Models\User;
 use App\Services\CacheService;
+use App\Services\TransactionCategoryBindingResolver;
 use App\Services\CurrencyConverter;
 use App\Services\RoundingService;
 use App\Support\CompanyScopedPermissions;
@@ -403,6 +404,7 @@ abstract class BaseRepository
     protected function buildTransactionData(array $data, string $sourceType, int $sourceId): array
     {
         $defaultCurrency = $this->getDefaultCurrency();
+        $skipAmountRounding = (bool) ($data['skip_amount_rounding'] ?? false);
 
         $amount = $data['amount'] ?? 0;
         $origAmount = $data['orig_amount'] ?? $amount;
@@ -418,14 +420,17 @@ abstract class BaseRepository
             }
         }
 
+        $defaultCategoryId = $this->resolveTransactionCategoryBinding('transaction.default.income', 1);
+
         return [
             'client_id' => $data['client_id'] ?? null,
-            'amount' => $this->roundAmount($amount),
-            'orig_amount' => $this->roundAmount($origAmount),
+            'amount' => $skipAmountRounding ? (float) $amount : $this->roundAmount($amount),
+            'orig_amount' => $skipAmountRounding ? (float) $origAmount : $this->roundAmount($origAmount),
+            'skip_amount_rounding' => $skipAmountRounding,
             'type' => $data['type'] ?? 1,
             'is_debt' => $data['is_debt'] ?? false,
             'cash_id' => $data['cash_id'] ?? null,
-            'category_id' => $data['category_id'] ?? 1,
+            'category_id' => $data['category_id'] ?? $defaultCategoryId,
             'source_type' => $sourceType,
             'source_id' => $sourceId,
             'date' => $data['date'] ?? now(),
@@ -451,6 +456,11 @@ abstract class BaseRepository
         $transactionData = $this->buildTransactionData($data, $sourceType, $sourceId);
 
         return app(TransactionsRepository::class)->createItem($transactionData, $returnId, false);
+    }
+
+    protected function resolveTransactionCategoryBinding(string $bindingKey, ?int $fallback = null): ?int
+    {
+        return app(TransactionCategoryBindingResolver::class)->resolve($this->getCurrentCompanyId(), $bindingKey, $fallback);
     }
 
     /**

@@ -5,12 +5,10 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Models\User;
 use App\Support\ResolvedCompany;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class CompanyContextResolutionTest extends TestCase
 {
-    use DatabaseTransactions;
 
     public function test_current_company_resolves_from_pat_company_id(): void
     {

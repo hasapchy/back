@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Company;
-use App\Models\CompanyHoliday;
+use App\Models\Holiday;
 use App\Models\User;
 use App\Services\CacheService;
 use Carbon\Carbon;
@@ -65,7 +65,7 @@ class NewsFeedDemoSeeder extends Seeder
                 $isRange = $index % 4 === 0;
                 $end = $isRange ? $start->copy()->addDays(2) : null;
 
-                CompanyHoliday::query()->updateOrCreate(
+                Holiday::query()->updateOrCreate(
                     [
                         'company_id' => $company->id,
                         'name' => $name,
@@ -75,7 +75,7 @@ class NewsFeedDemoSeeder extends Seeder
                         'end_date' => $end?->toDateString(),
                         'is_recurring' => $index % 5 !== 0,
                         'color' => $colors[$index % count($colors)],
-                        'icon' => CompanyHoliday::ALLOWED_ICONS[$index % count(CompanyHoliday::ALLOWED_ICONS)],
+                        'icon' => Holiday::ALLOWED_ICONS[$index % count(Holiday::ALLOWED_ICONS)],
                     ]
                 );
             }
@@ -83,7 +83,7 @@ class NewsFeedDemoSeeder extends Seeder
             $this->seedBirthdaysForCompany($company, $today);
         }
 
-        CacheService::invalidateCompanyHolidaysCache();
+        CacheService::invalidateHolidaysCache();
 
         $this->command?->info(sprintf(
             'Создано/обновлено: %d событий на компанию, дни рождения для ленты.',

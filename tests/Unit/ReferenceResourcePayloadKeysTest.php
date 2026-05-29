@@ -3,7 +3,7 @@
 namespace Tests\Unit;
 
 use App\Http\Resources\CashRegisterReferenceResource;
-use App\Http\Resources\CompanyHolidayReferenceResource;
+use App\Http\Resources\HolidayReferenceResource;
 use App\Http\Resources\DepartmentReferenceResource;
 use App\Http\Resources\LeaveReferenceResource;
 use App\Http\Resources\MessageTemplateReferenceResource;
@@ -27,7 +27,7 @@ use App\Models\Category;
 use App\Models\Client;
 use App\Models\ClientsPhone;
 use App\Models\Company;
-use App\Models\CompanyHoliday;
+use App\Models\Holiday;
 use App\Models\Currency;
 use App\Models\Department;
 use App\Models\Leave;
@@ -46,14 +46,12 @@ use App\Models\TransactionCategory;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\Warehouse;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class ReferenceResourcePayloadKeysTest extends TestCase
 {
-    use DatabaseTransactions;
 
     /**
      * @return Request
@@ -404,7 +402,7 @@ class ReferenceResourcePayloadKeysTest extends TestCase
     public function test_company_holiday_reference_keys(): void
     {
         $company = Company::factory()->create();
-        $holiday = CompanyHoliday::make([
+        $holiday = Holiday::make([
             'id' => 1,
             'company_id' => $company->id,
             'name' => 'Day off',
@@ -417,8 +415,8 @@ class ReferenceResourcePayloadKeysTest extends TestCase
         $holiday->exists = true;
         $holiday->syncOriginal();
 
-        $payload = (new CompanyHolidayReferenceResource($holiday))->toArray($this->apiRequest());
-        $this->assertTopLevelKeysMatchConfig('company_holidays', $payload);
+        $payload = (new HolidayReferenceResource($holiday))->toArray($this->apiRequest());
+        $this->assertTopLevelKeysMatchConfig('holidays', $payload);
     }
 
     /**

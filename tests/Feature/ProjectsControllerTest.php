@@ -8,12 +8,10 @@ use App\Models\Project;
 use App\Models\ProjectStatus;
 use App\Models\Client;
 use App\Models\Currency;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class ProjectsControllerTest extends TestCase
 {
-    use DatabaseTransactions;
 
     protected User $adminUser;
     protected Company $company;
@@ -67,7 +65,7 @@ class ProjectsControllerTest extends TestCase
             ->postJson('/api/projects', $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Проект создан']);
+        $response->assertJson(['message' => 'РџСЂРѕРµРєС‚ СЃРѕР·РґР°РЅ']);
     }
 
     public function test_update_project_success(): void
@@ -88,7 +86,7 @@ class ProjectsControllerTest extends TestCase
             ->putJson("/api/projects/{$project->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Проект обновлен']);
+        $response->assertJson(['message' => 'РџСЂРѕРµРєС‚ РѕР±РЅРѕРІР»РµРЅ']);
     }
 
     public function test_destroy_project_success(): void
@@ -103,18 +101,18 @@ class ProjectsControllerTest extends TestCase
             ->deleteJson("/api/projects/{$project->id}");
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Проект удален']);
+        $response->assertJson(['message' => 'РџСЂРѕРµРєС‚ СѓРґР°Р»РµРЅ']);
     }
 
     public function test_get_projects_meta_contains_status_counts_with_name_color_and_count(): void
     {
         $statusActive = ProjectStatus::factory()->create([
-            'name' => 'Активный',
+            'name' => 'РђРєС‚РёРІРЅС‹Р№',
             'color' => '#207AC7',
             'creator_id' => $this->adminUser->id,
         ]);
         $statusClosed = ProjectStatus::factory()->create([
-            'name' => 'Завершен',
+            'name' => 'Р—Р°РІРµСЂС€РµРЅ',
             'color' => '#939699',
             'creator_id' => $this->adminUser->id,
         ]);
@@ -152,11 +150,11 @@ class ProjectsControllerTest extends TestCase
         $this->assertNotNull($activeItem);
         $this->assertNotNull($closedItem);
 
-        $this->assertSame('Активный', $activeItem['name']);
+        $this->assertSame('РђРєС‚РёРІРЅС‹Р№', $activeItem['name']);
         $this->assertSame('#207AC7', $activeItem['color']);
         $this->assertSame(2, (int) $activeItem['count']);
 
-        $this->assertSame('Завершен', $closedItem['name']);
+        $this->assertSame('Р—Р°РІРµСЂС€РµРЅ', $closedItem['name']);
         $this->assertSame('#939699', $closedItem['color']);
         $this->assertSame(1, (int) $closedItem['count']);
     }

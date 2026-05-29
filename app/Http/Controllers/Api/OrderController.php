@@ -15,6 +15,7 @@ use App\Support\NullableInt;
 use App\Support\SimpleUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -50,6 +51,7 @@ class OrderController extends BaseController
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $user = auth('api')->user();
 
         $page = $request->input('page', 1);
         $per_page = $request->input('per_page', 20);
@@ -77,6 +79,20 @@ class OrderController extends BaseController
             $categoryFilter,
             $unpaidOnly
         );
+        Log::info('orders.index.simple.debug', [
+            'user_id' => $userUuid,
+            'is_simple_user' => \App\Support\SimpleUser::matches($user),
+            'page' => (int) $page,
+            'per_page' => (int) $per_page,
+            'search' => $search,
+            'date_filter' => $dateFilter,
+            'project_filter' => $projectFilter,
+            'client_filter' => $clientFilter,
+            'category_filter' => $categoryFilter,
+            'unpaid_only' => (bool) $unpaidOnly,
+            'items_count' => $items->count(),
+            'total' => $items->total(),
+        ]);
 
         $meta = [
             'current_page' => $items->currentPage(),
@@ -204,7 +220,18 @@ class OrderController extends BaseController
         $this->authorize('create', Order::class);
 
         $validatedData = $request->validated();
-
+        Log::info('orders.store.simple.debug.request', [
+            'user_id' => $userUuid,
+            'is_simple_user' => \App\Support\SimpleUser::matches($user),
+            'client_id' => $validatedData['client_id'] ?? null,
+            'project_id' => $validatedData['project_id'] ?? null,
+            'cash_id' => $validatedData['cash_id'] ?? null,
+            'warehouse_id' => $validatedData['warehouse_id'] ?? null,
+            'currency_id' => $validatedData['currency_id'] ?? null,
+            'category_id_in_request' => $validatedData['category_id'] ?? null,
+            'products_count' => count($validatedData['products'] ?? []),
+            'temp_products_count' => count($validatedData['temp_products'] ?? []),
+        ]);
         $categoryId = $this->resolveCategoryForSimpleUser($validatedData['category_id'] ?? null);
         if ($categoryId instanceof JsonResponse) {
             return $categoryId;
@@ -257,6 +284,13 @@ class OrderController extends BaseController
 
         try {
             $order = $this->itemsRepository->createItem($data);
+            Log::info('orders.store.simple.debug.created', [
+                'user_id' => $userUuid,
+                'order_id' => $order->id ?? null,
+                'category_id' => $order->category_id ?? null,
+                'cash_id' => $order->cash_id ?? null,
+                'warehouse_id' => $order->warehouse_id ?? null,
+            ]);
 
             CacheService::invalidateOrdersCache();
             CacheService::invalidateWarehouseStocksCache();
@@ -280,6 +314,11 @@ class OrderController extends BaseController
 
             return (new OrderResource($order))->additional(['message' => 'Заказ успешно создан'])->response();
         } catch (\Throwable $th) {
+            Log::error('orders.store.simple.debug.failed', [
+                'user_id' => $userUuid,
+                'error' => $th->getMessage(),
+                'trace' => $th->getTraceAsString(),
+            ]);
             return $this->errorResponse($th->getMessage(), 400);
         }
     }
@@ -307,7 +346,19 @@ class OrderController extends BaseController
         $this->authorize('update', $order);
 
         $validatedData = $request->validated();
-
+        Log::info('orders.update.simple.debug.request', [
+            'user_id' => $userUuid,
+            'order_id' => (int) $id,
+            'is_simple_user' => \App\Support\SimpleUser::matches(auth('api')->user()),
+            'client_id' => $validatedData['client_id'] ?? null,
+            'project_id' => $validatedData['project_id'] ?? null,
+            'cash_id' => $validatedData['cash_id'] ?? null,
+            'warehouse_id' => $validatedData['warehouse_id'] ?? null,
+            'currency_id' => $validatedData['currency_id'] ?? null,
+            'category_id_in_request' => $validatedData['category_id'] ?? null,
+            'products_count' => count($validatedData['products'] ?? []),
+            'temp_products_count' => count($validatedData['temp_products'] ?? []),
+        ]);
         $categoryId = $this->resolveCategoryForSimpleUser($validatedData['category_id'] ?? null);
         if ($categoryId instanceof JsonResponse) {
             return $categoryId;
@@ -362,6 +413,10 @@ class OrderController extends BaseController
 
         try {
             $this->itemsRepository->updateItem($id, $data);
+            Log::info('orders.update.simple.debug.updated', [
+                'user_id' => $userUuid,
+                'order_id' => (int) $id,
+            ]);
 
             CacheService::invalidateOrdersCache();
             CacheService::invalidateWarehouseStocksCache();
@@ -376,6 +431,12 @@ class OrderController extends BaseController
 
             return (new OrderResource($updatedOrder))->additional(['message' => 'Заказ сохранён'])->response();
         } catch (\Throwable $th) {
+            Log::error('orders.update.simple.debug.failed', [
+                'user_id' => $userUuid,
+                'order_id' => (int) $id,
+                'error' => $th->getMessage(),
+                'trace' => $th->getTraceAsString(),
+            ]);
             return $this->errorResponse($th->getMessage(), 400);
         }
     }
