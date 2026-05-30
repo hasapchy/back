@@ -63,6 +63,12 @@ class ClientController extends BaseController
             $params['type_filter']
         );
 
+        $typeCounts = $this->itemsRepository->getTypeCountsForFilters(
+            $params['search'],
+            $params['include_inactive'],
+            $params['status_filter']
+        );
+
         return $this->successResponse([
             'items' => ClientResource::collection($items->items())->resolve(),
             'meta' => [
@@ -72,6 +78,9 @@ class ClientController extends BaseController
                 'total' => $items->total(),
                 'next_page' => $items->nextPageUrl(),
                 'prev_page' => $items->previousPageUrl(),
+                'type_counts' => $typeCounts['by_type'],
+                'suppliers_count' => $typeCounts['suppliers'],
+                'total_unfiltered_by_type' => $typeCounts['total'],
             ],
         ]);
     }

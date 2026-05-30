@@ -100,6 +100,47 @@ class ClientsRepository extends BaseRepository
     }
 
     /**
+     * Подсчитать количество клиентов по типам с учётом текущих фильтров (без typeFilter).
+     *
+     * Возвращает массив с ключами:
+     *  - total: общее количество (по фильтру search/status, без типа)
+     *  - by_type: список [['type' => 'individual', 'count' => N], ...]
+     *  - suppliers: количество клиентов с флагом is_supplier
+     *
+     * @param  string|null  $search
+     * @param  bool  $includeInactive
+     * @param  string|null  $statusFilter
+     * @return array
+     */
+    public function getTypeCountsForFilters($search = null, $includeInactive = false, $statusFilter = null): array
+    {
+        $baseQuery = $this->buildClientListQuery($search, $includeInactive, $statusFilter, []);
+
+        $total = (clone $baseQuery)->count('clients.id');
+        $suppliers = (clone $baseQuery)->where('clients.is_supplier', true)->count('clients.id');
+
+        $rows = (clone $baseQuery)
+            ->select('clients.client_type', DB::raw('COUNT(clients.id) as cnt'))
+            ->groupBy('clients.client_type')
+            ->pluck('cnt', 'clients.client_type')
+            ->all();
+
+        $byType = [];
+        foreach (Client::CLIENT_TYPES as $type) {
+            $byType[] = [
+                'type' => $type,
+                'count' => (int) ($rows[$type] ?? 0),
+            ];
+        }
+
+        return [
+            'total' => (int) $total,
+            'by_type' => $byType,
+            'suppliers' => (int) $suppliers,
+        ];
+    }
+
+    /**
      * Получить клиентов для экспорта
      *
      * @param  string|null  $search
