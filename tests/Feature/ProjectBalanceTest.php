@@ -143,4 +143,32 @@ class ProjectBalanceTest extends TestCase
         $response->assertStatus(200);
         $this->assertSame(2000.0, (float) $response->json('data.balance'));
     }
+
+    public function test_manual_debt_transaction_with_project_appears_in_project_balance_history(): void
+    {
+        $transaction = Transaction::factory()->create([
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
+            'project_id' => $this->project->id,
+            'currency_id' => $this->currency->id,
+            'cash_id' => $this->cashRegister->id,
+            'category_id' => 30,
+            'type' => 0,
+            'is_debt' => true,
+            'source_type' => null,
+            'source_id' => null,
+            'orig_amount' => 100,
+            'amount' => 100,
+            'def_amount' => 100,
+            'rep_amount' => 100,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson("/api/projects/{$this->project->id}/balance-history?t=".time());
+
+        $response->assertStatus(200);
+        $historyIds = collect($response->json('data.history'))->pluck('source_id')->map(fn ($id) => (int) $id)->all();
+        $this->assertContains($transaction->id, $historyIds);
+        $this->assertSame(-100.0, (float) $response->json('data.balance'));
+    }
 }

@@ -380,7 +380,7 @@ class ProjectsRepository extends BaseRepository
             $item = Project::findOrFail($id);
 
             $transactionsCount = Transaction::where('project_id', $id)
-                ->where('is_deleted', false)
+                ->notDeleted()
                 ->count();
             if ($transactionsCount > 0) {
                 throw new \Exception('Невозможно удалить проект, к нему привязано транзакций: '.$transactionsCount);
@@ -411,21 +411,9 @@ class ProjectsRepository extends BaseRepository
 
         return CacheService::remember($cacheKey, function () use ($projectId, $page, $perPage) {
             $project = Project::find($projectId);
-            $projectCurrency = $project && $project->currency_id ? Currency::find($project->currency_id) : null;
-            $companyId = $project ? $project->company_id : null;
-            $defaultCurrency = Currency::where('is_default', true)
-                ->where(function ($q) use ($companyId) {
-                    $q->where('company_id', $companyId)->orWhereNull('company_id');
-                })
-                ->first();
-            $reportCurrency = Currency::where('is_report', true)
-                ->where(function ($q) use ($companyId) {
-                    $q->where('company_id', $companyId)->orWhereNull('company_id');
-                })
-                ->first();
-
-            $isProjectReportCurrency = $projectCurrency && $reportCurrency && $projectCurrency->id === $reportCurrency->id;
-            $isProjectDefaultCurrency = $projectCurrency && $defaultCurrency && $projectCurrency->id === $defaultCurrency->id;
+            $currencyContext = $this->resolveProjectCurrencyContext($project);
+            $isProjectReportCurrency = $currencyContext['is_project_report_currency'];
+            $isProjectDefaultCurrency = $currencyContext['is_project_default_currency'];
 
             $query = $this->projectBalanceTransactionsQuery($projectId)
                 ->orderBy('created_at', 'desc')
@@ -459,29 +447,14 @@ class ProjectsRepository extends BaseRepository
                 $transactions = $query->get();
             }
 
-            $sourceMap = [
-                'App\\Models\\Sale' => 'sale',
-                'App\\Models\\Order' => 'order',
-                'App\\Models\\WhReceipt' => 'receipt',
-            ];
-
-            $transactionsResult = $transactions->map(function ($item) use ($isProjectReportCurrency, $isProjectDefaultCurrency, $sourceMap) {
-                $source = $sourceMap[$item->source_type] ?? 'transaction';
-
-                if ($isProjectReportCurrency) {
-                    $amount = $item->rep_amount ?? $item->orig_amount;
-                } elseif ($isProjectDefaultCurrency) {
-                    $amount = $item->def_amount ?? $item->orig_amount;
-                } else {
-                    $amount = $item->orig_amount;
-                }
-
-                $amount = match ($source) {
-                    'receipt' => -$amount,
-                    'transaction' => $item->type == 1 ? +$amount : -$amount,
-                    'sale' => +$amount,
-                    'order' => -$amount,
-                };
+            $transactionsResult = $transactions->map(function ($item) use ($isProjectReportCurrency, $isProjectDefaultCurrency) {
+                $balanceAmount = $this->computeProjectBalanceSignedAmount(
+                    $item,
+                    $isProjectReportCurrency,
+                    $isProjectDefaultCurrency
+                );
+                $source = $balanceAmount['source'];
+                $amount = $balanceAmount['signed_amount'];
 
                 return [
                     'source' => $source,
@@ -527,10 +500,12 @@ class ProjectsRepository extends BaseRepository
     {
         return Transaction::query()
             ->where('project_id', $projectId)
-            ->where('is_deleted', false)
-            ->whereNot(function ($query) {
-                $query->where('source_type', ProjectContract::class)
-                    ->where('is_debt', true);
+            ->notDeleted()
+            ->where(function ($query) {
+                $query->where(function ($q) {
+                    $q->where('source_type', '!=', ProjectContract::class)
+                        ->orWhereNull('source_type');
+                })->orWhere('is_debt', false);
             });
     }
 
@@ -576,6 +551,76 @@ class ProjectsRepository extends BaseRepository
     }
 
     /**
+     * @param  Project|null  $project
+     * @return array{is_project_report_currency: bool, is_project_default_currency: bool}
+     */
+    private function resolveProjectCurrencyContext(?Project $project): array
+    {
+        $projectCurrency = $project && $project->currency_id ? Currency::find($project->currency_id) : null;
+        $companyId = $project?->company_id;
+        $defaultCurrency = Currency::where('is_default', true)
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->first();
+        $reportCurrency = Currency::where('is_report', true)
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->first();
+
+        return [
+            'is_project_report_currency' => $projectCurrency && $reportCurrency && $projectCurrency->id === $reportCurrency->id,
+            'is_project_default_currency' => $projectCurrency && $defaultCurrency && $projectCurrency->id === $defaultCurrency->id,
+        ];
+    }
+
+    /**
+     * @param  Transaction  $item
+     * @param  bool  $isProjectReportCurrency
+     * @param  bool  $isProjectDefaultCurrency
+     * @return array{source: string, base_amount: float, signed_amount: float, amount_field: string}
+     */
+    private function computeProjectBalanceSignedAmount(
+        Transaction $item,
+        bool $isProjectReportCurrency,
+        bool $isProjectDefaultCurrency
+    ): array {
+        $sourceMap = [
+            'App\\Models\\Sale' => 'sale',
+            'App\\Models\\Order' => 'order',
+            'App\\Models\\WhReceipt' => 'receipt',
+        ];
+        $source = $sourceMap[$item->source_type] ?? 'transaction';
+
+        if ($isProjectReportCurrency) {
+            $amount = $item->rep_amount ?? $item->orig_amount;
+            $amountField = $item->rep_amount !== null ? 'rep_amount' : 'orig_amount';
+        } elseif ($isProjectDefaultCurrency) {
+            $amount = $item->def_amount ?? $item->orig_amount;
+            $amountField = $item->def_amount !== null ? 'def_amount' : 'orig_amount';
+        } else {
+            $amount = $item->orig_amount;
+            $amountField = 'orig_amount';
+        }
+
+        $baseAmount = (float) $amount;
+        $signedAmount = match ($source) {
+            'receipt' => -$baseAmount,
+            'transaction' => $item->type == 1 ? +$baseAmount : -$baseAmount,
+            'sale' => +$baseAmount,
+            'order' => -$baseAmount,
+        };
+
+        return [
+            'source' => $source,
+            'base_amount' => $baseAmount,
+            'signed_amount' => (float) $signedAmount,
+            'amount_field' => $amountField,
+        ];
+    }
+
+    /**
      * Рассчитать агрегированные показатели баланса проекта
      *
      * @param  array  $history  История баланса проекта
@@ -613,7 +658,7 @@ class ProjectsRepository extends BaseRepository
     public function invalidateProjectCache($projectId): void
     {
         CacheService::forget("project_item_{$projectId}");
-        CacheService::forget("project_balance_history_{$projectId}");
+        CacheService::invalidateByLike("%project_balance_history%_{$projectId}_%");
         CacheService::forget("project_balance_{$projectId}");
         CacheService::forget("project_total_balance_{$projectId}");
         CacheService::forget("project_real_balance_{$projectId}");

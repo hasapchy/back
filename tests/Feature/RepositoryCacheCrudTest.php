@@ -470,6 +470,8 @@ class RepositoryCacheCrudTest extends TestCase
                     'status_id' => $status->id,
                     'date' => now(),
                     'price' => 1000,
+                    'discount' => 0,
+                    'total_price' => 1000,
                 ]
             );
 

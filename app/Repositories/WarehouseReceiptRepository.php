@@ -607,8 +607,6 @@ class WarehouseReceiptRepository extends BaseRepository
             }
 
             $summary = app(ReceiptExpenseAllocationService::class)->buildLandedCostSummary($receiptForSummary);
-            $companyId = (int) ($receiptForSummary->warehouse?->company_id ?? 0);
-            $rounding = new RoundingService();
 
             foreach ($summary['lines'] as $line) {
                 $productId = (int) ($line['product_id'] ?? 0);
@@ -619,9 +617,6 @@ class WarehouseReceiptRepository extends BaseRepository
 
                 $landedLine = (float) ($line['landed_line_total_default'] ?? 0);
                 $unit = $landedLine / $qty;
-                if ($companyId > 0) {
-                    $unit = $rounding->roundWarehouseAmountForCompany($companyId, $unit);
-                }
                 if ($unit <= 1e-12) {
                     continue;
                 }

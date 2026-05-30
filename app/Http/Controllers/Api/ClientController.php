@@ -273,6 +273,14 @@ class ClientController extends BaseController
             $balanceDirection = $request->input('balance_direction');
             $balanceDirection = in_array($balanceDirection, ['positive', 'negative'], true) ? $balanceDirection : null;
 
+            $balanceTypeFilterInput = $request->input('balance_type_filter');
+            $balanceTypeFilter = null;
+            if (is_array($balanceTypeFilterInput)) {
+                $balanceTypeFilter = $balanceTypeFilterInput;
+            } elseif ($balanceTypeFilterInput !== null && $balanceTypeFilterInput !== '') {
+                $balanceTypeFilter = [$balanceTypeFilterInput];
+            }
+
             if ($forMutualSettlements) {
                 $user = $this->requireAuthenticatedUser();
                 $allowedTypes = $this->getAllowedMutualSettlementsClientTypes($user);
@@ -294,7 +302,8 @@ class ClientController extends BaseController
                 $search,
                 (bool) $onlyWithBalance,
                 $currencyId,
-                $balanceDirection
+                $balanceDirection,
+                $balanceTypeFilter
             );
 
             return ClientResource::collection($items)->response();

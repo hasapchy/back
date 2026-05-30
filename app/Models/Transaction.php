@@ -465,6 +465,19 @@ class Transaction extends Model implements SupportsTimeline
     }
 
     /**
+     * Активные транзакции (не удалённые; NULL в БД считается активной).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeNotDeleted($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('is_deleted', false)->orWhereNull('is_deleted');
+        });
+    }
+
+    /**
      * Scope для фильтрации по компании
      *
      * @param \Illuminate\Database\Eloquent\Builder $query

@@ -451,7 +451,7 @@ class OrderControllerTest extends TestCase
         $this->assertGreaterThan(0, $orderId);
 
         $order = Order::query()->findOrFail($orderId);
-        $expectedDebtAmount = (float) ($order->price - $order->discount);
+        $expectedDebtAmount = (float) $order->total_price;
         $debtTransaction = Transaction::query()
             ->where('source_type', Order::class)
             ->where('source_id', $orderId)

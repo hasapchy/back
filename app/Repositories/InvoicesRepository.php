@@ -282,8 +282,8 @@ class InvoicesRepository extends BaseRepository
             'orders.category_id',
             'orders.price',
             'orders.discount',
+            'orders.total_price',
             'orders.paid_amount',
-            DB::raw('(orders.price - orders.discount) as total_price'),
             'orders.date',
             'orders.created_at',
             'orders.updated_at',
@@ -336,7 +336,7 @@ class InvoicesRepository extends BaseRepository
                 $orderDate = $order->date;
             }
 
-            $totalPrice = (float) ($order->total_price ?? ($order->price - $order->discount));
+            $totalPrice = (float) ($order->total_price ?? 0);
             $paidAmount = (float) ($order->paid_amount ?? 0);
             $unpaidAmount = max(0, $totalPrice - $paidAmount);
 

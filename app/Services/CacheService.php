@@ -262,7 +262,7 @@ class CacheService
     public static function invalidateProjectCache(int $projectId): void
     {
         self::forget("project_item_{$projectId}");
-        self::forget("project_balance_history_{$projectId}");
+        self::invalidateByLike("%project_balance_history%_{$projectId}_%");
         self::forget("project_balance_{$projectId}");
         self::forget("project_total_balance_{$projectId}");
         self::forget("project_real_balance_{$projectId}");
