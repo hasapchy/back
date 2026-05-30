@@ -100,6 +100,47 @@ class ClientsRepository extends BaseRepository
     }
 
     /**
+     * Подсчитать количество клиентов по типам с учётом текущих фильтров (без typeFilter).
+     *
+     * Возвращает массив с ключами:
+     *  - total: общее количество (по фильтру search/status, без типа)
+     *  - by_type: список [['type' => 'individual', 'count' => N], ...]
+     *  - suppliers: количество клиентов с флагом is_supplier
+     *
+     * @param  string|null  $search
+     * @param  bool  $includeInactive
+     * @param  string|null  $statusFilter
+     * @return array
+     */
+    public function getTypeCountsForFilters($search = null, $includeInactive = false, $statusFilter = null): array
+    {
+        $baseQuery = $this->buildClientListQuery($search, $includeInactive, $statusFilter, []);
+
+        $total = (clone $baseQuery)->count('clients.id');
+        $suppliers = (clone $baseQuery)->where('clients.is_supplier', true)->count('clients.id');
+
+        $rows = (clone $baseQuery)
+            ->select('clients.client_type', DB::raw('COUNT(clients.id) as cnt'))
+            ->groupBy('clients.client_type')
+            ->pluck('cnt', 'clients.client_type')
+            ->all();
+
+        $byType = [];
+        foreach (Client::CLIENT_TYPES as $type) {
+            $byType[] = [
+                'type' => $type,
+                'count' => (int) ($rows[$type] ?? 0),
+            ];
+        }
+
+        return [
+            'total' => (int) $total,
+            'by_type' => $byType,
+            'suppliers' => (int) $suppliers,
+        ];
+    }
+
+    /**
      * Получить клиентов для экспорта
      *
      * @param  string|null  $search
@@ -128,6 +169,7 @@ class ClientsRepository extends BaseRepository
      * @param  bool  $onlyWithBalance
      * @param  int|string|null  $currencyId
      * @param  string|null  $balanceDirection  positive|negative|null
+     * @param  array<int>|null  $balanceTypeFilter  0 — безнал, 1 — нал
      * @return \Illuminate\Support\Collection
      */
     public function getAllItems(
@@ -136,10 +178,12 @@ class ClientsRepository extends BaseRepository
         ?string $search = null,
         bool $onlyWithBalance = false,
         $currencyId = null,
-        ?string $balanceDirection = null
+        ?string $balanceDirection = null,
+        ?array $balanceTypeFilter = null
     )
     {
         $typeFilter = $this->normalizeTypeFilter($typeFilter);
+        $balanceTypeFilter = $this->normalizeBalanceTypeFilter($balanceTypeFilter);
 
         /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
@@ -165,10 +209,11 @@ class ClientsRepository extends BaseRepository
             $search,
             $onlyWithBalance,
             $currencyId,
-            $balanceDirection
+            $balanceDirection,
+            implode(',', $balanceTypeFilter),
         ]);
 
-        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter, $search, $onlyWithBalance, $currencyId, $balanceDirection) {
+        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter, $search, $onlyWithBalance, $currencyId, $balanceDirection, $balanceTypeFilter) {
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
@@ -202,7 +247,7 @@ class ClientsRepository extends BaseRepository
 
             $direction = in_array($balanceDirection, ['positive', 'negative'], true) ? $balanceDirection : null;
             if ($onlyWithBalance || $direction !== null) {
-                $query->whereHas('balances', function ($bq) use ($currencyId, $direction, $onlyWithBalance) {
+                $query->whereHas('balances', function ($bq) use ($currencyId, $direction, $onlyWithBalance, $balanceTypeFilter) {
                     if ($direction === 'positive') {
                         $bq->where('balance', '>', 0);
                     } elseif ($direction === 'negative') {
@@ -212,6 +257,9 @@ class ClientsRepository extends BaseRepository
                     }
                     if ((int) $currencyId > 0) {
                         $bq->where('currency_id', (int) $currencyId);
+                    }
+                    if (! empty($balanceTypeFilter)) {
+                        $bq->whereIn('type', $balanceTypeFilter);
                     }
                 });
             }
@@ -850,6 +898,27 @@ class ClientsRepository extends BaseRepository
         }));
 
         return array_values(array_unique($filtered));
+    }
+
+    /**
+     * @param  mixed  $value
+     * @return array<int>
+     */
+    private function normalizeBalanceTypeFilter($value): array
+    {
+        if (empty($value)) {
+            return [];
+        }
+
+        $rawValues = is_array($value)
+            ? $value
+            : explode(',', (string) $value);
+
+        $normalized = array_map(static function ($item) {
+            return (int) $item === 0 ? 0 : 1;
+        }, $rawValues);
+
+        return array_values(array_unique($normalized));
     }
 
     /**

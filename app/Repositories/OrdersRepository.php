@@ -11,6 +11,7 @@ use App\Models\WarehouseStock;
 use App\Models\Warehouse;
 use App\Models\Currency;
 use App\Models\CashRegister;
+use App\Models\Client;
 use App\Models\Transaction;
 use App\Models\OrderStatus;
 use App\Models\User;
@@ -206,24 +207,24 @@ class OrdersRepository extends BaseRepository
             $unpaidQuery = Order::selectRaw('
                 COALESCE(SUM(
                     CASE
-                        WHEN (orders.price - COALESCE(orders.discount, 0)) > COALESCE(paid_amounts.total_paid, 0)
-                        THEN (orders.price - COALESCE(orders.discount, 0) - COALESCE(paid_amounts.total_paid, 0))
+                        WHEN orders.total_price > COALESCE(paid_amounts.total_paid, 0)
+                        THEN (orders.total_price - COALESCE(paid_amounts.total_paid, 0))
                         ELSE 0
                     END
                 ), 0) as unpaid_total
             ')
-            ->leftJoinSub(
-                Transaction::select('source_id', DB::raw($this->orderPaymentsSumExpression().' as total_paid'))
-                    ->where('source_type', Order::class)
-                    ->where('is_debt', 0)
-                    ->where('is_deleted', 0)
-                    ->groupBy('source_id'),
-                'paid_amounts',
-                function ($join) {
-                    $join->on('orders.id', '=', 'paid_amounts.source_id');
-                }
-            )
-            ->whereNull('orders.project_id');
+                ->leftJoinSub(
+                    Transaction::select('source_id', DB::raw($this->orderPaymentsSumExpression() . ' as total_paid'))
+                        ->where('source_type', Order::class)
+                        ->where('is_debt', 0)
+                        ->where('is_deleted', 0)
+                        ->groupBy('source_id'),
+                    'paid_amounts',
+                    function ($join) {
+                        $join->on('orders.id', '=', 'paid_amounts.source_id');
+                    }
+                )
+                ->whereNull('orders.project_id');
 
             if (! $isSimpleUser) {
                 $unpaidQuery->where(function ($q) use ($userUuid) {
@@ -346,7 +347,7 @@ class OrdersRepository extends BaseRepository
         if ($unpaidOnly) {
             $query->whereNull('orders.project_id')
                 ->leftJoinSub(
-                    Transaction::select('source_id', DB::raw($this->orderPaymentsSumExpression().' as total_paid'))
+                    Transaction::select('source_id', DB::raw($this->orderPaymentsSumExpression() . ' as total_paid'))
                         ->where('source_type', Order::class)
                         ->where('is_debt', 0)
                         ->where('is_deleted', 0)
@@ -356,7 +357,7 @@ class OrdersRepository extends BaseRepository
                         $join->on('orders.id', '=', 'paid_transactions.source_id');
                     }
                 )
-                ->whereRaw('(orders.price - orders.discount) > COALESCE(paid_transactions.total_paid, 0)');
+                ->whereRaw('orders.total_price > COALESCE(paid_transactions.total_paid, 0)');
         }
 
         $this->applySimpleUserOrderCategoryFilter($query, $currentUser);
@@ -373,7 +374,7 @@ class OrdersRepository extends BaseRepository
             ->groupBy('order_statuses.id', 'order_statuses.name', 'order_status_categories.color')
             ->orderBy('order_statuses.id')
             ->get()
-            ->map(fn ($row) => [
+            ->map(fn($row) => [
                 'id' => (int) $row->status_id,
                 'name' => (string) $row->status_name,
                 'color' => $row->status_color,
@@ -411,7 +412,7 @@ class OrdersRepository extends BaseRepository
             'status:id,name',
             'status.category:id,name,color',
             'warehouse:id,name',
-            'cashRegister:id,name,currency_id,is_cash',
+            'cashRegister:id,name,currency_id,is_cash,company_id',
             'cashRegister.currency:id,name,symbol',
             'project:id,name',
             'category:id,name',
@@ -424,10 +425,7 @@ class OrdersRepository extends BaseRepository
             'tempProducts.origCurrency:id,name,symbol',
         ];
         ['resource' => $orderResource, 'is_simple' => $isSimpleUser] = SimpleUser::orderAccess($currentUser);
-        $query = Order::select([
-            'orders.*',
-            DB::raw('(orders.price - orders.discount) as total_price')
-        ])->with($withRelations);
+        $query = Order::query()->with($withRelations);
         if (! $isSimpleUser) {
             $query->where(function ($q) use ($userUuid) {
                 if ($this->shouldApplyUserFilter('cash_registers')) {
@@ -478,7 +476,7 @@ class OrdersRepository extends BaseRepository
         if ($unpaidOnly) {
             $query->whereNull('orders.project_id')
                 ->leftJoinSub(
-                    Transaction::select('source_id', DB::raw($this->orderPaymentsSumExpression().' as total_paid'))
+                    Transaction::select('source_id', DB::raw($this->orderPaymentsSumExpression() . ' as total_paid'))
                         ->where('source_type', Order::class)
                         ->where('is_debt', 0)
                         ->where('is_deleted', 0)
@@ -488,8 +486,8 @@ class OrdersRepository extends BaseRepository
                         $join->on('orders.id', '=', 'paid_transactions.source_id');
                     }
                 )
-                ->whereRaw('(orders.price - orders.discount) > COALESCE(paid_transactions.total_paid, 0)')
-                ->select('orders.*', DB::raw('(orders.price - orders.discount) as total_price'));
+                ->whereRaw('orders.total_price > COALESCE(paid_transactions.total_paid, 0)')
+                ->select('orders.*');
         }
         $this->applySimpleUserOrderCategoryFilter($query, $currentUser);
 
@@ -650,10 +648,6 @@ class OrdersRepository extends BaseRepository
     public function getItemById($id)
     {
         $order = Order::query()
-            ->select([
-                'orders.*',
-                DB::raw('(orders.price - orders.discount) as total_price'),
-            ])
             ->where('orders.id', (int) $id)
             ->with(OrderResource::eagerLoadRelationsForOrderDetail())
             ->first();
@@ -669,7 +663,7 @@ class OrdersRepository extends BaseRepository
 
         $paidAmountsMap = $this->getPaidAmountsMap([(int) $order->id]);
         $paidAmount = (float) ($paidAmountsMap[$order->id] ?? 0);
-        $totalPrice = (float) ($order->getAttribute('total_price') ?? 0);
+        $totalPrice = (float) ($order->total_price ?? 0);
 
         $order->setAttribute('paid_amount', $paidAmount);
 
@@ -724,14 +718,11 @@ class OrdersRepository extends BaseRepository
             return collect();
         }
 
-        $orders = Order::select([
-                'orders.*',
-                DB::raw('(orders.price - orders.discount) as total_price')
-            ])
+        $orders = Order::query()
             ->whereIn('orders.id', $order_ids)
             ->with([
                 'warehouse:id,name',
-                'cashRegister:id,name,currency_id,is_cash',
+                'cashRegister:id,name,currency_id,is_cash,company_id',
                 'cashRegister.currency:id,name,symbol',
                 'project:id,name',
                 'creator:id,name,photo',
@@ -773,7 +764,7 @@ class OrdersRepository extends BaseRepository
                 'project_id' => $order->project_id,
                 'price' => $order->price,
                 'discount' => $order->discount,
-                'total_price' => $order->price - $order->discount,
+                'total_price' => $order->total_price,
                 'date' => $order->date,
                 'created_at' => $order->created_at,
                 'updated_at' => $order->updated_at,
@@ -897,7 +888,7 @@ class OrdersRepository extends BaseRepository
         DB::beginTransaction();
         try {
             $roundingService = new RoundingService();
-            $companyId = $this->getCurrentCompanyId();
+            $companyId = $this->resolveOrderCompanyId($data);
             $defaultCurrency = $this->getOrderDefaultCurrency();
             $documentCurrency = $this->resolveOrderDocumentCurrency(
                 $cash_id ? (int) $cash_id : null,
@@ -940,14 +931,16 @@ class OrdersRepository extends BaseRepository
                     $rateDate,
                     $roundingService
                 );
+                $defUnit = (float) $unitPrices['def_unit'];
+                $price += $q * $defUnit;
 
                 $productsCache[] = [
                     'id' => $product['id'] ?? null,
                     'product_id' => $p_id,
                     'quantity' => $q,
-                    'price' => $unitPrices['def_unit'],
-                    'orig_unit_price' => $unitPrices['orig_unit'],
-                    'orig_currency_id' => $unitPrices['orig_currency_id'],
+                    'price' => $defUnit,
+                    'orig_unit_price' => (float) $unitPrices['orig_unit'],
+                    'orig_currency_id' => (int) $unitPrices['orig_currency_id'],
                     'width' => $width,
                     'height' => $height,
                 ];
@@ -961,8 +954,6 @@ class OrdersRepository extends BaseRepository
                     }
                     $warehouseStocksToUpdate[$p_id]['quantity'] += $q;
                 }
-
-                $price += $q * $unitPrices['def_unit'];
             }
 
             $warehouseName = Warehouse::find($warehouse_id)?->name ?? (string) $warehouse_id;
@@ -979,15 +970,16 @@ class OrdersRepository extends BaseRepository
                     $rateDate,
                     $roundingService
                 );
-                $price += $q * $unitPrices['def_unit'];
+                $defUnit = (float) $unitPrices['def_unit'];
+                $price += $q * $defUnit;
                 $tempRows[] = [
                     'order_id' => null,
                     'name' => $temp_product['name'],
                     'description' => $temp_product['description'] ?? null,
                     'quantity' => $q,
-                    'price' => $unitPrices['def_unit'],
-                    'orig_unit_price' => $unitPrices['orig_unit'],
-                    'orig_currency_id' => $unitPrices['orig_currency_id'],
+                    'price' => $defUnit,
+                    'orig_unit_price' => (float) $unitPrices['orig_unit'],
+                    'orig_currency_id' => (int) $unitPrices['orig_currency_id'],
                     'unit_id' => $temp_product['unit_id'] ?? null,
                     'width' => $temp_product['width'] ?? null,
                     'height' => $temp_product['height'] ?? null,
@@ -998,9 +990,13 @@ class OrdersRepository extends BaseRepository
 
             $discountForCalc = (float) $discount;
             if ($discount_type === 'fixed') {
-                $discountForCalc = $roundingService->roundOrderAmountForCompany(
+                $discountForCalc = (float) CurrencyConverter::convert(
+                    $discountForCalc,
+                    $documentCurrency,
+                    $defaultCurrency,
+                    null,
                     $companyId,
-                    CurrencyConverter::convert($discountForCalc, $documentCurrency, $defaultCurrency, null, $companyId, $rateDate)
+                    $rateDate
                 );
             }
 
@@ -1018,6 +1014,7 @@ class OrdersRepository extends BaseRepository
             $order->category_id = $category_id;
             $order->price = $price;
             $order->discount = $discount_calculated;
+            $order->total_price = $total_price;
             $order->date = $date;
             $order->note = $note;
             $order->description = $description;
@@ -1111,7 +1108,6 @@ class OrdersRepository extends BaseRepository
             app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
             $warehouseChanged = (int) $oldWarehouseId !== (int) $warehouse_id;
 
-            $this->returnProductsToWarehouse($oldProducts, $oldWarehouseId);
             $cash_id = $data['cash_id'] ?? null;
             $project_id = $data['project_id'];
             $status_id = $data['status_id'] ?? $order->status_id;
@@ -1125,7 +1121,7 @@ class OrdersRepository extends BaseRepository
             $date = $data['date'] ?? now();
 
             $roundingService = new RoundingService();
-            $companyId = $this->getCurrentCompanyId();
+            $companyId = $this->resolveOrderCompanyId($data, $order);
             $clientChanged = (int) $oldClientId !== (int) $client_id;
             $defaultCurrency = $this->getOrderDefaultCurrency();
             $documentCurrency = $this->resolveOrderDocumentCurrency(
@@ -1173,14 +1169,16 @@ class OrdersRepository extends BaseRepository
                     $rateDate,
                     $roundingService
                 );
+                $defUnit = (float) $unitPrices['def_unit'];
+                $price += $q * $defUnit;
 
                 $productsCache[] = [
                     'id' => $product['id'] ?? null,
                     'product_id' => $p_id,
                     'quantity' => $q,
-                    'price' => $unitPrices['def_unit'],
-                    'orig_unit_price' => $unitPrices['orig_unit'],
-                    'orig_currency_id' => $unitPrices['orig_currency_id'],
+                    'price' => $defUnit,
+                    'orig_unit_price' => (float) $unitPrices['orig_unit'],
+                    'orig_currency_id' => (int) $unitPrices['orig_currency_id'],
                     'width' => $width,
                     'height' => $height,
                 ];
@@ -1194,11 +1192,16 @@ class OrdersRepository extends BaseRepository
                     }
                     $warehouseStocksToUpdate[$p_id]['quantity'] += $q;
                 }
-
-                $price += $q * $unitPrices['def_unit'];
             }
 
-            $this->checkAndDeductWarehouseStock($warehouseStocksToUpdate, $warehouse_id, $warehouseName);
+            $oldWarehouseStocks = $this->aggregateWarehouseStockFromOrderLines($oldProducts);
+            $shouldSyncWarehouseStock = $warehouseChanged
+                || ! $this->warehouseStockRequirementsEqual($oldWarehouseStocks, $warehouseStocksToUpdate);
+
+            if ($shouldSyncWarehouseStock) {
+                $this->returnProductsToWarehouse($oldProducts, $oldWarehouseId);
+                $this->checkAndDeductWarehouseStock($warehouseStocksToUpdate, $warehouse_id, $warehouseName);
+            }
 
             foreach ($temp_products as $temp_product) {
                 $q = $roundingService->roundQuantityForCompany($companyId, (float) ($temp_product['quantity'] ?? 0));
@@ -1210,14 +1213,18 @@ class OrdersRepository extends BaseRepository
                     $rateDate,
                     $roundingService
                 );
-                $price += $q * $unitPrices['def_unit'];
+                $price += $q * (float) $unitPrices['def_unit'];
             }
 
             $discountForCalc = (float) $discount;
             if ($discount_type === 'fixed') {
-                $discountForCalc = $roundingService->roundOrderAmountForCompany(
+                $discountForCalc = (float) CurrencyConverter::convert(
+                    $discountForCalc,
+                    $documentCurrency,
+                    $defaultCurrency,
+                    null,
                     $companyId,
-                    CurrencyConverter::convert($discountForCalc, $documentCurrency, $defaultCurrency, null, $companyId, $rateDate)
+                    $rateDate
                 );
             }
 
@@ -1235,6 +1242,7 @@ class OrdersRepository extends BaseRepository
                 'category_id' => $category_id,
                 'price' => $price,
                 'discount' => $discount_calculated,
+                'total_price' => $total_price,
                 'date' => $date,
                 'note' => $note,
                 'description' => $description
@@ -1388,6 +1396,9 @@ class OrdersRepository extends BaseRepository
                     $rateDate,
                     $roundingService
                 );
+                $defUnit = (float) $unitPrices['def_unit'];
+                $origUnit = (float) $unitPrices['orig_unit'];
+                $origCurrencyId = (int) $unitPrices['orig_currency_id'];
 
                 if ($tempId) {
                     $existingTemp = $existingTempMap->get($tempId);
@@ -1399,9 +1410,9 @@ class OrdersRepository extends BaseRepository
                     $tempProductChanged = $existingTemp->name !== ($temp_product['name'] ?? $existingTemp->name)
                         || $existingTemp->description != ($temp_product['description'] ?? null)
                         || abs((float) $existingTemp->quantity - (float) $q) > 0.0001
-                        || abs((float) $existingTemp->price - (float) $unitPrices['def_unit']) > 0.0001
-                        || abs((float) ($existingTemp->orig_unit_price ?? 0) - (float) $unitPrices['orig_unit']) > 0.0001
-                        || (int) ($existingTemp->orig_currency_id ?? 0) !== (int) $unitPrices['orig_currency_id']
+                        || abs((float) $existingTemp->price - (float) $defUnit) > 0.0001
+                        || abs((float) ($existingTemp->orig_unit_price ?? 0) - $origUnit) > 0.0001
+                        || (int) ($existingTemp->orig_currency_id ?? 0) !== $origCurrencyId
                         || (int) $existingTemp->unit_id != (int) ($temp_product['unit_id'] ?? null)
                         || $existingTemp->width != ($temp_product['width'] ?? null)
                         || $existingTemp->height != ($temp_product['height'] ?? null);
@@ -1411,9 +1422,9 @@ class OrdersRepository extends BaseRepository
                             'name' => $temp_product['name'],
                             'description' => $temp_product['description'] ?? null,
                             'quantity' => $q,
-                            'price' => $unitPrices['def_unit'],
-                            'orig_unit_price' => $unitPrices['orig_unit'],
-                            'orig_currency_id' => $unitPrices['orig_currency_id'],
+                            'price' => $defUnit,
+                            'orig_unit_price' => $origUnit,
+                            'orig_currency_id' => $origCurrencyId,
                             'unit_id' => $temp_product['unit_id'] ?? null,
                             'width' => $temp_product['width'] ?? null,
                             'height' => $temp_product['height'] ?? null,
@@ -1429,9 +1440,9 @@ class OrdersRepository extends BaseRepository
                         'name' => $temp_product['name'],
                         'description' => $temp_product['description'] ?? null,
                         'quantity' => $q,
-                        'price' => $unitPrices['def_unit'],
-                        'orig_unit_price' => $unitPrices['orig_unit'],
-                        'orig_currency_id' => $unitPrices['orig_currency_id'],
+                        'price' => $defUnit,
+                        'orig_unit_price' => $origUnit,
+                        'orig_currency_id' => $origCurrencyId,
                         'unit_id' => $temp_product['unit_id'] ?? null,
                         'width' => $temp_product['width'] ?? null,
                         'height' => $temp_product['height'] ?? null,
@@ -1469,8 +1480,26 @@ class OrdersRepository extends BaseRepository
             }
 
             if (!$hasChanges && !$productsChanged) {
-                DB::commit();
-                return $order;
+                $debtTxAmount = Transaction::query()
+                    ->where('source_type', Order::class)
+                    ->where('source_id', $order->id)
+                    ->where('type', 1)
+                    ->where('is_debt', true)
+                    ->where('is_deleted', false)
+                    ->value('orig_amount');
+
+                $storedTotal = (float) ($order->total_price ?? 0);
+                $needsTransactionSync = $client_id
+                    && $debtTxAmount !== null
+                    && (
+                        abs((float) $debtTxAmount - (float) $total_price) > 0.00001
+                        || abs((float) $debtTxAmount - $storedTotal) > 0.00001
+                    );
+
+                if (!$needsTransactionSync) {
+                    DB::commit();
+                    return $order;
+                }
             }
 
 
@@ -1624,7 +1653,7 @@ class OrdersRepository extends BaseRepository
                 ->whereIn('source_id', $orders->keys())
                 ->where('is_debt', false)
                 ->where('is_deleted', false)
-                ->select('source_id', DB::raw($this->orderPaymentsSumExpression().' as total_paid'))
+                ->select('source_id', DB::raw($this->orderPaymentsSumExpression() . ' as total_paid'))
                 ->groupBy('source_id')
                 ->pluck('total_paid', 'source_id');
         }
@@ -1641,7 +1670,7 @@ class OrdersRepository extends BaseRepository
             }
 
             if (in_array($statusId, [5], true) && !$order->project_id) {
-                $orderTotal = (float) ($order->price - $order->discount);
+                $orderTotal = (float) ($order->total_price ?? 0);
                 $paidTotal = (float) ($paidTotals->get($order->id) ?? 0);
                 $remainingAmount = $orderTotal - $paidTotal;
 
@@ -1745,10 +1774,11 @@ class OrdersRepository extends BaseRepository
 
         foreach ($warehouseStocksToUpdate as $p_id => $stockData) {
             $stock = $stocks->get($p_id);
-            if (!$stock || $stock->quantity < $stockData['quantity']) {
-                $warehouseName = $warehouseName ?? Warehouse::find($warehouseId)?->name ?? (string)$warehouseId;
-                $available = $stock->quantity ?? 0;
-                throw new \Exception("На складе '{$warehouseName}' недостаточно товара '{$stockData['product_name']}' (доступно: {$available}, требуется: {$stockData['quantity']})");
+            $available = (float) ($stock->quantity ?? 0);
+            $required = (float) $stockData['quantity'];
+            if (! $stock || ! $this->hasSufficientWarehouseStock($available, $required)) {
+                $warehouseName = $warehouseName ?? Warehouse::find($warehouseId)?->name ?? (string) $warehouseId;
+                throw new \Exception("На складе '{$warehouseName}' недостаточно товара '{$stockData['product_name']}' (доступно: {$available}, требуется: {$required})");
             }
         }
 
@@ -1757,6 +1787,93 @@ class OrdersRepository extends BaseRepository
                 ->where('warehouse_id', $warehouseId)
                 ->update(['quantity' => DB::raw('quantity - ' . (float) $stockData['quantity'])]);
         }
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<int, OrderProduct>|iterable<int, OrderProduct> $orderProducts
+     * @return array<int, array{quantity: float, product_name: string}>
+     */
+    private function aggregateWarehouseStockFromOrderLines(iterable $orderProducts): array
+    {
+        $lines = $orderProducts instanceof \Illuminate\Support\Collection
+            ? $orderProducts
+            : collect($orderProducts);
+
+        if ($lines->isEmpty()) {
+            return [];
+        }
+
+        $productIds = $lines->pluck('product_id')->unique()->filter()->values()->all();
+        if ($productIds === []) {
+            return [];
+        }
+
+        $productsData = Product::whereIn('id', $productIds)->get()->keyBy('id');
+        $requirements = [];
+
+        foreach ($lines as $line) {
+            $product = $productsData->get($line->product_id);
+            if (! $product || (int) $product->type !== 1) {
+                continue;
+            }
+
+            $productId = (int) $line->product_id;
+            if (! isset($requirements[$productId])) {
+                $requirements[$productId] = [
+                    'quantity' => 0.0,
+                    'product_name' => $product->name,
+                ];
+            }
+
+            $requirements[$productId]['quantity'] += (float) $line->quantity;
+        }
+
+        return $requirements;
+    }
+
+    /**
+     * @param array<int, array{quantity: float, product_name: string}> $before
+     * @param array<int, array{quantity: float, product_name: string}> $after
+     * @return bool
+     */
+    private function warehouseStockRequirementsEqual(array $before, array $after): bool
+    {
+        $beforeKeys = array_keys($before);
+        $afterKeys = array_keys($after);
+        sort($beforeKeys);
+        sort($afterKeys);
+
+        if ($beforeKeys !== $afterKeys) {
+            return false;
+        }
+
+        foreach ($beforeKeys as $productId) {
+            if (! $this->quantitiesEqual((float) $before[$productId]['quantity'], (float) $after[$productId]['quantity'])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param float $available
+     * @param float $required
+     * @return bool
+     */
+    private function hasSufficientWarehouseStock(float $available, float $required): bool
+    {
+        return $available + 0.00001 >= $required;
+    }
+
+    /**
+     * @param float $a
+     * @param float $b
+     * @return bool
+     */
+    private function quantitiesEqual(float $a, float $b): bool
+    {
+        return abs($a - $b) <= 0.00001;
     }
 
     /**
@@ -1793,30 +1910,259 @@ class OrdersRepository extends BaseRepository
      * @return array ['price' => float, 'discount' => float, 'total_price' => float]
      * @throws \Exception
      */
-    private function calculateDiscountAndTotal($price, $discount, $discountType, $roundingService, $companyId)
+    public function calculateDiscountAndTotal($price, $discount, $discountType, $roundingService, $companyId)
     {
+        $price = (float) $price;
+
         if ($discountType == 'percent') {
             $percent = max(0, min(100, $discount));
             $discount_calculated = $price * $percent / 100;
         } else {
-            $discount_calculated = max(0, min($discount, $price));
+            $discount_calculated = max(0, min((float) $discount, $price));
         }
-        $total_price = max(0, $price - $discount_calculated);
-
-        $price = $roundingService->roundOrderAmountForCompany($companyId, (float) $price);
-        $discount_calculated = $roundingService->roundOrderAmountForCompany($companyId, (float) $discount_calculated);
 
         if ($discount_calculated > $price) {
             throw new \Exception('Скидка не может превышать сумму заказа');
         }
 
-        $total_price = $roundingService->roundOrderAmountForCompany($companyId, (float) $total_price);
+        $total_price = max(0, $price - $discount_calculated);
+
+        if ($roundingService->shouldRoundOrderAmounts($companyId)) {
+            $total_price = $roundingService->roundOrderAmountForCompany($companyId, $total_price);
+        }
 
         return [
             'price' => $price,
             'discount' => $discount_calculated,
-            'total_price' => $total_price
+            'total_price' => $total_price,
         ];
+    }
+
+    /**
+     * Пересчитать orders.total_price по сохранённым price/discount и синхронизировать долговую транзакцию.
+     * Строки заказа (order_products / order_temp_products) не изменяются.
+     *
+     * @param int $orderId
+     * @param int|null $companyId
+     * @param bool $dryRun
+     * @param bool $syncTransactionMeta Синхронизировать поля транзакции кроме суммы (дата, касса, проект и т.д.)
+     * @return array{
+     *     status: string,
+     *     old_total: float,
+     *     new_total: float,
+     *     old_tx_amount: float,
+     *     new_tx_amount: float,
+     *     total_price_changed: bool,
+     *     tx_amount_changed: bool,
+     *     tx_meta_changed: bool
+     * }
+     */
+    public function syncOrderTotalPriceAndDebtTransaction(
+        int $orderId,
+        ?int $companyId = null,
+        bool $dryRun = false,
+        bool $syncTransactionMeta = true,
+    ): array {
+        $order = Order::query()->findOrFail($orderId);
+        $companyId = $companyId ?? $this->resolveOrderCompanyId([], $order);
+
+        $price = (float) ($order->price ?? 0);
+        $discount = (float) ($order->discount ?? 0);
+
+        if ($companyId) {
+            $newTotal = (float) $this->calculateDiscountAndTotal(
+                $price,
+                $discount,
+                'fixed',
+                new RoundingService(),
+                $companyId
+            )['total_price'];
+        } else {
+            $newTotal = max(0.0, $price - $discount);
+        }
+
+        $oldTotal = (float) ($order->total_price ?? 0);
+        $clientId = $order->client_id;
+        $projectId = $order->project_id;
+        $cashId = $order->cash_id;
+        $date = $order->date;
+        $note = $order->note;
+
+        $orderTransaction = Transaction::query()
+            ->where('source_type', Order::class)
+            ->where('source_id', $order->id)
+            ->where('type', 1)
+            ->where('is_debt', true)
+            ->where('is_deleted', false)
+            ->first();
+
+        $oldTxAmount = (float) ($orderTransaction->orig_amount ?? 0);
+        $defaultCurrency = $this->getOrderDefaultCurrency();
+
+        $totalChanged = abs($oldTotal - $newTotal) > 0.00001;
+        $txAmountChanged = false;
+        $txMetaChanged = false;
+
+        if ($clientId) {
+            if (! $orderTransaction) {
+                $txAmountChanged = $newTotal > 0.00001;
+            } else {
+                $txAmountChanged = abs($oldTxAmount - $newTotal) > 0.00001;
+                if ($syncTransactionMeta) {
+                    $txMetaChanged = (int) $orderTransaction->currency_id !== (int) $defaultCurrency->id
+                        || (int) $orderTransaction->client_id !== (int) $clientId
+                        || (int) ($orderTransaction->project_id ?? 0) !== (int) ($projectId ?? 0)
+                        || (int) ($orderTransaction->cash_id ?? 0) !== (int) ($cashId ?? 0)
+                        || ! $this->orderTransactionDatesEqual($orderTransaction->date, $date)
+                        || (string) ($orderTransaction->note ?? '') !== (string) ($note ?? '')
+                        || (int) ($orderTransaction->client_balance_id ?? 0) !== (int) ($order->client_balance_id ?? 0);
+                }
+            }
+        } elseif ($orderTransaction && abs($oldTxAmount) > 0.00001) {
+            $txAmountChanged = true;
+        }
+
+        $txChanged = $txAmountChanged || $txMetaChanged;
+
+        $changeFlags = [
+            'total_price_changed' => $totalChanged,
+            'tx_amount_changed' => $txAmountChanged,
+            'tx_meta_changed' => $txMetaChanged,
+        ];
+
+        if (! $totalChanged && ! $txChanged) {
+            return array_merge([
+                'status' => 'skipped',
+                'old_total' => $oldTotal,
+                'new_total' => $newTotal,
+                'old_tx_amount' => $oldTxAmount,
+                'new_tx_amount' => $clientId ? $newTotal : 0.0,
+            ], $changeFlags);
+        }
+
+        if ($dryRun) {
+            return array_merge([
+                'status' => 'updated',
+                'old_total' => $oldTotal,
+                'new_total' => $newTotal,
+                'old_tx_amount' => $oldTxAmount,
+                'new_tx_amount' => $clientId ? $newTotal : 0.0,
+            ], $changeFlags);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            if ($totalChanged) {
+                $order->total_price = $newTotal;
+                $order->save();
+            }
+
+            if ($orderTransaction) {
+                if ($clientId) {
+                    if ($txChanged) {
+                        $txRepo = new TransactionsRepository();
+                        $txPayload = [
+                            'amount' => $newTotal,
+                            'orig_amount' => $newTotal,
+                            'skip_amount_rounding' => true,
+                        ];
+                        if ($syncTransactionMeta) {
+                            $txPayload = array_merge($txPayload, [
+                                'currency_id' => $defaultCurrency->id,
+                                'client_id' => $clientId,
+                                'project_id' => $projectId,
+                                'cash_id' => $cashId,
+                                'category_id' => $this->resolveTransactionCategoryBinding('order', 1),
+                                'date' => $date,
+                                'note' => $note,
+                                'client_balance_id' => $order->client_balance_id,
+                            ]);
+                        }
+                        $txRepo->updateItem($orderTransaction->id, $txPayload);
+                    }
+                } else {
+                    $orderTransaction->delete();
+                }
+            } elseif ($clientId && $newTotal > 0.00001) {
+                $this->createTransactionForSource(
+                    $this->orderDebtTransactionPayload(
+                        (int) $clientId,
+                        $newTotal,
+                        $cashId,
+                        $date,
+                        $note,
+                        (int) $order->creator_id,
+                        $projectId,
+                        (int) $defaultCurrency->id,
+                        $order->client_balance_id
+                    ),
+                    Order::class,
+                    $order->id,
+                    true
+                );
+            }
+
+            DB::commit();
+
+            CacheService::invalidateOrdersCache();
+            CacheService::invalidateClientsCache();
+            if ($clientId) {
+                $this->invalidateClientBalanceCache((int) $clientId);
+            }
+            if ($projectId) {
+                (new ProjectsRepository())->invalidateProjectCache((int) $projectId);
+            }
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
+
+        $newTxAmount = (float) (Transaction::query()
+            ->where('source_type', Order::class)
+            ->where('source_id', $order->id)
+            ->where('type', 1)
+            ->where('is_debt', true)
+            ->where('is_deleted', false)
+            ->value('orig_amount') ?? 0);
+
+        return array_merge([
+            'status' => 'updated',
+            'old_total' => $oldTotal,
+            'new_total' => $newTotal,
+            'old_tx_amount' => $oldTxAmount,
+            'new_tx_amount' => $newTxAmount,
+        ], $changeFlags);
+    }
+
+    /**
+     * @param mixed $transactionDate
+     * @param mixed $orderDate
+     * @return bool
+     */
+    private function orderTransactionDatesEqual(mixed $transactionDate, mixed $orderDate): bool
+    {
+        if ($transactionDate === null && $orderDate === null) {
+            return true;
+        }
+
+        if ($transactionDate === null || $orderDate === null) {
+            return false;
+        }
+
+        $txTs = $transactionDate instanceof \DateTimeInterface
+            ? $transactionDate->getTimestamp()
+            : strtotime((string) $transactionDate);
+        $orderTs = $orderDate instanceof \DateTimeInterface
+            ? $orderDate->getTimestamp()
+            : strtotime((string) $orderDate);
+
+        if ($txTs === false || $orderTs === false) {
+            return (string) $transactionDate === (string) $orderDate;
+        }
+
+        return $txTs === $orderTs;
     }
 
     /**
@@ -1951,6 +2297,49 @@ class OrdersRepository extends BaseRepository
     }
 
     /**
+     * @param array<string, mixed> $data
+     * @param Order|null $order
+     * @return int|null
+     */
+    public function resolveOrderCompanyId(array $data, ?Order $order = null): ?int
+    {
+        if (isset($data['company_id']) && $data['company_id'] !== '' && $data['company_id'] !== null) {
+            return (int) $data['company_id'];
+        }
+
+        $fromRequest = $this->getCurrentCompanyId();
+        if ($fromRequest) {
+            return $fromRequest;
+        }
+
+        $cashId = $data['cash_id'] ?? $order?->cash_id;
+        if ($cashId) {
+            $companyId = CashRegister::query()->whereKey($cashId)->value('company_id');
+            if ($companyId) {
+                return (int) $companyId;
+            }
+        }
+
+        $warehouseId = $data['warehouse_id'] ?? $order?->warehouse_id;
+        if ($warehouseId) {
+            $companyId = Warehouse::query()->whereKey($warehouseId)->value('company_id');
+            if ($companyId) {
+                return (int) $companyId;
+            }
+        }
+
+        $clientId = $data['client_id'] ?? $order?->client_id;
+        if ($clientId) {
+            $companyId = Client::query()->whereKey($clientId)->value('company_id');
+            if ($companyId) {
+                return (int) $companyId;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @return array{def_unit: float, orig_unit: float, orig_currency_id: int}
      */
     protected function resolveOrderLineUnitPrices(
@@ -1977,10 +2366,14 @@ class OrdersRepository extends BaseRepository
         }
 
         if ($wholesaleDef !== null) {
-            $defUnit = $roundingService->roundOrderAmountForCompany($companyId, $wholesaleDef);
-            $origUnit = $roundingService->roundOrderAmountForCompany(
+            $defUnit = (float) $wholesaleDef;
+            $origUnit = (float) CurrencyConverter::convert(
+                $defUnit,
+                $defaultCurrency,
+                $documentCurrency,
+                null,
                 $companyId,
-                CurrencyConverter::convert($defUnit, $defaultCurrency, $documentCurrency, null, $companyId, $rateDate)
+                $rateDate
             );
 
             return [
@@ -1990,10 +2383,14 @@ class OrdersRepository extends BaseRepository
             ];
         }
 
-        $origUnit = $roundingService->roundOrderAmountForCompany($companyId, $requestUnitPrice);
-        $defUnit = $roundingService->roundOrderAmountForCompany(
+        $origUnit = (float) $requestUnitPrice;
+        $defUnit = (float) CurrencyConverter::convert(
+            $origUnit,
+            $documentCurrency,
+            $defaultCurrency,
+            null,
             $companyId,
-            CurrencyConverter::convert($origUnit, $documentCurrency, $defaultCurrency, null, $companyId, $rateDate)
+            $rateDate
         );
 
         return [
@@ -2014,10 +2411,14 @@ class OrdersRepository extends BaseRepository
         string $rateDate,
         RoundingService $roundingService
     ): array {
-        $origUnit = $roundingService->roundOrderAmountForCompany($companyId, $requestUnitPrice);
-        $defUnit = $roundingService->roundOrderAmountForCompany(
+        $origUnit = (float) $requestUnitPrice;
+        $defUnit = (float) CurrencyConverter::convert(
+            $origUnit,
+            $documentCurrency,
+            $defaultCurrency,
+            null,
             $companyId,
-            CurrencyConverter::convert($origUnit, $documentCurrency, $defaultCurrency, null, $companyId, $rateDate)
+            $rateDate
         );
 
         return [
@@ -2112,7 +2513,8 @@ class OrdersRepository extends BaseRepository
     {
         $totalPrice = (float) ($order->total_price ?? 0);
         $order->setAttribute('paid_amount', $paidAmount);
-        $order->setAttribute('payment_status',
+        $order->setAttribute(
+            'payment_status',
             $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid')
         );
         $order->makeVisible(['paid_amount', 'payment_status', 'payment_status_text']);
@@ -2204,6 +2606,6 @@ class OrdersRepository extends BaseRepository
             return (string) $name;
         }
 
-        return '#'.(int) $orderProduct->product_id;
+        return '#' . (int) $orderProduct->product_id;
     }
 }

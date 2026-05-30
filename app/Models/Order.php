@@ -26,6 +26,7 @@ use App\Services\CacheService;
  * @property int|null $order_id ID родительского заказа
  * @property float $price Цена заказа
  * @property float $discount Скидка
+ * @property float $total_price Итоговая сумма заказа
  * @property float $paid_amount Оплаченная сумма
  * @property int|null $cash_id ID кассы
  * @property int|null $client_balance_id ID баланса клиента
@@ -65,7 +66,6 @@ use App\Services\CacheService;
  * @property string|null $currency_symbol
  * @property string|null $project_name
  * @property string|null $category_name
- * @property float|null $total_price
  */
 class Order extends Model implements SupportsTimeline
 {
@@ -81,6 +81,7 @@ class Order extends Model implements SupportsTimeline
         'date',
         'price',
         'discount',
+        'total_price',
         'paid_amount',
         'cash_id',
         'client_balance_id',
@@ -100,6 +101,7 @@ class Order extends Model implements SupportsTimeline
         'order_id',
         'price',
         'discount',
+        'total_price',
         'cash_id',
         'client_balance_id',
         'warehouse_id',
@@ -148,6 +150,7 @@ class Order extends Model implements SupportsTimeline
     protected $casts = [
         'price' => 'decimal:5',
         'discount' => 'decimal:5',
+        'total_price' => 'decimal:5',
         'paid_amount' => 'decimal:5',
         'client_id' => 'integer',
         'project_id' => 'integer',
@@ -353,7 +356,7 @@ class Order extends Model implements SupportsTimeline
     public function getPaymentStatusTextAttribute(): string
     {
         $paidAmount = (float) ($this->paid_amount ?? 0);
-        $totalPrice = (float) ($this->price - $this->discount);
+        $totalPrice = (float) ($this->total_price ?? 0);
 
         if ($paidAmount <= 0) {
             return 'Не оплачено';

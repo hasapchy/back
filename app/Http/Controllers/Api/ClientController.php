@@ -63,6 +63,12 @@ class ClientController extends BaseController
             $params['type_filter']
         );
 
+        $typeCounts = $this->itemsRepository->getTypeCountsForFilters(
+            $params['search'],
+            $params['include_inactive'],
+            $params['status_filter']
+        );
+
         return $this->successResponse([
             'items' => ClientResource::collection($items->items())->resolve(),
             'meta' => [
@@ -72,6 +78,9 @@ class ClientController extends BaseController
                 'total' => $items->total(),
                 'next_page' => $items->nextPageUrl(),
                 'prev_page' => $items->previousPageUrl(),
+                'type_counts' => $typeCounts['by_type'],
+                'suppliers_count' => $typeCounts['suppliers'],
+                'total_unfiltered_by_type' => $typeCounts['total'],
             ],
         ]);
     }
@@ -273,6 +282,14 @@ class ClientController extends BaseController
             $balanceDirection = $request->input('balance_direction');
             $balanceDirection = in_array($balanceDirection, ['positive', 'negative'], true) ? $balanceDirection : null;
 
+            $balanceTypeFilterInput = $request->input('balance_type_filter');
+            $balanceTypeFilter = null;
+            if (is_array($balanceTypeFilterInput)) {
+                $balanceTypeFilter = $balanceTypeFilterInput;
+            } elseif ($balanceTypeFilterInput !== null && $balanceTypeFilterInput !== '') {
+                $balanceTypeFilter = [$balanceTypeFilterInput];
+            }
+
             if ($forMutualSettlements) {
                 $user = $this->requireAuthenticatedUser();
                 $allowedTypes = $this->getAllowedMutualSettlementsClientTypes($user);
@@ -294,7 +311,8 @@ class ClientController extends BaseController
                 $search,
                 (bool) $onlyWithBalance,
                 $currencyId,
-                $balanceDirection
+                $balanceDirection,
+                $balanceTypeFilter
             );
 
             return ClientResource::collection($items)->response();

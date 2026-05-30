@@ -445,4 +445,62 @@ class ClientControllerTest extends TestCase
         $this->assertEquals(50, $usdRow['they_owe_us']);
         $this->assertEquals(0, $usdRow['we_owe_them']);
     }
+
+    public function test_all_clients_mutual_settlements_filters_by_balance_type(): void
+    {
+        $currency = Currency::factory()->create([
+            'symbol' => 'TMT',
+            'is_default' => true,
+            'status' => true,
+            'company_id' => $this->company->id,
+        ]);
+
+        $client = Client::factory()->create([
+            'client_type' => 'employee',
+            'status' => true,
+            'company_id' => $this->company->id,
+        ]);
+
+        ClientBalance::query()->create([
+            'client_id' => $client->id,
+            'currency_id' => $currency->id,
+            'type' => 0,
+            'balance' => 5000,
+            'is_default' => true,
+        ]);
+        ClientBalance::query()->create([
+            'client_id' => $client->id,
+            'currency_id' => $currency->id,
+            'type' => 1,
+            'balance' => 0,
+            'is_default' => false,
+        ]);
+
+        $baseQuery = http_build_query([
+            'for_mutual_settlements' => 1,
+            'only_with_balance' => 1,
+            'currency_id' => $currency->id,
+        ]);
+
+        $cashOnlyResponse = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/clients/all?'.$baseQuery.'&balance_type_filter[]=1');
+
+        if ($cashOnlyResponse->status() === 500) {
+            $this->fail('Server error: '.$cashOnlyResponse->getContent());
+        }
+
+        $cashOnlyResponse->assertStatus(200);
+        $cashOnlyResponse->assertJsonCount(0, 'data');
+
+        $nonCashResponse = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/clients/all?'.$baseQuery.'&balance_type_filter[]=0');
+
+        if ($nonCashResponse->status() === 500) {
+            $this->fail('Server error: '.$nonCashResponse->getContent());
+        }
+
+        $nonCashResponse->assertStatus(200);
+        $nonCashResponse->assertJsonCount(1, 'data');
+        $nonCashResponse->assertJsonPath('data.0.id', $client->id);
+    }
 }

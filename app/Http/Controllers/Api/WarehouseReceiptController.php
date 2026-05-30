@@ -145,8 +145,12 @@ class WarehouseReceiptController extends BaseController
 
         try {
             $receiptId = $this->itemsRepository->createItem($data);
+            $receipt = $this->itemsRepository->getItemById($receiptId, $userUuid);
+            if (! $receipt) {
+                return $this->errorResponse(__('warehouse_receipt.not_found'), 404);
+            }
 
-            return $this->successResponse(['id' => $receiptId], __('warehouse_receipt.created_success'));
+            return $this->successResponse(new WarehouseReceiptResource($receipt), __('warehouse_receipt.created_success'));
         } catch (WarehouseLockedForInventoryException $e) {
             return $this->errorResponse($e->getMessage(), 400);
         } catch (\Throwable $th) {
@@ -191,7 +195,12 @@ class WarehouseReceiptController extends BaseController
                         array_key_exists('note', $validatedData) ? $validatedData['note'] : null
                     );
 
-                    return $this->successResponse(null, __('warehouse_receipt.completed_success'));
+                    $receipt = $this->itemsRepository->getItemById((int) $id, $userUuid);
+                    if (! $receipt) {
+                        return $this->errorResponse(__('warehouse_receipt.not_found'), 404);
+                    }
+
+                    return $this->successResponse(new WarehouseReceiptResource($receipt), __('warehouse_receipt.completed_success'));
                 } catch (\Throwable $th) {
                     return $this->errorResponse(__('warehouse_receipt.update_error', ['message' => $th->getMessage()]), 400);
                 }
@@ -246,7 +255,12 @@ class WarehouseReceiptController extends BaseController
                 return $this->errorResponse(__('warehouse_receipt.update_failed'), 400);
             }
 
-            return $this->successResponse(null, __('warehouse_receipt.updated_success'));
+            $receipt = $this->itemsRepository->getItemById((int) $id, $userUuid);
+            if (! $receipt) {
+                return $this->errorResponse(__('warehouse_receipt.not_found'), 404);
+            }
+
+            return $this->successResponse(new WarehouseReceiptResource($receipt), __('warehouse_receipt.updated_success'));
         } catch (\Throwable $th) {
             return $this->errorResponse(__('warehouse_receipt.update_error', ['message' => $th->getMessage()]), 400);
         }

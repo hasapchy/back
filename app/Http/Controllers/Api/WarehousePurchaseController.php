@@ -68,8 +68,12 @@ class WarehousePurchaseController extends BaseController
     {
         try {
             $id = $this->itemsRepository->createItem($request->validated());
+            $item = $this->itemsRepository->getItemById($id);
+            if (! $item) {
+                return $this->errorResponse(__('warehouse_purchase.not_found'), 404);
+            }
 
-            return $this->successResponse(['id' => $id], __('warehouse_purchase.created_success'));
+            return $this->successResponse(new WarehousePurchaseResource($item), __('warehouse_purchase.created_success'));
         } catch (\Throwable $th) {
             return $this->errorResponse($th->getMessage(), 400);
         }
@@ -82,8 +86,12 @@ class WarehousePurchaseController extends BaseController
     {
         try {
             $this->itemsRepository->updateItem($id, $request->validated());
+            $item = $this->itemsRepository->getItemById($id);
+            if (! $item) {
+                return $this->errorResponse(__('warehouse_purchase.not_found'), 404);
+            }
 
-            return $this->successResponse(null, __('warehouse_purchase.updated_success'));
+            return $this->successResponse(new WarehousePurchaseResource($item), __('warehouse_purchase.updated_success'));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse(__('warehouse_purchase.not_found'), 404);
         } catch (\Throwable $th) {

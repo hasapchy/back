@@ -60,6 +60,8 @@ class UsersController extends BaseController
 
         $items = $this->itemsRepository->getItemsWithPagination($page, $perPage, $search, $statusFilter);
 
+        $statusCounts = $this->itemsRepository->getStatusCountsForFilters($search);
+
         return $this->successResponse([
             'items' => UserResource::collection($items->items())->resolve(),
             'meta' => [
@@ -68,6 +70,9 @@ class UsersController extends BaseController
                 'last_page' => $items->lastPage(),
                 'per_page' => $items->perPage(),
                 'total' => $items->total(),
+                'status_counts' => $statusCounts['by_status'],
+                'admins_count' => $statusCounts['admins'],
+                'total_unfiltered_by_status' => $statusCounts['total'],
             ],
         ]);
     }

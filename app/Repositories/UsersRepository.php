@@ -53,64 +53,18 @@ class UsersRepository extends BaseRepository
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $statusFilter, $page, $currentUser) {
             $companyId = $this->getCurrentCompanyId();
 
-            $query = User::select([
-                'users.id',
-                'users.name',
-                'users.surname',
-                'users.email',
-                'users.phone',
-                'users.is_active',
-                'users.hire_date',
-                'users.dismissal_date',
-                'users.birthday',
-                'users.position',
-                'users.is_admin',
-                'users.is_simple_user',
-                'users.simple_category_id',
-                'users.simple_warehouse_id',
-                'users.photo',
-                'users.created_at',
-                'users.updated_at',
-                'users.last_login_at'
-            ])
-                ->with([
-                    'companies:id,name',
-                    'departments' => function ($q) use ($companyId) {
-                        if ($companyId) {
-                            $q->where('company_id', $companyId);
-                        }
-                        $q->select('departments.id', 'departments.title', 'departments.company_id');
-                    },
-                ]);
-            if ($companyId) {
-                $query->join('company_user', 'users.id', '=', 'company_user.user_id')
-                    ->where('company_user.company_id', $companyId)
-                    ->distinct();
-            }
+            $query = $this->buildUsersListQuery($search, $statusFilter);
+            $query->with([
+                'companies:id,name',
+                'departments' => function ($q) use ($companyId) {
+                    if ($companyId) {
+                        $q->where('company_id', $companyId);
+                    }
+                    $q->select('departments.id', 'departments.title', 'departments.company_id');
+                },
+            ]);
 
-            if (!optional($currentUser)->is_admin) {
-                $permissions = $this->getUserPermissionsForCompany($currentUser);
-                $hasViewAll = in_array('users_view_all', $permissions) || in_array('users_view', $permissions);
-                if (!$hasViewAll && in_array('users_view_own', $permissions)) {
-                    $query->where('users.id', $currentUser->id);
-                }
-            }
-
-            if ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('users.name', 'like', "%{$search}%")
-                        ->orWhere('users.surname', 'like', "%{$search}%")
-                        ->orWhere('users.email', 'like', "%{$search}%")
-                        ->orWhere('users.phone', 'like', "%{$search}%")
-                        ->orWhere('users.position', 'like', "%{$search}%");
-                });
-            }
-
-            if ($statusFilter !== null) {
-                $query->where('users.is_active', $statusFilter);
-            }
-
-            $paginated = $query->orderBy('users.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+            $paginated = $query->orderBy('users.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int) $page);
 
             $users = new \Illuminate\Database\Eloquent\Collection($paginated->getCollection()->all());
             if ($users->isEmpty()) {
@@ -136,9 +90,103 @@ class UsersRepository extends BaseRepository
             });
 
             return $paginated;
-        }, (int)$page);
+        }, (int) $page);
     }
 
+    /**
+     * Базовый запрос списка пользователей с фильтрами.
+     *
+     * @param  string|null  $search
+     * @param  bool|null  $statusFilter  Фильтр по is_active (true/false) или null — без фильтра
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function buildUsersListQuery($search = null, $statusFilter = null)
+    {
+        /** @var User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+
+        $query = User::select([
+            'users.id',
+            'users.name',
+            'users.surname',
+            'users.email',
+            'users.phone',
+            'users.is_active',
+            'users.hire_date',
+            'users.dismissal_date',
+            'users.birthday',
+            'users.position',
+            'users.is_admin',
+            'users.is_simple_user',
+            'users.simple_category_id',
+            'users.simple_warehouse_id',
+            'users.photo',
+            'users.created_at',
+            'users.updated_at',
+            'users.last_login_at',
+        ]);
+
+        if ($companyId) {
+            $query->join('company_user', 'users.id', '=', 'company_user.user_id')
+                ->where('company_user.company_id', $companyId)
+                ->distinct();
+        }
+
+        if (! optional($currentUser)->is_admin) {
+            $permissions = $this->getUserPermissionsForCompany($currentUser);
+            $hasViewAll = in_array('users_view_all', $permissions) || in_array('users_view', $permissions);
+            if (! $hasViewAll && in_array('users_view_own', $permissions)) {
+                $query->where('users.id', $currentUser->id);
+            }
+        }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('users.name', 'like', "%{$search}%")
+                    ->orWhere('users.surname', 'like', "%{$search}%")
+                    ->orWhere('users.email', 'like', "%{$search}%")
+                    ->orWhere('users.phone', 'like', "%{$search}%")
+                    ->orWhere('users.position', 'like', "%{$search}%");
+            });
+        }
+
+        if ($statusFilter !== null) {
+            $query->where('users.is_active', $statusFilter);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Подсчитать количество пользователей по статусам с учётом текущих фильтров (без statusFilter).
+     *
+     * Возвращает массив с ключами:
+     *  - total: общее количество (по фильтру search, без статуса)
+     *  - by_status: список [['status' => 'active', 'count' => N], ...]
+     *  - admins: количество администраторов
+     *
+     * @param  string|null  $search
+     * @return array
+     */
+    public function getStatusCountsForFilters($search = null): array
+    {
+        $baseQuery = $this->buildUsersListQuery($search, null);
+
+        $total = (clone $baseQuery)->distinct()->count('users.id');
+        $admins = (clone $baseQuery)->where('users.is_admin', true)->distinct()->count('users.id');
+        $active = (clone $baseQuery)->where('users.is_active', true)->distinct()->count('users.id');
+        $inactive = (clone $baseQuery)->where('users.is_active', false)->distinct()->count('users.id');
+
+        return [
+            'total' => (int) $total,
+            'by_status' => [
+                ['status' => 'active', 'count' => (int) $active],
+                ['status' => 'inactive', 'count' => (int) $inactive],
+            ],
+            'admins' => (int) $admins,
+        ];
+    }
 
     /**
      * Получить всех пользователей

@@ -72,6 +72,30 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'orders_recalculate_rounding' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/orders_recalculate_rounding.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
+            'replace_placeholders' => true,
+        ],
+
+        'orders_backfill_total_price' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/orders_backfill_total_price.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
+            'replace_placeholders' => true,
+        ],
+
+        'projects_recalculate_balance' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/projects_recalculate_balance.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
+            'replace_placeholders' => true,
+        ],
+
         'auth' => [
             'driver' => 'daily',
             'path' => storage_path('logs/auth.log'),

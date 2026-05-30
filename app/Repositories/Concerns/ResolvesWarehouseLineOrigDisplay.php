@@ -40,14 +40,10 @@ trait ResolvesWarehouseLineOrigDisplay
     protected function resolveWarehouseLineOrigAmount(array $product, int $documentCurrencyId, mixed $rateDate = null): array
     {
         $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
-        $rounding = new RoundingService();
         $quantity = (float) ($product['quantity'] ?? 0);
         $price = (float) ($product['price'] ?? 0);
         if ($quantity > 0 && array_key_exists('amount', $product) && $product['amount'] !== null && $product['amount'] !== '') {
             $price = (float) $product['amount'] / $quantity;
-        }
-        if ($companyId) {
-            $price = $rounding->roundWarehouseAmountForCompany($companyId, $price);
         }
 
         $origUnitPrice = $price;
@@ -65,9 +61,6 @@ trait ResolvesWarehouseLineOrigDisplay
                 $companyId,
                 $dateStr
             );
-            if ($companyId) {
-                $defUnitPrice = $rounding->roundWarehouseAmountForCompany($companyId, $defUnitPrice);
-            }
         }
 
         return [

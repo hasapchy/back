@@ -39,6 +39,7 @@ class OrderFactory extends Factory
             'description' => fake()->optional()->paragraph(),
             'price' => $price,
             'discount' => $discount,
+            'total_price' => max(0, $price - $discount),
             'cash_id' => fake()->optional(0.4)->passthrough(CashRegister::factory()),
             'warehouse_id' => fake()->optional(0.4)->passthrough(Warehouse::factory()),
             'project_id' => fake()->optional(0.3)->passthrough(Project::factory()),

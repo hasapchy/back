@@ -263,6 +263,7 @@ class BalanceScenariosTest extends TestCase
                 'category_id' => $category->id,
                 'price' => $orderAmount,
                 'discount' => 0,
+                'total_price' => $orderAmount,
                 'date' => now(),
             ]);
             // Создаем автоматическую долговую транзакцию для заказа
@@ -297,6 +298,7 @@ class BalanceScenariosTest extends TestCase
                 'category_id' => $category->id,
                 'price' => $orderAmount,
                 'discount' => 0,
+                'total_price' => $orderAmount,
                 'date' => now(),
             ]);
             // Создаем автоматическую долговую транзакцию для заказа

@@ -7,7 +7,6 @@ use App\Models\Currency;
 use App\Models\Order;
 use App\Models\OrderProduct;
 use App\Models\OrderTempProduct;
-use App\Services\RoundingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -33,34 +32,15 @@ class OrderResource extends JsonResource
         $price = (float) ($order->price ?? 0);
         $discount = (float) ($order->discount ?? 0);
         $paidAmount = (float) ($order->paid_amount ?? 0);
+        $totalPrice = (float) ($order->total_price ?? 0);
 
-        $subtotalDoc = 0.0;
-        foreach ($allProducts as $p) {
-            $row = is_array($p) ? $p : (array) $p;
-            $q = (float) ($row['quantity'] ?? 0);
-            $orig = $row['orig_unit_price'] ?? null;
-            $unit = ($orig !== null && $orig !== '') ? (float) $orig : (float) ($row['price'] ?? 0);
-            $subtotalDoc += $q * $unit;
-        }
-
-        $totalDef = max(0.0, $price - $discount);
-        $totalPrice = $price > 0 ? $subtotalDoc * ($totalDef / $price) : 0.0;
-        $paidForStatus = $totalDef > 0 ? $paidAmount * ($totalPrice / $totalDef) : 0.0;
-
-        $companyId = (int) ($order->cashRegister?->company_id ?? 0);
-        if ($companyId > 0) {
-            $rounding = new RoundingService;
-            $totalPrice = $rounding->roundOrderAmountForCompany($companyId, $totalPrice);
-            $paidForStatus = $rounding->roundOrderAmountForCompany($companyId, $paidForStatus);
-        }
-
-        $paymentStatusText = $paidForStatus <= 0
+        $paymentStatusText = $paidAmount <= 0
             ? 'Не оплачено'
-            : ($paidForStatus < $totalPrice - 0.00001 ? 'Частично оплачено' : 'Оплачено');
+            : ($paidAmount < $totalPrice - 0.00001 ? 'Частично оплачено' : 'Оплачено');
 
-        $paymentStatus = $paidForStatus <= 0
+        $paymentStatus = $paidAmount <= 0
             ? 'unpaid'
-            : ($paidForStatus < $totalPrice - 0.00001 ? 'partially_paid' : 'paid');
+            : ($paidAmount < $totalPrice - 0.00001 ? 'partially_paid' : 'paid');
 
         $status = $order->status;
         $category = $order->category;
@@ -267,7 +247,7 @@ class OrderResource extends JsonResource
     {
         return [
             'warehouse:id,name',
-            'cashRegister:id,name,currency_id,is_cash',
+            'cashRegister:id,name,currency_id,is_cash,company_id',
             'cashRegister.currency:id,name,symbol',
             'clientBalance:id,client_id,currency_id,type,balance,note,is_default',
             'clientBalance.currency:id,name,symbol',
