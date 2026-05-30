@@ -394,9 +394,48 @@ class UsersControllerTest extends TestCase
                     'last_page',
                     'per_page',
                     'total',
+                    'status_counts',
+                    'admins_count',
+                    'total_unfiltered_by_status',
                 ],
             ],
         ]);
+    }
+
+    public function test_index_meta_contains_status_counts(): void
+    {
+        User::factory()->create([
+            'is_active' => true,
+            'is_admin' => false,
+        ])->companies()->attach($this->company->id);
+
+        User::factory()->create([
+            'is_active' => true,
+            'is_admin' => true,
+        ])->companies()->attach($this->company->id);
+
+        User::factory()->create([
+            'is_active' => false,
+            'is_admin' => false,
+        ])->companies()->attach($this->company->id);
+
+        $response = $this->withApiTokenForCompany($this->adminUser, $this->company->id)
+            ->getJson('/api/users?active_only=0');
+
+        $response->assertStatus(200);
+
+        $statusCounts = collect($response->json('data.meta.status_counts', []));
+        $this->assertTrue($statusCounts->isNotEmpty());
+
+        $activeItem = $statusCounts->firstWhere('status', 'active');
+        $inactiveItem = $statusCounts->firstWhere('status', 'inactive');
+
+        $this->assertNotNull($activeItem);
+        $this->assertNotNull($inactiveItem);
+        $this->assertGreaterThanOrEqual(2, (int) $activeItem['count']);
+        $this->assertGreaterThanOrEqual(1, (int) $inactiveItem['count']);
+        $this->assertGreaterThanOrEqual(1, (int) $response->json('data.meta.admins_count'));
+        $this->assertGreaterThanOrEqual(3, (int) $response->json('data.meta.total_unfiltered_by_status'));
     }
 
     public function test_update_user_checks_permissions(): void
