@@ -171,4 +171,52 @@ class ProjectBalanceTest extends TestCase
         $this->assertContains($transaction->id, $historyIds);
         $this->assertSame(-100.0, (float) $response->json('data.balance'));
     }
+
+    public function test_balance_history_search_and_type_filter(): void
+    {
+        Transaction::factory()->create([
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
+            'project_id' => $this->project->id,
+            'currency_id' => $this->currency->id,
+            'cash_id' => $this->cashRegister->id,
+            'category_id' => 30,
+            'type' => 1,
+            'is_debt' => false,
+            'note' => 'alpha-payment-unique',
+            'orig_amount' => 300,
+            'amount' => 300,
+            'def_amount' => 300,
+            'rep_amount' => 300,
+        ]);
+
+        Transaction::factory()->create([
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
+            'project_id' => $this->project->id,
+            'currency_id' => $this->currency->id,
+            'cash_id' => $this->cashRegister->id,
+            'category_id' => 30,
+            'type' => 0,
+            'is_debt' => false,
+            'note' => 'beta-expense',
+            'orig_amount' => 50,
+            'amount' => 50,
+            'def_amount' => 50,
+            'rep_amount' => 50,
+        ]);
+
+        $searchResponse = $this->actingAsApi($this->adminUser)
+            ->getJson("/api/projects/{$this->project->id}/balance-history?search=alpha-payment&t=".time());
+
+        $searchResponse->assertStatus(200);
+        $this->assertCount(1, $searchResponse->json('data.history'));
+        $this->assertStringContainsString('alpha-payment', (string) $searchResponse->json('data.history.0.note'));
+
+        $typeResponse = $this->actingAsApi($this->adminUser)
+            ->getJson("/api/projects/{$this->project->id}/balance-history?transaction_type=income&t=".time());
+
+        $typeResponse->assertStatus(200);
+        $this->assertCount(1, $typeResponse->json('data.history'));
+    }
 }
