@@ -259,7 +259,7 @@ class ReceiptExpenseAllocationService
             'goods_subtotal_default' => $goodsSubtotal,
             'expenses_allocated_total' => $allocatedTotal,
             'full_cost_default' => $rounding->roundWarehouseAmountForCompany($companyId, $goodsSubtotal + $allocatedTotal),
-            'default_currency_symbol' => $defaultCurrency->symbol,
+            'default_currency_symbol' => $defaultCurrency->code,
             'lines' => $linesOut,
         ];
     }

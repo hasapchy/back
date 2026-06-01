@@ -17,29 +17,20 @@ class ResolvedCompany
     {
         $request = $request ?? request();
 
-        if ($request->attributes->has(self::ATTRIBUTE)) {
-            $v = $request->attributes->get(self::ATTRIBUTE);
-
-            if ($v === null || $v === '') {
-                return null;
-            }
-
-            return (int) $v;
-        }
-
-        return self::fromHeaderOnly($request);
-    }
-
-    /**
-     * @return int|null
-     */
-    public static function fromHeaderOnly(Request $request): ?int
-    {
-        $companyId = $request->header('X-Company-ID');
-        if ($companyId === null || $companyId === '' || ! is_numeric($companyId)) {
+        if (! $request->attributes->has(self::ATTRIBUTE)) {
             return null;
         }
 
-        return (int) $companyId;
+        $value = $request->attributes->get(self::ATTRIBUTE);
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (int) $value;
+    }
+
+    public static function bindToRequest(Request $request, int $companyId): void
+    {
+        $request->attributes->set(self::ATTRIBUTE, $companyId);
     }
 }

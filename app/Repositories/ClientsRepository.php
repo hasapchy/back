@@ -562,7 +562,7 @@ class ClientsRepository extends BaseRepository
         return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage, $source, $isDebt, $currentUser) {
             try {
                 $defaultCurrency = Currency::where('is_default', true)->first();
-                $defaultCurrencySymbol = $defaultCurrency?->symbol;
+                $defaultCurrencySymbol = $defaultCurrency?->code;
 
                 $clientIdInt = is_string($clientId) ? intval($clientId) : $clientId;
 
@@ -653,8 +653,8 @@ class ClientsRepository extends BaseRepository
 
                 $transactionsQuery->with([
                     'cashRegister:id,name,currency_id',
-                    'cashRegister.currency:id,symbol',
-                    'currency:id,symbol',
+                    'cashRegister.currency:id,code',
+                    'currency:id,code',
                     'creator:id,name',
                     'category:id,name',
                     'project:id,name',
@@ -726,7 +726,7 @@ class ClientsRepository extends BaseRepository
                                     'id' => $item->creator->id,
                                     'name' => $item->creator->name,
                                 ] : null,
-                                'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_symbol' => $item->cashRegister->currency->code ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
                                 'project_name' => $item->project->name ?? null,
@@ -762,7 +762,7 @@ class ClientsRepository extends BaseRepository
                                     'id' => $item->creator->id,
                                     'name' => $item->creator->name,
                                 ] : null,
-                                'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_symbol' => $item->cashRegister->currency->code ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
                                 'project_name' => $item->project->name ?? null,
@@ -786,7 +786,7 @@ class ClientsRepository extends BaseRepository
                                     'id' => $item->creator->id,
                                     'name' => $item->creator->name,
                                 ] : null,
-                                'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_symbol' => $item->cashRegister->currency->code ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
                                 'project_name' => $item->project->name ?? null,
@@ -816,7 +816,7 @@ class ClientsRepository extends BaseRepository
                                     'id' => $item->creator->id,
                                     'name' => $item->creator->name,
                                 ] : null,
-                                'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_symbol' => $item->cashRegister->currency->code ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
                                 'project_name' => $item->project->name ?? null,
@@ -840,7 +840,7 @@ class ClientsRepository extends BaseRepository
                                     'id' => $item->creator->id,
                                     'name' => $item->creator->name,
                                 ] : null,
-                                'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_symbol' => $item->cashRegister->currency->code ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
                                 'project_name' => $item->project->name ?? null,
@@ -1108,7 +1108,7 @@ class ClientsRepository extends BaseRepository
                 $result[] = [
                     'currency_id' => (int) $currency->id,
                     'currency_code' => (string) $currency->code,
-                    'currency_symbol' => (string) ($currency->symbol ?? $currency->code),
+                    'currency_symbol' => (string) $currency->code,
                     'currency_name' => (string) $currency->name,
                     'is_default' => (bool) $currency->is_default,
                     'they_owe_us' => $row ? (float) $row->they_owe_us : 0.0,

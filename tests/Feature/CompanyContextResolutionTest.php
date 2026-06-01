@@ -41,21 +41,6 @@ class CompanyContextResolutionTest extends TestCase
         $response->assertJsonPath('data.id', $company->id);
     }
 
-    public function test_company_header_mismatch_with_pat_returns_409(): void
-    {
-
-        $company = Company::factory()->create();
-        $other = Company::factory()->create();
-        $user = User::factory()->create(['is_active' => true]);
-        $user->companies()->attach([$company->id, $other->id]);
-
-        $response = $this->withApiTokenForCompany($user, (int) $company->id)
-            ->withHeader('X-Company-ID', (string) $other->id)
-            ->getJson('/api/user/current-company');
-
-        $response->assertStatus(409);
-    }
-
     public function test_me_returns_409_when_company_context_missing_for_stateful_user(): void
     {
 

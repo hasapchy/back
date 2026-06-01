@@ -32,7 +32,7 @@ class CashRegisterReferenceResource extends JsonResource
             'currency' => $currency ? [
                 'id' => data_get($currency, 'id'),
                 'name' => data_get($currency, 'name'),
-                'symbol' => data_get($currency, 'symbol'),
+                'code' => data_get($currency, 'code'),
             ] : null,
             'icon' => data_get($this->resource, 'icon'),
             'color' => data_get($this->resource, 'color'),

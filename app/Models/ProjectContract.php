@@ -232,8 +232,8 @@ class ProjectContract extends Model implements SupportsTimeline
      */
     public function getFormattedAmountAttribute()
     {
-        $symbol = $this->currency ? $this->currency->symbol : '';
-        return number_format($this->amount, 2) . ' ' . $symbol;
+        $code = $this->currency ? $this->currency->code : '';
+        return number_format($this->amount, 2) . ' ' . $code;
     }
 
     /**

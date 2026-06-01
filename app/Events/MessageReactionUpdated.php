@@ -3,7 +3,7 @@
 namespace App\Events;
 
 use App\Models\ChatMessage;
-use Illuminate\Broadcasting\PrivateChannel;
+use App\Support\ChatBroadcastChannels;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -22,8 +22,10 @@ class MessageReactionUpdated implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        $channel = "company.{$this->message->chat->company_id}.chat.{$this->message->chat_id}";
-        return [new PrivateChannel($channel)];
+        $companyId = (int) $this->message->chat->company_id;
+        $chatId = (int) $this->message->chat_id;
+
+        return ChatBroadcastChannels::chatAndInboxes($companyId, $chatId);
     }
 
     public function broadcastAs(): string

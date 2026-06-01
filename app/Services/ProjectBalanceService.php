@@ -582,8 +582,7 @@ class ProjectBalanceService
     private function bindCompanyContext(int $companyId): void
     {
         $request = Request::create('/', 'GET');
-        $request->attributes->set(ResolvedCompany::ATTRIBUTE, $companyId);
-        $request->headers->set('X-Company-ID', (string) $companyId);
+        ResolvedCompany::bindToRequest($request, $companyId);
         app()->instance('request', $request);
     }
 

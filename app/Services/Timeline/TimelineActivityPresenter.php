@@ -50,7 +50,7 @@ class TimelineActivityPresenter
             ->select(['id', 'source_id', 'source_type', 'amount', 'currency_id'])
             ->where('source_type', Order::class)
             ->where('source_id', $orderId)
-            ->with(['currency:id,symbol'])
+            ->with(['currency:id,code'])
             ->get()
             ->flatMap(function (Transaction $transaction) {
                 return $transaction->activities()
@@ -66,7 +66,7 @@ class TimelineActivityPresenter
                     ->with(['causer:id,name', 'subject'])
                     ->get()
                     ->map(function (Activity $log) use ($transaction) {
-                        $currencySymbol = optional($transaction->currency)->symbol;
+                        $currencySymbol = optional($transaction->currency)->code;
                         [$descriptionKey, $descriptionParams, $descriptionFallback] = $this->buildActivityLogI18n($log);
 
                         return [
@@ -105,8 +105,8 @@ class TimelineActivityPresenter
         }
 
         $transaction = $log->subject;
-        $transaction->loadMissing(['currency:id,symbol']);
-        $currencySymbol = optional($transaction->currency)->symbol;
+        $transaction->loadMissing(['currency:id,code']);
+        $currencySymbol = optional($transaction->currency)->code;
         [$descriptionKey, $descriptionParams, $descriptionFallback] = $this->buildActivityLogI18n($log);
 
         return [
@@ -142,7 +142,7 @@ class TimelineActivityPresenter
 
         if ($log->subject && get_class($log->subject) === Order::class) {
             $log->subject->loadMissing(['cash.currency']);
-            $orderCurrencySymbol = optional(optional($log->subject->cash)->currency)->symbol;
+            $orderCurrencySymbol = optional(optional($log->subject->cash)->currency)->code;
         }
 
         try {
@@ -151,10 +151,10 @@ class TimelineActivityPresenter
                 $amount = $log->subject->amount ?? null;
                 $currencySymbol = null;
                 try {
-                    if (isset($log->subject->currency) && isset($log->subject->currency->symbol)) {
-                        $currencySymbol = $log->subject->currency->symbol;
+                    if (isset($log->subject->currency) && isset($log->subject->currency->code)) {
+                        $currencySymbol = $log->subject->currency->code;
                     } elseif (isset($log->subject->currency_id) && $log->subject->currency_id) {
-                        $currencySymbol = optional(Currency::query()->select(['id', 'symbol'])->find($log->subject->currency_id))->symbol;
+                        $currencySymbol = optional(Currency::query()->select(['id', 'code'])->find($log->subject->currency_id))->code;
                     }
                 } catch (\Throwable $e) {
                 }
@@ -512,7 +512,7 @@ class TimelineActivityPresenter
     private function getDefaultCurrencySymbol(): ?string
     {
         if ($this->defaultCurrencySymbolCache === null) {
-            $this->defaultCurrencySymbolCache = Currency::query()->where('is_default', true)->value('symbol');
+            $this->defaultCurrencySymbolCache = Currency::query()->where('is_default', true)->value('code');
         }
 
         return $this->defaultCurrencySymbolCache;
@@ -555,7 +555,7 @@ class TimelineActivityPresenter
             return null;
         }
 
-        return Currency::query()->select(['id', 'symbol'])->find((int) $currencyId)?->symbol ?? $currencyId;
+        return Currency::query()->select(['id', 'code'])->find((int) $currencyId)?->code ?? $currencyId;
     }
 
     private function getRelatedModelName(string $key, string $modelClass): ?string

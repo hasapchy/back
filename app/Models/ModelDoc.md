@@ -60,9 +60,9 @@
 **Проблема:** Модели напрямую обращались к request(), что нарушало принцип разделения ответственности.
 
 **Найдено в:**
-- `Currency::getExchangeRateAttribute()` (строка 125) - использовал `request()->header('X-Company-ID')`
-- `Transaction::booted()` (строки 166, 199) - использовал `request()->header('X-Company-ID')`
-- `Transaction::getExchangeRateAttribute()` (строка 518) - использовал `request()->header('X-Company-ID')`
+- `Currency::getExchangeRateAttribute()` (строка 125) — ранее брал company из request
+- `Transaction::booted()` (строки 166, 199) — ранее брал company из request
+- `Transaction::getExchangeRateAttribute()` (строка 518) — ранее брал company из request
 
 **Исправление:**
 - ✅ Удален accessor `Currency::getExchangeRateAttribute()` - теперь используется метод `getExchangeRateForCompany()` напрямую

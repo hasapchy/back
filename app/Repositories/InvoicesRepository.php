@@ -292,7 +292,7 @@ class InvoicesRepository extends BaseRepository
             'cash_registers.is_cash as cash_is_cash',
             'cash_currency.id as currency_id',
             'cash_currency.name as currency_name',
-            'cash_currency.symbol as currency_symbol',
+            'cash_currency.code as currency_symbol',
             'projects.name as project_name',
             'users.name as creator_name',
             'users.photo as creator_photo',

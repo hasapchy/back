@@ -332,7 +332,7 @@ class WarehouseReceiptControllerTest extends TestCase
     {
         auth()->shouldUse('api');
         auth('api')->setUser($this->adminUser);
-        request()->headers->set('X-Company-ID', (string) $this->company->id);
+        request()->attributes->set(\App\Support\ResolvedCompany::ATTRIBUTE, (int) $this->company->id);
 
         $repo = app(WarehouseReceiptRepository::class);
         $defaultCurrency = Currency::firstWhere('is_default', true)

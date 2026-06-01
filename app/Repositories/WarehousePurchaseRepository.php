@@ -31,8 +31,8 @@ class WarehousePurchaseRepository extends BaseRepository
                     'creator:id,name,surname',
                     'category:id,name,type',
                     'cashRegister:id,name,currency_id,is_cash,icon,color',
-                    'cashRegister.currency:id,name,symbol',
-                    'currency:id,name,symbol',
+                    'cashRegister.currency:id,name,code',
+                    'currency:id,name,code',
                 ]);
         };
     }
@@ -53,8 +53,8 @@ class WarehousePurchaseRepository extends BaseRepository
                     'warehouse:id,name',
                     'clientBalance:id,client_id,currency_id,type',
                     'cashRegister:id,name,currency_id,is_cash',
-                    'currency:id,symbol',
-                    'origCurrency:id,symbol',
+                    'currency:id,code',
+                    'origCurrency:id,code',
                     'creator:id,name',
                     'products:id,purchase_id,product_id,quantity,price,orig_unit_price,orig_currency_id,orig_unit_id,orig_quantity',
                     'products.product:id,name,image,unit_id',
@@ -100,8 +100,8 @@ class WarehousePurchaseRepository extends BaseRepository
                     'warehouse:id,name',
                     'clientBalance:id,client_id,currency_id,type',
                     'cashRegister:id,name,currency_id,is_cash',
-                    'currency:id,symbol',
-                    'origCurrency:id,symbol',
+                    'currency:id,code',
+                    'origCurrency:id,code',
                     'creator:id,name',
                     'products:id,purchase_id,product_id,quantity,price,orig_unit_price,orig_currency_id,orig_unit_id,orig_quantity',
                     'products.product:id,name,image,unit_id',

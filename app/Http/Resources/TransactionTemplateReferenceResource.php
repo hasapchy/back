@@ -50,7 +50,7 @@ class TransactionTemplateReferenceResource extends JsonResource
             'currency' => $currency ? [
                 'id' => data_get($currency, 'id'),
                 'name' => data_get($currency, 'name'),
-                'symbol' => data_get($currency, 'symbol'),
+                'code' => data_get($currency, 'code'),
             ] : null,
             'currency_id' => data_get($this->resource, 'currency_id'),
             'icon' => data_get($this->resource, 'icon'),

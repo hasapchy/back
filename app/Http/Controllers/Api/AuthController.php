@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Enums\TokenClient;
 use App\Models\Sanctum\PersonalAccessToken;
 use App\Models\User;
+use App\Models\UserAuthSession;
 use App\Services\MobileSanctumTokenService;
+use App\Services\UserAuthSessionService;
+use App\Services\UserCredentialRevocationService;
 use App\Support\AuthRequestLogContext;
 use App\Support\ResolvedCompany;
 use Illuminate\Http\Request;
@@ -20,7 +23,9 @@ use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 class AuthController extends BaseController
 {
     public function __construct(
-        private readonly MobileSanctumTokenService $mobileSanctumTokenService
+        private readonly MobileSanctumTokenService $mobileSanctumTokenService,
+        private readonly UserAuthSessionService $authSessionService,
+        private readonly UserCredentialRevocationService $credentialRevocationService,
     ) {
     }
 
@@ -86,19 +91,24 @@ class AuthController extends BaseController
             $request->session()->regenerate();
             $request->session()->put(ResolvedCompany::SESSION_KEY, $companyId);
 
+            $authSession = $this->authSessionService->createForLogin($user, $request, TokenClient::Web);
+            $request->session()->put('auth_session_id', $authSession->id);
+
             $this->authLoginLog('auth.login.success', array_merge($baseCtx, [
                 'user_id' => $user->id,
                 'company_id' => $companyId,
                 'mode' => 'session',
                 'session_id' => $request->session()->getId(),
+                'auth_session_id' => $authSession->id,
             ]));
 
             return $this->successResponse([
                 'user' => $this->userPayloadForAuthResponse($user, $companyId),
+                'auth_session_id' => $authSession->id,
             ]);
         }
 
-        $user->deleteTokensForClient(TokenClient::Mobile);
+        $this->authSessionService->resetMobileAuth($user);
 
         $this->authLoginLog('auth.login.success', array_merge($baseCtx, [
             'user_id' => $user->id,
@@ -108,7 +118,7 @@ class AuthController extends BaseController
 
         return $this->successResponse(array_merge(
             ['user' => $this->userPayloadForAuthResponse($user, $companyId)],
-            $this->mobileSanctumTokenService->issueTokenPair($user, $remember, $companyId)
+            $this->mobileSanctumTokenService->issueTokenPair($user, $remember, $companyId, $request)
         ));
     }
 
@@ -154,11 +164,19 @@ class AuthController extends BaseController
             return $this->errorResponse('Company not found or access denied', 403);
         }
 
-        $token->delete();
+        $authSession = $token->auth_session_id
+            ? UserAuthSession::query()->find($token->auth_session_id)
+            : null;
+
+        if ($authSession !== null) {
+            $authSession->tokens()->delete();
+        } else {
+            $token->delete();
+        }
 
         return $this->successResponse(array_merge(
             ['user' => $this->userPayloadForAuthResponse($user, $companyId)],
-            $this->mobileSanctumTokenService->issueTokenPair($user, false, $companyId)
+            $this->mobileSanctumTokenService->issueTokenPair($user, false, $companyId, $request, $authSession)
         ));
     }
 
@@ -178,9 +196,11 @@ class AuthController extends BaseController
         }
 
         $permissions = $user->getAllPermissionsForCompany((int) $companyId)->pluck('name')->toArray();
+        $currentAuthSessionId = $this->authSessionService->resolveCurrentSessionId($request, $user);
 
         return $this->successResponse([
             'user' => $this->serializeUserForApi($user, $user->getAllRoleNames(), $permissions),
+            'current_auth_session_id' => $currentAuthSessionId,
         ]);
     }
 
@@ -193,20 +213,22 @@ class AuthController extends BaseController
         $user = $request->user();
 
         if ($user !== null) {
-            $current = $user->currentAccessToken();
-            if ($current instanceof PersonalAccessToken) {
-                $client = TokenClient::tryFrom((string) $current->client_type) ?? TokenClient::Web;
-                $user->deleteTokensForClient($client);
-            } elseif (EnsureFrontendRequestsAreStateful::fromFrontend($request)) {
-                $user->deleteTokensForClient(TokenClient::Web);
+            $authSessionId = $this->authSessionService->resolveCurrentSessionId($request, $user);
+            $authSession = $authSessionId !== null
+                ? UserAuthSession::query()
+                    ->whereKey($authSessionId)
+                    ->where('user_id', $user->id)
+                    ->first()
+                : null;
+
+            if ($authSession !== null) {
+                $this->credentialRevocationService->revokeSession($authSession, $request);
+
+                return $this->successResponse(null, 'Successfully logged out');
             }
-        }
 
-        Auth::guard('web')->logout();
-
-        if ($request->hasSession()) {
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+            $user->tokens()->delete();
+            $this->authSessionService->invalidateWebSession($request);
         }
 
         return $this->successResponse(null, 'Successfully logged out');

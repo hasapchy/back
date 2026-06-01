@@ -3,6 +3,8 @@
 namespace App\Http\Resources;
 
 use App\Models\Currency;
+use App\Support\ClientBalanceViewAccess;
+use App\Support\ResolvedCompany;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ClientResource extends JsonResource
@@ -13,10 +15,11 @@ class ClientResource extends JsonResource
     public function toArray($request): array
     {
         $user = auth('api')->user();
-        $balances = $this->balances ?? collect();
-        if ($user && !$user->is_admin) {
-            $balances = $balances->filter(fn ($b) => $b->canUserAccess($user->id));
-        }
+        $balances = ClientBalanceViewAccess::filterBalancesForUser(
+            $this->balances ?? collect(),
+            $user,
+            ResolvedCompany::fromRequest($request)
+        );
         $visibleDefault = $balances->firstWhere('is_default', true) ?? $balances->first();
         $balanceValue = $visibleDefault ? (float) $visibleDefault->balance : 0.0;
 
@@ -65,7 +68,7 @@ class ClientResource extends JsonResource
                 'currency' => [
                     'id' => $balance->currency->id,
                     'code' => $balance->currency->code,
-                    'symbol' => $balance->currency->symbol,
+                    'code' => $balance->currency->code,
                     'name' => $balance->currency->name,
                 ],
                 'balance' => (float) $balance->balance,
@@ -76,8 +79,8 @@ class ClientResource extends JsonResource
                     'name' => trim(($u->name ?? '') . ' ' . ($u->surname ?? '')),
                 ])->values()->all(),
             ])->values()->all(),
-            'currency_symbol' => $visibleDefault?->currency?->symbol
-                ?? Currency::where('is_default', true)->value('symbol'),
+            'currency_symbol' => $visibleDefault?->currency?->code
+                ?? Currency::where('is_default', true)->value('code'),
         ];
     }
 }

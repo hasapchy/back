@@ -319,7 +319,7 @@ class CurrencyHistoryController extends BaseController
                     return [
                         'id' => $currency->id,
                         'name' => $currency->name,
-                        'symbol' => $currency->symbol,
+                        'code' => $currency->code,
                         'is_default' => $currency->is_default,
                         'is_report' => $currency->is_report,
                         'current_rate' => $currentRate ? $currentRate->exchange_rate : 1,

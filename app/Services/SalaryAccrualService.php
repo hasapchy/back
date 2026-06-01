@@ -301,7 +301,7 @@ class SalaryAccrualService
 
         if ($includeBalanceOptions) {
             $employeeClientsQuery->with(['balances' => function ($q) {
-                $q->with('currency:id,symbol,name')->orderByDesc('is_default');
+                $q->with('currency:id,code,name')->orderByDesc('is_default');
             }]);
         }
 
@@ -318,7 +318,7 @@ class SalaryAccrualService
                 $query->whereNull('end_date')
                     ->orWhere('end_date', '>=', $startOfMonth->toDateString());
             })
-            ->with('currency:id,symbol')
+            ->with('currency:id,code')
             ->orderByDesc('start_date')
             ->get()
             ->groupBy('user_id');
@@ -393,7 +393,7 @@ class SalaryAccrualService
                     'amount' => (float) $salaryRow->amount,
                     'prorated_amount' => $optRow['prorated_salary_amount'],
                     'currency_id' => $salaryRow->currency_id,
-                    'currency_symbol' => $salaryRow->currency?->symbol,
+                    'currency_symbol' => $salaryRow->currency?->code,
                     'start_date' => $salaryRow->start_date?->toDateString(),
                     'end_date' => $salaryRow->end_date?->toDateString(),
                     'label' => $this->buildEmployeeSalaryOptionLabel($salaryRow),
@@ -411,7 +411,7 @@ class SalaryAccrualService
                     if ($currencyId !== null && (int) $balanceRow->currency_id !== (int) $currencyId) {
                         continue;
                     }
-                    $sym = $balanceRow->currency?->symbol ?? '';
+                    $sym = $balanceRow->currency?->code ?? '';
                     $balanceOptions[] = [
                         'id' => $balanceRow->id,
                         'currency_id' => $balanceRow->currency_id,
@@ -451,7 +451,7 @@ class SalaryAccrualService
                 'official_working_days_worked' => $officialWorked,
                 'official_worked_breakdown' => $shares['official_worked_breakdown'] ?? null,
                 'currency_id' => $defaultSalary?->currency_id,
-                'currency_symbol' => $defaultSalary?->currency?->symbol,
+                'currency_symbol' => $defaultSalary?->currency?->code,
                 'total' => $proratedSalary,
                 'has_salary' => (bool) $defaultSalary,
                 'salary_options' => $salaryOptions,
@@ -765,7 +765,7 @@ class SalaryAccrualService
     private function buildEmployeeSalaryOptionLabel(EmployeeSalary $salary): string
     {
         $amount = number_format((float) $salary->amount, 2, '.', '');
-        $sym = trim((string) ($salary->currency?->symbol ?? ''));
+        $sym = trim((string) ($salary->currency?->code ?? ''));
 
         return $sym !== '' ? "{$amount} {$sym}" : $amount;
     }
@@ -843,7 +843,7 @@ class SalaryAccrualService
             ->withCount('lines')
             ->with([
                 'creator' => fn ($q) => $q->select(['id', 'name', 'surname']),
-                'lines' => fn ($q) => $q->orderBy('employee_name')->with('currency:id,symbol'),
+                'lines' => fn ($q) => $q->orderBy('employee_name')->with('currency:id,code'),
             ])
             ->firstOrFail();
 
@@ -862,7 +862,7 @@ class SalaryAccrualService
     {
         $totalsBySym = [];
         foreach ($lines as $l) {
-            $sym = $l->currency?->symbol ?? '';
+            $sym = $l->currency?->code ?? '';
             $totalsBySym[$sym] = ($totalsBySym[$sym] ?? 0) + (float) $l->amount;
         }
         $parts = [];
@@ -880,7 +880,7 @@ class SalaryAccrualService
     {
         return [
             'creator' => fn ($q) => $q->select(['id', 'name', 'surname']),
-            'lines' => fn ($q) => $q->select(['id', 'salary_monthly_report_id', 'amount', 'currency_id'])->with('currency:id,symbol'),
+            'lines' => fn ($q) => $q->select(['id', 'salary_monthly_report_id', 'amount', 'currency_id'])->with('currency:id,code'),
         ];
     }
 
@@ -915,7 +915,7 @@ class SalaryAccrualService
             'employee_name' => $l->employee_name,
             'amount' => round((float) $l->amount, 2),
             'currency_id' => (int) $l->currency_id,
-            'currency_symbol' => (string) ($l->currency?->symbol ?? ''),
+            'currency_symbol' => (string) ($l->currency?->code ?? ''),
             'transaction_id' => $l->transaction_id ? (int) $l->transaction_id : null,
             'official_working_days_norm' => $l->official_working_days_norm !== null ? (int) $l->official_working_days_norm : null,
             'official_working_days_worked' => $l->official_working_days_worked !== null ? (int) $l->official_working_days_worked : null,

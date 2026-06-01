@@ -421,12 +421,18 @@ class UsersController extends BaseController
             return $value !== null;
         });
 
+        $passwordChanged = $request->filled('password');
         $user = $this->itemsRepository->updateItem($user->id, $data);
         $user = $this->handlePhotoUpload($request, $user);
 
         $user = $user->fresh(['permissions', 'roles', 'companies']);
 
-        return $this->successResponse(new UserResource($user));
+        $payload = (new UserResource($user))->resolve();
+        if ($passwordChanged) {
+            $payload['credentials_revoked'] = true;
+        }
+
+        return $this->successResponse($payload);
     }
 
     /**
