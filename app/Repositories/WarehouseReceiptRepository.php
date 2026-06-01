@@ -158,8 +158,8 @@ class WarehouseReceiptRepository extends BaseRepository
             ->with([
                 'warehouse:id,name,company_id',
                 'cashRegister:id,name,currency_id,is_cash',
-                'cashRegister.currency:id,name,symbol',
-                'origCurrency:id,name,symbol',
+                'cashRegister.currency:id,name,code',
+                'origCurrency:id,name,code',
                 'creator:id,name',
                 'supplier:id,first_name,last_name,status,balance',
                 'supplier.phones:id,client_id,phone',

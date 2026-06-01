@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
 class ResolveCompanyContext
 {
     /**
-     * Выставляет resolved company: PAT, сессия SPA, заголовок. Если Sanctum отдал TransientToken из web-guard, company_id читается из Bearer PAT того же пользователя.
+     * Выставляет resolved company из PAT или сессии SPA.
      *
      * @param  \Closure(Request): Response  $next
      */
@@ -48,19 +48,7 @@ class ResolveCompanyContext
             }
         }
 
-        $headerId = ResolvedCompany::fromHeaderOnly($request);
-
-        $resolved = $fromToken ?? $fromSession;
-
-        if ($resolved !== null && $headerId !== null && $resolved !== $headerId) {
-            return response()->json(['message' => 'Company context mismatch'], 409);
-        }
-
-        if ($resolved === null && $headerId !== null) {
-            $resolved = $headerId;
-        }
-
-        $request->attributes->set(ResolvedCompany::ATTRIBUTE, $resolved);
+        $request->attributes->set(ResolvedCompany::ATTRIBUTE, $fromToken ?? $fromSession);
 
         return $next($request);
     }

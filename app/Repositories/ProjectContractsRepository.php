@@ -49,7 +49,7 @@ class ProjectContractsRepository extends BaseRepository
             'project_contracts.created_at',
             'project_contracts.updated_at',
             'currencies.name as currency_name',
-            'currencies.symbol as currency_symbol',
+            'currencies.code as currency_symbol',
             'cash_registers.name as cash_register_name',
             'cash_registers.icon as cash_register_icon',
             'cash_registers.is_cash as cash_register_is_cash',
@@ -801,7 +801,7 @@ class ProjectContractsRepository extends BaseRepository
                 'project:id,name,company_id,client_id',
                 'project.client:id,first_name,last_name',
                 'client:id,first_name,last_name',
-                'currency:id,name,symbol',
+                'currency:id,name,code',
                 'cashRegister:id,name',
                 'creator:id,name',
             ])->where('id', $id);

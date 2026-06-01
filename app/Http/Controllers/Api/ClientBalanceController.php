@@ -11,8 +11,10 @@ use App\Models\Transaction;
 use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
 use App\Services\ClientBalanceService;
+use App\Support\ClientBalanceViewAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * @group Клиенты
@@ -38,9 +40,11 @@ class ClientBalanceController extends BaseController
 
             $user = $this->getAuthenticatedUser();
             $balances = $client->balances()->with(['currency', 'users:id,name,surname'])->get();
-            if (!$user->is_admin) {
-                $balances = $balances->filter(fn ($b) => $b->canUserAccess($user->id));
-            }
+            $balances = ClientBalanceViewAccess::filterBalancesForUser(
+                $balances,
+                $user,
+                $this->getCurrentCompanyId()
+            );
             $balancesData = $balances->values()->map(fn ($balance) => $this->formatBalanceResponse($balance))->all();
 
             return $this->successResponse(ClientBalanceResource::collection($balancesData)->resolve());
@@ -85,6 +89,8 @@ class ClientBalanceController extends BaseController
             $note = $validated['note'] ?? null;
             $type = array_key_exists('type', $validated) ? (int) $validated['type'] : 1;
             $creatorId = $this->getAuthenticatedUserIdOrFail();
+            $assigneeIds = array_map('intval', $validated['creator_ids'] ?? []);
+            $this->assertValidBalanceAssignees($assigneeIds, $type);
 
             DB::transaction(function () use ($client, $currency, $isDefault, $initialBalance, $note, $type, $creatorId) {
                 $balance = ClientBalanceService::createBalance($client, $currency, $isDefault, $initialBalance, $note, $type);
@@ -100,8 +106,7 @@ class ClientBalanceController extends BaseController
                 ->with(['currency', 'users:id,name,surname'])
                 ->first();
 
-            $userIds = $validated['creator_ids'] ?? [];
-            $balance->users()->sync($userIds);
+            $balance->users()->sync($assigneeIds);
             $balance->load('users:id,name,surname');
 
             return $this->successResponse(new ClientBalanceResource($this->formatBalanceResponse($balance)), 'Баланс создан успешно', 201);
@@ -154,16 +159,25 @@ class ClientBalanceController extends BaseController
                 if ($existingDefault && empty($validated['skip_confirmation'])) {
             return $this->successResponse([
                 'requires_confirmation' => true,
-                'message' => 'У клиента уже установлен дефолтный баланс в валюте ' . $existingDefault->currency->symbol . '. Вы уверены, что хотите изменить дефолтный баланс?',
+                'message' => 'У клиента уже установлен дефолтный баланс в валюте ' . $existingDefault->currency->code . '. Вы уверены, что хотите изменить дефолтный баланс?',
                 'current_default' => [
                     'id' => $existingDefault->id,
                     'currency' => [
                         'id' => $existingDefault->currency->id,
-                        'symbol' => $existingDefault->currency->symbol,
+                        'code' => $existingDefault->currency->code,
                     ],
                 ],
             ]);
                 }
+            }
+
+            $balanceType = array_key_exists('type', $validated)
+                ? (int) $validated['type']
+                : (int) $balance->type;
+
+            if (array_key_exists('creator_ids', $validated)) {
+                $assigneeIds = array_map('intval', $validated['creator_ids'] ?? []);
+                $this->assertValidBalanceAssignees($assigneeIds, $balanceType);
             }
 
             DB::transaction(function () use ($balance, $validated) {
@@ -173,7 +187,8 @@ class ClientBalanceController extends BaseController
 
                 $balance->update(array_diff_key($validated, array_flip(['creator_ids', 'skip_confirmation'])));
                 if (array_key_exists('creator_ids', $validated)) {
-                    $balance->users()->sync($validated['creator_ids']);
+                    $assigneeIds = array_map('intval', $validated['creator_ids'] ?? []);
+                    $balance->users()->sync($assigneeIds);
                 }
             });
 
@@ -262,7 +277,6 @@ class ClientBalanceController extends BaseController
             'currency' => $balance->currency ? [
                 'id' => $balance->currency->id,
                 'code' => $balance->currency->code,
-                'symbol' => $balance->currency->symbol,
                 'name' => $balance->currency->name,
             ] : null,
             'balance' => (float) $balance->balance,
@@ -359,6 +373,30 @@ class ClientBalanceController extends BaseController
         }
 
         return (clone $query)->orderBy('id')->first();
+    }
+
+    /**
+     * @param  array<int, int>  $userIds
+     * @param  int  $balanceType
+     * @return void
+     */
+    private function assertValidBalanceAssignees(array $userIds, int $balanceType): void
+    {
+        if ($userIds === []) {
+            return;
+        }
+
+        $invalid = ClientBalanceViewAccess::validateAssigneeUserIds(
+            $userIds,
+            $balanceType,
+            $this->getCurrentCompanyId()
+        );
+
+        if ($invalid !== []) {
+            throw ValidationException::withMessages([
+                'creator_ids' => ['Некоторые сотрудники не могут быть назначены на этот счёт.'],
+            ]);
+        }
     }
 
 }

@@ -3,7 +3,7 @@
 namespace App\Events;
 
 use App\Models\ChatMessage;
-use Illuminate\Broadcasting\PrivateChannel;
+use App\Support\ChatBroadcastChannels;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -30,9 +30,7 @@ class MessageDeleted implements ShouldBroadcast
      */
     public function broadcastOn(): array
     {
-        return [
-            new PrivateChannel("company.{$this->companyId}.chat.{$this->chatId}"),
-        ];
+        return ChatBroadcastChannels::chatAndInboxes($this->companyId, $this->chatId);
     }
 
     public function broadcastAs(): string

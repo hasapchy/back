@@ -46,6 +46,7 @@ use App\Http\Controllers\Api\TransactionsController;
 use App\Http\Controllers\Api\TransactionTemplateController;
 use App\Http\Controllers\Api\TransfersController;
 use App\Http\Controllers\Api\UserCompanyController;
+use App\Http\Controllers\Api\UserSessionsController;
 use App\Http\Controllers\Api\UsersController;
 use App\Http\Controllers\Api\WarehouseController;
 use App\Http\Controllers\Api\WarehouseMovementController;
@@ -60,16 +61,16 @@ use Illuminate\Support\Facades\Route;
 Route::post('user/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 Route::post('user/refresh', [AuthController::class, 'refresh'])->middleware('throttle:auth');
 
-Route::middleware(['bc.json', 'auth:sanctum'])->post('broadcasting/auth', function (Request $request) {
+Route::middleware(['bc.json', 'auth:sanctum', 'throttle:api'])->post('broadcasting/auth', function (Request $request) {
     return Broadcast::auth($request);
 });
 
-Route::get('system/ping', function () {
+Route::middleware('throttle:public')->get('system/ping', function () {
     return response()->json(['data' => true]);
 });
 
 // Main API routes - accessible to all authenticated users with appropriate permissions
-Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.active'])->group(function () {
     Route::post('batch', [BatchController::class, 'execute']);
 
     Route::get('app/currency', [AppController::class, 'getCurrencyList']);
@@ -94,6 +95,9 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::get('user/me', [AuthController::class, 'me']);
     Route::get('user/current', [UsersController::class, 'getCurrentUser']);
     Route::post('user/profile', [UsersController::class, 'updateProfile']);
+    Route::get('user/sessions', [UserSessionsController::class, 'index']);
+    Route::delete('user/sessions', [UserSessionsController::class, 'destroyAll']);
+    Route::delete('user/sessions/{id}', [UserSessionsController::class, 'destroy']);
     Route::get('user/fcm-token', [FcmStorageController::class, 'show']);
     Route::post('user/fcm-token', [FcmStorageController::class, 'upsert']);
     Route::put('user/fcm-token', [FcmStorageController::class, 'upsert']);
@@ -121,6 +125,9 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission.scope:employee_salaries_delete_all,employee_salaries_delete_own')->delete('users/{userId}/salaries/{salaryId}', [UsersController::class, 'deleteSalary']);
     Route::middleware('permission.scope:settings_client_balance_view,settings_client_balance_view_own')->get('users/{id}/balance', [UsersController::class, 'getEmployeeBalance']);
     Route::middleware('permission.scope:settings_client_balance_view,settings_client_balance_view_own')->get('users/{id}/balance-history', [UsersController::class, 'getEmployeeBalanceHistory']);
+    Route::get('users/{id}/sessions', [UserSessionsController::class, 'indexForUser']);
+    Route::delete('users/{id}/sessions', [UserSessionsController::class, 'destroyAllForUser']);
+    Route::delete('users/{id}/sessions/{sessionId}', [UserSessionsController::class, 'destroyForUser']);
 
     Route::middleware('permission.scope:roles_view_all,roles_view')->get('roles', [RolesController::class, 'index']);
     Route::middleware('permission.scope:roles_view_all,roles_view')->get('roles/all', [RolesController::class, 'all']);

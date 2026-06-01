@@ -38,13 +38,13 @@ class TransfersRepository extends BaseRepository
                         $q->select('id', 'name', 'currency_id', 'company_id');
                     },
                     'fromCashRegister.currency' => function ($q) {
-                        $q->select('id', 'name', 'symbol');
+                        $q->select('id', 'name', 'code');
                     },
                     'toCashRegister' => function ($q) {
                         $q->select('id', 'name', 'currency_id', 'company_id');
                     },
                     'toCashRegister.currency' => function ($q) {
-                        $q->select('id', 'name', 'symbol');
+                        $q->select('id', 'name', 'code');
                     },
                     'creator:id,name',
                 ])
@@ -83,12 +83,12 @@ class TransfersRepository extends BaseRepository
                     'cash_from_name' => $fromCash?->name,
                     'currency_from_id' => $fromCash?->currency?->id,
                     'currency_from_name' => $fromCash?->currency?->name,
-                    'currency_from_symbol' => $fromCash?->currency?->symbol,
+                    'currency_from_symbol' => $fromCash?->currency?->code,
                     'cash_to_id' => $transfer->cash_id_to,
                     'cash_to_name' => $toCash?->name,
                     'currency_to_id' => $toCash?->currency?->id,
                     'currency_to_name' => $toCash?->currency?->name,
-                    'currency_to_symbol' => $toCash?->currency?->symbol,
+                    'currency_to_symbol' => $toCash?->currency?->code,
                     'amount' => $transfer->amount,
                     'exchange_rate' => $transfer->exchange_rate,
                     'creator_id' => $transfer->creator?->id,

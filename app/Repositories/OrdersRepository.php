@@ -112,7 +112,7 @@ class OrdersRepository extends BaseRepository
                     $order->cash_is_cash = $order->cashRegister->is_cash;
                     if ($order->cashRegister->currency) {
                         $order->currency_name = $order->cashRegister->currency->name;
-                        $order->currency_symbol = $order->cashRegister->currency->symbol;
+                        $order->currency_symbol = $order->cashRegister->currency->code;
                     }
                 }
 
@@ -145,7 +145,7 @@ class OrdersRepository extends BaseRepository
                             'orig_currency' => $origCur ? [
                                 'id' => $origCur->id,
                                 'name' => $origCur->name,
-                                'symbol' => $origCur->symbol,
+                                'code' => $origCur->code,
                             ] : null,
                             'width' => $orderProduct->width,
                             'height' => $orderProduct->height,
@@ -173,7 +173,7 @@ class OrdersRepository extends BaseRepository
                             'orig_currency' => $tempOrigCur ? [
                                 'id' => $tempOrigCur->id,
                                 'name' => $tempOrigCur->name,
-                                'symbol' => $tempOrigCur->symbol,
+                                'code' => $tempOrigCur->code,
                             ] : null,
                             'width' => $tempProduct->width,
                             'height' => $tempProduct->height,
@@ -413,16 +413,16 @@ class OrdersRepository extends BaseRepository
             'status.category:id,name,color',
             'warehouse:id,name',
             'cashRegister:id,name,currency_id,is_cash,company_id',
-            'cashRegister.currency:id,name,symbol',
+            'cashRegister.currency:id,name,code',
             'project:id,name',
             'category:id,name',
             'orderProducts:id,order_id,product_id,quantity,price,orig_unit_price,orig_currency_id,width,height',
             'orderProducts.product:id,name,image,unit_id',
             'orderProducts.product.unit:id,name,short_name',
-            'orderProducts.origCurrency:id,name,symbol',
+            'orderProducts.origCurrency:id,name,code',
             'tempProducts:id,order_id,name,description,quantity,price,orig_unit_price,orig_currency_id,unit_id,width,height',
             'tempProducts.unit:id,name,short_name',
-            'tempProducts.origCurrency:id,name,symbol',
+            'tempProducts.origCurrency:id,name,code',
         ];
         ['resource' => $orderResource, 'is_simple' => $isSimpleUser] = SimpleUser::orderAccess($currentUser);
         $query = Order::query()->with($withRelations);
@@ -542,7 +542,7 @@ class OrdersRepository extends BaseRepository
                 $order->cash_is_cash = $order->cashRegister->is_cash;
                 if ($order->cashRegister->currency) {
                     $order->currency_name = $order->cashRegister->currency->name;
-                    $order->currency_symbol = $order->cashRegister->currency->symbol;
+                    $order->currency_symbol = $order->cashRegister->currency->code;
                 }
             }
             if ($order->project) {
@@ -723,7 +723,7 @@ class OrdersRepository extends BaseRepository
             ->with([
                 'warehouse:id,name',
                 'cashRegister:id,name,currency_id,is_cash,company_id',
-                'cashRegister.currency:id,name,symbol',
+                'cashRegister.currency:id,name,code',
                 'project:id,name',
                 'creator:id,name,photo',
                 'status:id,name,category_id',
@@ -773,7 +773,7 @@ class OrdersRepository extends BaseRepository
                 'cash_is_cash' => $order->cashRegister->is_cash ?? null,
                 'currency_id' => $order->cashRegister?->currency->id,
                 'currency_name' => $order->cashRegister?->currency->name,
-                'currency_symbol' => $order->cashRegister?->currency->symbol,
+                'currency_symbol' => $order->cashRegister?->currency->code,
                 'project_name' => $order->project->name ?? null,
                 'category_name' => $order->category->name ?? null,
                 'products' => $orderProducts,
@@ -2062,11 +2062,7 @@ class OrdersRepository extends BaseRepository
                 if ($clientId) {
                     if ($txChanged) {
                         $txRepo = new TransactionsRepository();
-                        $txPayload = [
-                            'amount' => $newTotal,
-                            'orig_amount' => $newTotal,
-                            'skip_amount_rounding' => true,
-                        ];
+                        $txPayload = $this->orderDebtTransactionAmountSyncPayload($orderTransaction, $newTotal);
                         if ($syncTransactionMeta) {
                             $txPayload = array_merge($txPayload, [
                                 'currency_id' => $defaultCurrency->id,
@@ -2463,7 +2459,7 @@ class OrdersRepository extends BaseRepository
 
         if ($order->cashRegister && $order->cashRegister->currency) {
             $order->currency_name = $order->cashRegister->currency->name;
-            $order->currency_symbol = $order->cashRegister->currency->symbol;
+            $order->currency_symbol = $order->cashRegister->currency->code;
         }
 
         $order->project_name = $order->project->name ?? null;
@@ -2518,6 +2514,27 @@ class OrdersRepository extends BaseRepository
             $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid')
         );
         $order->makeVisible(['paid_amount', 'payment_status', 'payment_status_text']);
+    }
+
+    /**
+     * Payload для updateItem: новая сумма и текущие поля долговой транзакции.
+     *
+     * @return array<string, mixed>
+     */
+    private function orderDebtTransactionAmountSyncPayload(Transaction $orderTransaction, float $newTotal): array
+    {
+        return [
+            'orig_amount' => $newTotal,
+            'skip_amount_rounding' => true,
+            'client_id' => (int) $orderTransaction->client_id,
+            'category_id' => (int) $orderTransaction->category_id,
+            'date' => $orderTransaction->date,
+            'note' => $orderTransaction->note,
+            'currency_id' => (int) $orderTransaction->currency_id,
+            'cash_id' => $orderTransaction->cash_id,
+            'project_id' => $orderTransaction->project_id,
+            'client_balance_id' => $orderTransaction->client_balance_id,
+        ];
     }
 
     /**

@@ -113,13 +113,13 @@ class OrderResource extends JsonResource
                 'currency' => $cashRegister->currency ? [
                     'id' => $cashRegister->currency->id,
                     'name' => $cashRegister->currency->name,
-                    'symbol' => $cashRegister->currency->symbol,
+                    'code' => $cashRegister->currency->code,
                 ] : null,
             ] : null,
             'accounting_currency' => $accountingCurrency ? [
                 'id' => $accountingCurrency->id,
                 'name' => $accountingCurrency->name,
-                'symbol' => $accountingCurrency->symbol,
+                'code' => $accountingCurrency->code,
             ] : null,
             'warehouse' => $warehouse ? [
                 'id' => $warehouse->id,
@@ -173,7 +173,7 @@ class OrderResource extends JsonResource
                 'orig_currency' => $origCur ? [
                     'id' => $origCur->id,
                     'name' => $origCur->name,
-                    'symbol' => $origCur->symbol,
+                    'code' => $origCur->code,
                 ] : null,
                 'width' => $orderProduct->width,
                 'height' => $orderProduct->height,
@@ -206,7 +206,7 @@ class OrderResource extends JsonResource
                 'orig_currency' => $tempOrigCur ? [
                     'id' => $tempOrigCur->id,
                     'name' => $tempOrigCur->name,
-                    'symbol' => $tempOrigCur->symbol,
+                    'code' => $tempOrigCur->code,
                 ] : null,
                 'width' => $tempProduct->width,
                 'height' => $tempProduct->height,
@@ -248,9 +248,9 @@ class OrderResource extends JsonResource
         return [
             'warehouse:id,name',
             'cashRegister:id,name,currency_id,is_cash,company_id',
-            'cashRegister.currency:id,name,symbol',
+            'cashRegister.currency:id,name,code',
             'clientBalance:id,client_id,currency_id,type,balance,note,is_default',
-            'clientBalance.currency:id,name,symbol',
+            'clientBalance.currency:id,name,code',
             'project:id,name',
             'creator:id,name,photo',
             'status:id,name,category_id',
@@ -259,10 +259,10 @@ class OrderResource extends JsonResource
             'orderProducts:id,order_id,product_id,quantity,price,orig_unit_price,orig_currency_id,width,height',
             'orderProducts.product:id,name,image,unit_id',
             'orderProducts.product.unit:id,name,short_name',
-            'orderProducts.origCurrency:id,name,symbol',
+            'orderProducts.origCurrency:id,name,code',
             'tempProducts:id,order_id,name,description,quantity,price,orig_unit_price,orig_currency_id,unit_id,width,height',
             'tempProducts.unit:id,name,short_name',
-            'tempProducts.origCurrency:id,name,symbol',
+            'tempProducts.origCurrency:id,name,code',
         ];
     }
 

@@ -85,6 +85,24 @@ class BroadcastChatChannelTest extends TestCase
 
         $response->assertForbidden();
     }
+
+    public function test_user_can_authorize_chat_inbox_channel_for_self(): void
+    {
+        $this->seed(PermissionsSeeder::class);
+
+        $company = Company::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
+        $company->users()->attach($user->id);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/broadcasting/auth', [
+            'channel_name' => "private-company.{$company->id}.user.{$user->id}.chats",
+            'socket_id' => '123.456',
+        ]);
+
+        $response->assertOk();
+    }
 }
 
 

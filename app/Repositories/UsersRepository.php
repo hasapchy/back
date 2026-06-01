@@ -295,7 +295,7 @@ class UsersRepository extends BaseRepository
 
         return EmployeeSalary::whereIn('user_id', $userIds)
             ->where('company_id', $companyId)
-            ->with('currency:id,symbol,name')
+            ->with('currency:id,code,name')
             ->orderBy('user_id')
             ->orderBy('start_date', 'desc')
             ->get()
@@ -587,7 +587,16 @@ class UsersRepository extends BaseRepository
                 'model_simple_category_id' => $user->simple_category_id,
             ]);
 
+            $passwordChanged = ! empty($data['password']);
             $user->save();
+
+            if ($passwordChanged) {
+                app(\App\Services\UserCredentialRevocationService::class)->revokeAll(
+                    $user,
+                    request(),
+                    'password_changed'
+                );
+            }
 
             $user->refresh();
 
@@ -807,7 +816,7 @@ class UsersRepository extends BaseRepository
 
         return CacheService::remember($cacheKey, function () use ($userId, $companyId) {
             $query = EmployeeSalary::where('user_id', $userId)
-                ->with(['currency:id,symbol,name']);
+                ->with(['currency:id,code,name']);
 
             if ($companyId) {
                 $query->where('company_id', $companyId);

@@ -119,6 +119,28 @@ Broadcast::channel('company.{companyId}.user.{userId}', function ($user, $compan
     }
 });
 
+Broadcast::channel('company.{companyId}.user.{userId}.chats', function ($user, $companyId, $userId) use ($userBelongsToCompany) {
+    try {
+        $companyId = (int) $companyId;
+        $userId = (int) $userId;
+        if ((int) $user->id !== $userId) {
+            return false;
+        }
+        if (! $userBelongsToCompany($user, $companyId)) {
+            return false;
+        }
+        $permissions = $user->getAllPermissionsForCompany($companyId)->pluck('name');
+
+        return $user->is_admin
+            || $permissions->contains('chats_view_all')
+            || $permissions->contains('chats_view');
+    } catch (\Throwable $e) {
+        report($e);
+
+        return false;
+    }
+});
+
 Broadcast::channel('company.{companyId}.presence', function ($user, $companyId) use ($userBelongsToCompany) {
     try {
         $companyId = (int) $companyId;

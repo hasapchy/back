@@ -311,7 +311,7 @@ class WarehousePurchaseControllerTest extends TestCase
     {
         auth()->shouldUse('api');
         auth('api')->setUser($this->adminUser);
-        request()->headers->set('X-Company-ID', (string) $this->company->id);
+        request()->attributes->set(\App\Support\ResolvedCompany::ATTRIBUTE, (int) $this->company->id);
 
         $purchase = $this->createApprovedPurchaseWithProduct(5, 10.0);
         $receiptRepo = app(WarehouseReceiptRepository::class);
@@ -343,7 +343,7 @@ class WarehousePurchaseControllerTest extends TestCase
     {
         auth()->shouldUse('api');
         auth('api')->setUser($this->adminUser);
-        request()->headers->set('X-Company-ID', (string) $this->company->id);
+        request()->attributes->set(\App\Support\ResolvedCompany::ATTRIBUTE, (int) $this->company->id);
 
         $purchase = $this->createApprovedPurchaseWithProduct(5, 10.0);
         $receiptRepo = app(WarehouseReceiptRepository::class);
@@ -382,7 +382,7 @@ class WarehousePurchaseControllerTest extends TestCase
     {
         auth()->shouldUse('api');
         auth('api')->setUser($this->adminUser);
-        request()->headers->set('X-Company-ID', (string) $this->company->id);
+        request()->attributes->set(\App\Support\ResolvedCompany::ATTRIBUTE, (int) $this->company->id);
 
         $purchase = WhPurchase::query()->create([
             'supplier_id' => $this->supplier->id,
@@ -442,7 +442,7 @@ class WarehousePurchaseControllerTest extends TestCase
     {
         auth()->shouldUse('api');
         auth('api')->setUser($this->adminUser);
-        request()->headers->set('X-Company-ID', (string) $this->company->id);
+        request()->attributes->set(\App\Support\ResolvedCompany::ATTRIBUTE, (int) $this->company->id);
 
         $purchase = $this->createApprovedPurchaseWithProduct(5, 10.0);
         $otherProduct = Product::factory()->create([
@@ -474,7 +474,7 @@ class WarehousePurchaseControllerTest extends TestCase
     {
         auth()->shouldUse('api');
         auth('api')->setUser($this->adminUser);
-        request()->headers->set('X-Company-ID', (string) $this->company->id);
+        request()->attributes->set(\App\Support\ResolvedCompany::ATTRIBUTE, (int) $this->company->id);
 
         $purchase = WhPurchase::query()->create([
             'supplier_id' => $this->supplier->id,

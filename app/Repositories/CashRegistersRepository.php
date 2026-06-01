@@ -21,7 +21,7 @@ class CashRegistersRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $query = CashRegister::with(['currency:id,name,symbol', 'creator:id,name', 'users:id,name']);
+        $query = CashRegister::with(['currency:id,name,code', 'creator:id,name', 'users:id,name']);
 
         $this->applyUserFilter($query, $userUuid);
         $query = $this->addCompanyFilterDirect($query, 'cash_registers');
@@ -43,7 +43,7 @@ class CashRegistersRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('cash_registers_all', [$userUuid, $currentUser?->id, $companyId]);
 
         return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
-            $query = CashRegister::with(['currency:id,name,symbol', 'creator:id,name', 'users:id,name']);
+            $query = CashRegister::with(['currency:id,name,code', 'creator:id,name', 'users:id,name']);
 
             $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'cash_registers');
@@ -73,7 +73,7 @@ class CashRegistersRepository extends BaseRepository
         $transactionType = null,
         $source = null
     ) {
-        $query = CashRegister::with(['currency:id,name,symbol']);
+        $query = CashRegister::with(['currency:id,name,code']);
 
         $this->applyUserFilter($query, $userUuid);
         $query = $this->addCompanyFilterDirect($query, 'cash_registers');
@@ -143,7 +143,7 @@ class CashRegistersRepository extends BaseRepository
                 'id' => $cashRegister->id,
                 'name' => $cashRegister->name,
                 'currency_id' => $cashRegister->currency_id,
-                'currency_symbol' => $cashRegister->currency ? $cashRegister->currency->symbol : null,
+                'currency_symbol' => $cashRegister->currency ? $cashRegister->currency->code : null,
                 'is_cash' => (bool) $cashRegister->is_cash,
                 'icon' => $cashRegister->icon,
                 'color' => $cashRegister->color,

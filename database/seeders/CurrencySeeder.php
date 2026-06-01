@@ -15,7 +15,7 @@ class CurrencySeeder extends Seeder
             [
                 'code' => 'TMT',
                 'name' => 'Turkmen Manat',
-                'symbol' => 'TMT',
+                'symbol' => 'm',
                 'is_default' => true,
                 'is_report' => true,
                 'status' => true,

@@ -31,7 +31,7 @@ class ProjectsRepository extends BaseRepository
             'client:id,first_name,last_name,balance,client_type',
             'client.phones:id,client_id,phone',
             'client.emails:id,client_id,email',
-            'currency:id,name,symbol',
+            'currency:id,name,code',
             'status:id,name,color,is_visible',
             'creator:id,name,photo',
             'users:id,name',
@@ -355,7 +355,7 @@ class ProjectsRepository extends BaseRepository
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
                     'creator:id,name,photo',
-                    'currency:id,name,symbol',
+                    'currency:id,name,code',
                     'status:id,name,color,is_visible',
                     'users:id,name',
                     'projectUsers:id,project_id,user_id',
@@ -418,8 +418,8 @@ class ProjectsRepository extends BaseRepository
             $query = $this->projectBalanceTransactionsQuery($projectId)
                 ->orderBy('created_at', 'desc')
                 ->with([
-                    'cashRegister.currency:id,symbol',
-                    'currency:id,symbol,name,is_default',
+                    'cashRegister.currency:id,code',
+                    'currency:id,code,name,is_default',
                     'creator:id,name',
                     'category:id,name',
                 ])
@@ -471,7 +471,7 @@ class ProjectsRepository extends BaseRepository
                         'id' => $item->creator->id,
                         'name' => $item->creator->name,
                     ] : null,
-                    'cash_currency_symbol' => $item->cashRegister->currency->symbol ?? $item->currency->symbol,
+                    'cash_currency_symbol' => $item->cashRegister->currency->code ?? $item->currency->code,
                     'category_name' => $item->category?->name ?? null,
                 ];
             })->values()->all();

@@ -32,7 +32,7 @@ class ProjectReferenceResource extends JsonResource
             'currency' => $currency ? [
                 'id' => data_get($currency, 'id'),
                 'name' => data_get($currency, 'name'),
-                'symbol' => data_get($currency, 'symbol'),
+                'code' => data_get($currency, 'code'),
                 'is_default' => data_get($currency, 'is_default'),
                 'is_report' => data_get($currency, 'is_report'),
                 'status' => data_get($currency, 'status'),

@@ -25,6 +25,7 @@ class User extends Authenticatable
         static::updating(function ($user) {
             if ($user->isDirty('is_active') && !$user->is_active) {
                 $user->tokens()->delete();
+                app(\App\Services\UserAuthSessionService::class)->deleteAllForUser((int) $user->id);
             }
         });
 
@@ -121,6 +122,14 @@ class User extends Authenticatable
     public function deleteTokensForClient(TokenClient $client): void
     {
         $this->tokensForClient($client)->delete();
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<UserAuthSession, $this>
+     */
+    public function authSessions()
+    {
+        return $this->hasMany(UserAuthSession::class);
     }
 
     /**

@@ -53,7 +53,7 @@ class Kernel extends HttpKernel
 
         'api' => [
             EnsureFrontendRequestsAreStateful::class,
-            \Illuminate\Routing\Middleware\ThrottleRequests::class . ':api',
+            \App\Http\Middleware\TouchUserAuthSession::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
     ];

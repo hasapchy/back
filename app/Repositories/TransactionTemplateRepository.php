@@ -18,7 +18,7 @@ class TransactionTemplateRepository extends BaseRepository
         return [
             'creator:id,name,surname',
             'cashRegister:id,name,currency_id,company_id',
-            'currency:id,symbol,name',
+            'currency:id,code,name',
             'category:id,name,type',
             'project:id,name',
             'client:id,client_type,first_name,last_name,patronymic,balance,is_supplier,is_conflict,position',

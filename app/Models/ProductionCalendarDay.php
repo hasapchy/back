@@ -25,6 +25,6 @@ class ProductionCalendarDay extends Model
             return 'production_calendar_days';
         }
 
-        return 'production_calendar_days';
+        return 'company_production_calendar_days';
     }
 }

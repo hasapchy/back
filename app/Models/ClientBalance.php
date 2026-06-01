@@ -97,19 +97,25 @@ class ClientBalance extends Model
     }
 
     /**
-     * Может ли пользователь видеть баланс: пустой список сотрудников — виден всем, иначе только выбранным.
+     * Точечный доступ: пустой список сотрудников — виден всем с правом на тип, иначе только выбранным.
      *
-     * @param int|null $userId
+     * @param \App\Models\User $user
      * @return bool
      */
-    public function canUserAccess(?int $userId): bool
+    public function isVisibleToUser(User $user): bool
     {
-        if ($userId === null) {
-            return false;
+        if ($this->relationLoaded('users')) {
+            if ($this->users->isEmpty()) {
+                return true;
+            }
+
+            return $this->hasUser($user->id);
         }
+
         if ($this->users()->count() === 0) {
             return true;
         }
-        return $this->hasUser($userId);
+
+        return $this->hasUser($user->id);
     }
 }

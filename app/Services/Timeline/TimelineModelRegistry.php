@@ -77,7 +77,7 @@ class TimelineModelRegistry
                 'with' => [
                     'project:id,name',
                     'creator:id,name',
-                    'currency:id,symbol,name',
+                    'currency:id,code,name',
                     'cashRegister:id,name',
                 ],
                 'merge_order_transaction_logs' => false,
@@ -145,7 +145,7 @@ class TimelineModelRegistry
                     'warehouse:id,name',
                     'creator:id,name',
                     'cashRegister:id,name',
-                    'currency:id,symbol,name',
+                    'currency:id,code,name',
                     'clientBalance:id,client_id',
                 ],
                 'merge_order_transaction_logs' => false,

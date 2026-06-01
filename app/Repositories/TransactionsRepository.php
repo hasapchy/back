@@ -72,9 +72,9 @@ class TransactionsRepository extends BaseRepository
                 'client:id,first_name,last_name,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
                 'client.phones:id,client_id,phone',
                 'client.emails:id,client_id,email',
-                'currency:id,name,symbol',
+                'currency:id,name,code',
                 'cashRegister:id,name,currency_id,is_cash,icon,color',
-                'cashRegister.currency:id,name,symbol',
+                'cashRegister.currency:id,name,code',
                 'category:id,name,type',
                 'project:id,name',
                 'creator:id,name',
@@ -323,11 +323,11 @@ class TransactionsRepository extends BaseRepository
             'cash_amount' => $transaction->amount,
             'cash_currency_id' => $transaction->cashRegister->currency->id,
             'cash_currency_name' => $transaction->cashRegister->currency->name,
-            'cash_currency_symbol' => $transaction->cashRegister->currency->symbol,
+            'cash_currency_symbol' => $transaction->cashRegister->currency->code,
             'orig_amount' => $transaction->orig_amount,
             'orig_currency_id' => $transaction->currency->id,
             'orig_currency_name' => $transaction->currency->name,
-            'orig_currency_symbol' => $transaction->currency->symbol,
+            'orig_currency_symbol' => $transaction->currency->code,
             'exchange_rate' => $transaction->exchange_rate,
             'creator_id' => $transaction->creator_id,
             'creator' => $transaction->creator ? [
@@ -672,13 +672,15 @@ class TransactionsRepository extends BaseRepository
             TransactionCategoryTypeGuard::assertMatch((int) $transaction->type, (int) $data['category_id']);
         }
 
-        $transaction->client_id = $data['client_id'];
-        $transaction->category_id = $data['category_id'];
+        $transaction->client_id = $data['client_id'] ?? $transaction->client_id;
+        $transaction->category_id = $data['category_id'] ?? $transaction->category_id;
         if (array_key_exists('project_id', $data)) {
             $transaction->project_id = $data['project_id'];
         }
-        $transaction->date = $data['date'];
-        $transaction->note = ! empty($data['note']) ? $data['note'] : null;
+        $transaction->date = $data['date'] ?? $transaction->date;
+        if (array_key_exists('note', $data)) {
+            $transaction->note = ! empty($data['note']) ? $data['note'] : null;
+        }
 
         if (isset($data['is_debt'])) {
             $transaction->is_debt = $data['is_debt'];
@@ -770,13 +772,15 @@ class TransactionsRepository extends BaseRepository
                 $this->changeCashBalance($oldCashRegister, $revertDelta);
             }
 
-            $transaction->client_id = $data['client_id'];
-            $transaction->category_id = $data['category_id'];
+            $transaction->client_id = $data['client_id'] ?? $transaction->client_id;
+            $transaction->category_id = $data['category_id'] ?? $transaction->category_id;
             if (array_key_exists('project_id', $data)) {
                 $transaction->project_id = $data['project_id'];
             }
-            $transaction->date = $data['date'];
-            $transaction->note = $data['note'] ?? null;
+            $transaction->date = $data['date'] ?? $transaction->date;
+            if (array_key_exists('note', $data)) {
+                $transaction->note = $data['note'] ?? null;
+            }
 
             if (array_key_exists('source_type', $data)) {
                 $transaction->source_type = $data['source_type'];
@@ -1316,11 +1320,11 @@ class TransactionsRepository extends BaseRepository
             'transactions.amount as cash_amount',
             'cash_register_currencies.id as cash_currency_id',
             'cash_register_currencies.name as cash_currency_name',
-            'cash_register_currencies.symbol as cash_currency_symbol',
+            'cash_register_currencies.code as cash_currency_symbol',
             'transactions.orig_amount as orig_amount',
             'currencies.id as orig_currency_id',
             'currencies.name as orig_currency_name',
-            'currencies.symbol as orig_currency_symbol',
+            'currencies.code as orig_currency_symbol',
             'transactions.exchange_rate as exchange_rate',
             'transactions.creator_id as creator_id',
             'users.name as creator_name',

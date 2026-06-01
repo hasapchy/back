@@ -151,7 +151,7 @@ class WarehouseDocumentPaymentStatusService
       [(int) $purchase->id],
       $this->goodsPaymentCategoryId()
     )[(int) $purchase->id] ?? 0.0;
-    $symbol = $purchase->origCurrency?->symbol ?? $purchase->currency?->symbol ?? null;
+    $symbol = $purchase->origCurrency?->code;
 
     return $this->resolveStatus($paid, $total, $symbol);
   }
@@ -171,7 +171,7 @@ class WarehouseDocumentPaymentStatusService
       [(int) $receipt->id],
       $this->goodsPaymentCategoryId()
     )[(int) $receipt->id] ?? 0.0;
-    $symbol = $receipt->origCurrency?->symbol ?? null;
+    $symbol = $receipt->origCurrency?->code ?? null;
 
     return $this->resolveStatus($paid, $total, $symbol);
   }

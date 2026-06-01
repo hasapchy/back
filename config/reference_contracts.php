@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'cache_version' => '1.8',
+    'cache_version' => '1.9',
     'feature_flag' => 'reference_wave1',
 
     'canary' => [
@@ -90,7 +90,7 @@ return [
         'order_statuses.category' => ['color', 'created_at', 'creator_id', 'id', 'name', 'updated_at'],
         'warehouses.users_item' => ['id', 'name', 'surname'],
         'cash_registers.users_item' => ['id', 'name'],
-        'cash_registers.currency' => ['id', 'name', 'symbol'],
+        'cash_registers.currency' => ['id', 'name', 'code'],
         'categories.users_item' => ['id', 'name', 'surname'],
         'categories.creator' => ['id', 'name'],
         'transaction_categories.parent' => ['id', 'name'],
@@ -108,7 +108,7 @@ return [
             'balance', 'client_type', 'created_at', 'emails', 'first_name', 'id', 'is_conflict', 'is_supplier', 'last_name', 'patronymic', 'phones', 'position', 'updated_at',
         ],
         'transaction_templates.creator' => ['id', 'name', 'surname'],
-        'transaction_templates.currency' => ['id', 'name', 'symbol'],
+        'transaction_templates.currency' => ['id', 'name', 'code'],
         'transaction_templates.project' => ['id', 'name'],
         'leaves.leave_type' => ['color', 'created_at', 'id', 'is_penalty', 'name', 'updated_at'],
         'leaves.user' => ['email', 'id', 'name', 'surname'],
@@ -116,7 +116,7 @@ return [
             'balance', 'client_type', 'created_at', 'emails', 'first_name', 'id', 'is_conflict', 'is_supplier', 'last_name', 'patronymic', 'phones', 'position', 'updated_at',
         ],
         'projects.creator' => ['id', 'name', 'photo'],
-        'projects.currency' => ['id', 'is_default', 'is_report', 'name', 'status', 'symbol'],
+        'projects.currency' => ['id', 'is_default', 'is_report', 'name', 'status', 'code'],
         'projects.status' => ['color', 'id', 'is_visible', 'name'],
         'projects.users_item' => ['id', 'name'],
         'tasks.creator' => ['email', 'id', 'name'],

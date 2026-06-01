@@ -78,7 +78,7 @@ return [
         'client_balances' => [
             'has_creator_id' => false,
             'check_strategy' => 'default',
-            'actions' => ['view', 'create', 'update', 'delete', 'export'],
+            'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
         'cash_registers' => [
@@ -323,6 +323,8 @@ return [
         'settings_cash_balance_view',
         'settings_client_balance_view',
         'settings_client_balance_view_own',
+        'settings_client_balance_view_cash',
+        'settings_client_balance_view_non_cash',
         'settings_client_balance_adjustment',
         'products_create_temp',
         'settings_transaction_category_bindings_view',
@@ -415,6 +417,8 @@ return [
         'clients' => [
             'settings_client_balance_view',
             'settings_client_balance_view_own',
+            'settings_client_balance_view_cash',
+            'settings_client_balance_view_non_cash',
             'settings_client_balance_adjustment',
         ],
         'companies' => [
