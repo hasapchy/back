@@ -403,20 +403,22 @@ class ProjectsRepository extends BaseRepository
      * @param  int  $projectId  ID проекта
      * @param  int|null  $page  Номер страницы (null — вернуть все, для getTotalBalance)
      * @param  int  $perPage  Записей на странице
+     * @param  array{search?: string|null, date_from?: string|null, date_to?: string|null, source?: string|null, transaction_type?: string|null, exclude_debt?: bool|null, is_debt?: bool|null, cash_register_id?: int|null}  $filters
      * @return array|array{history: array, current_page: int, last_page: int, total: int, per_page: int}
      */
-    public function getBalanceHistory($projectId, $page = null, $perPage = 20)
+    public function getBalanceHistory($projectId, $page = null, $perPage = 20, array $filters = [])
     {
-        $cacheKey = $this->generateCacheKey('project_balance_history', [$projectId, $page, $perPage]);
+        $cacheKey = $this->generateCacheKey('project_balance_history', [$projectId, $page, $perPage, $filters]);
 
-        return CacheService::remember($cacheKey, function () use ($projectId, $page, $perPage) {
+        return CacheService::remember($cacheKey, function () use ($projectId, $page, $perPage, $filters) {
             $project = Project::find($projectId);
             $currencyContext = $this->resolveProjectCurrencyContext($project);
             $isProjectReportCurrency = $currencyContext['is_project_report_currency'];
             $isProjectDefaultCurrency = $currencyContext['is_project_default_currency'];
 
-            $query = $this->projectBalanceTransactionsQuery($projectId)
-                ->orderBy('created_at', 'desc')
+            $query = $this->projectBalanceTransactionsQuery($projectId);
+            $this->applyProjectBalanceHistoryFilters($query, $filters);
+            $query->orderBy('created_at', 'desc')
                 ->with([
                     'cashRegister.currency:id,code',
                     'currency:id,code,name,is_default',
@@ -507,6 +509,75 @@ class ProjectsRepository extends BaseRepository
                         ->orWhereNull('source_type');
                 })->orWhere('is_debt', false);
             });
+    }
+
+    /**
+     * @param  Builder  $query
+     * @param  array{search?: string|null, date_from?: string|null, date_to?: string|null, source?: string|null, transaction_type?: string|null, exclude_debt?: bool|null, is_debt?: bool|null, cash_register_id?: int|null}  $filters
+     */
+    private function applyProjectBalanceHistoryFilters(Builder $query, array $filters): void
+    {
+        if (($filters['exclude_debt'] ?? null) === true) {
+            $query->where('is_debt', false);
+        }
+        if (($filters['is_debt'] ?? null) === true) {
+            $query->where('is_debt', true);
+        }
+
+        $cashRegisterId = isset($filters['cash_register_id']) ? (int) $filters['cash_register_id'] : null;
+        if ($cashRegisterId > 0) {
+            $query->where('cash_id', $cashRegisterId);
+        }
+
+        $dateFrom = $filters['date_from'] ?? null;
+        if ($dateFrom) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+
+        $dateTo = $filters['date_to'] ?? null;
+        if ($dateTo) {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
+
+        $source = $filters['source'] ?? null;
+        if ($source === 'sale') {
+            $query->where('source_type', 'App\\Models\\Sale');
+        } elseif ($source === 'order') {
+            $query->where('source_type', 'App\\Models\\Order');
+        } elseif ($source === 'receipt') {
+            $query->where('source_type', 'App\\Models\\WhReceipt');
+        } elseif ($source === 'transaction') {
+            $query->where(function ($q) {
+                $q->whereNull('source_type')
+                    ->orWhereNotIn('source_type', [
+                        'App\\Models\\Sale',
+                        'App\\Models\\Order',
+                        'App\\Models\\WhReceipt',
+                    ]);
+            });
+        }
+
+        $transactionType = $filters['transaction_type'] ?? null;
+        if ($transactionType === 'income') {
+            $query->where('type', 1);
+        } elseif ($transactionType === 'outcome') {
+            $query->where('type', 0);
+        }
+
+        $search = isset($filters['search']) ? trim((string) $filters['search']) : '';
+        if ($search !== '') {
+            $searchLower = mb_strtolower($search);
+            $query->where(function ($q) use ($search, $searchLower) {
+                $q->where('transactions.id', 'like', "%{$search}%")
+                    ->orWhereRaw('LOWER(transactions.note) LIKE ?', ["%{$searchLower}%"])
+                    ->orWhereHas('category', function ($categoryQuery) use ($searchLower) {
+                        $categoryQuery->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"]);
+                    })
+                    ->orWhereHas('creator', function ($creatorQuery) use ($searchLower) {
+                        $creatorQuery->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"]);
+                    });
+            });
+        }
     }
 
     /**

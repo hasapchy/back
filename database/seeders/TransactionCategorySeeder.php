@@ -176,6 +176,7 @@ class TransactionCategorySeeder extends Seeder
             [248, 'VEHICLE_REPAIR', 206],
             [249, 'PARKING', 206],
             [250, 'TAXI', 206],
+            [272, 'TRAFFIC_POLICE', 206],
             [251, 'SERVERS', 207],
             [252, 'HOSTING', 207],
             [253, 'CLOUD_SERVICES', 207],

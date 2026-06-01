@@ -391,7 +391,19 @@ class ProjectsController extends BaseController
 
             $page = $request->input('page') ? max(1, (int) $request->input('page')) : null;
             $perPage = min(100, max(1, (int) $request->input('per_page', 20)));
-            $result = $this->itemsRepository->getBalanceHistory($id, $page, $perPage);
+            $isDebt = $request->input('is_debt');
+            $isDebt = is_null($isDebt) ? null : filter_var($isDebt, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            $filters = [
+                'search' => $request->input('search'),
+                'date_from' => $request->input('date_from'),
+                'date_to' => $request->input('date_to'),
+                'source' => $request->input('source'),
+                'transaction_type' => $request->input('transaction_type'),
+                'exclude_debt' => $request->boolean('exclude_debt') ? true : null,
+                'is_debt' => $isDebt === true ? true : null,
+                'cash_register_id' => $request->input('cash_register_id') ? (int) $request->input('cash_register_id') : null,
+            ];
+            $result = $this->itemsRepository->getBalanceHistory($id, $page, $perPage, $filters);
 
             $balance = $this->itemsRepository->getTotalBalance($id);
             $response = [
