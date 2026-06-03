@@ -26,7 +26,7 @@ class InAppNotificationController extends BaseController
         $user = $this->requireAuthenticatedUser();
         $companyId = (int) $this->getCurrentCompanyId();
         if ($companyId < 1) {
-            return $this->errorResponse('Company context is required', 422);
+            return $this->errorResponse(__('api.common.company_context_required'), 422);
         }
 
         return $this->successResponse([
@@ -42,7 +42,7 @@ class InAppNotificationController extends BaseController
         $user = $this->requireAuthenticatedUser();
         $companyId = (int) $this->getCurrentCompanyId();
         if ($companyId < 1) {
-            return $this->errorResponse('Company context is required', 422);
+            return $this->errorResponse(__('api.common.company_context_required'), 422);
         }
 
         $allowed = $this->notificationSettingsService->mergedForUser($user, $companyId);
@@ -76,7 +76,7 @@ class InAppNotificationController extends BaseController
         $user = $this->requireAuthenticatedUser();
         $companyId = (int) $this->getCurrentCompanyId();
         if ($companyId < 1) {
-            return $this->errorResponse('Company context is required', 422);
+            return $this->errorResponse(__('api.common.company_context_required'), 422);
         }
 
         $perPage = min(max((int) $request->input('per_page', 20), 1), 100);
@@ -111,7 +111,7 @@ class InAppNotificationController extends BaseController
         $user = $this->requireAuthenticatedUser();
         $companyId = (int) $this->getCurrentCompanyId();
         if ($companyId < 1) {
-            return $this->errorResponse('Company context is required', 422);
+            return $this->errorResponse(__('api.common.company_context_required'), 422);
         }
 
         $row = AppNotification::query()
@@ -121,7 +121,7 @@ class InAppNotificationController extends BaseController
             ->first();
 
         if (! $row) {
-            return $this->errorResponse('Not found', 404);
+            return $this->errorResponse(__('api.common.not_found'), 404);
         }
 
         if ($row->read_at === null) {
@@ -142,7 +142,7 @@ class InAppNotificationController extends BaseController
         $user = $this->requireAuthenticatedUser();
         $companyId = (int) $this->getCurrentCompanyId();
         if ($companyId < 1) {
-            return $this->errorResponse('Company context is required', 422);
+            return $this->errorResponse(__('api.common.company_context_required'), 422);
         }
 
         AppNotification::query()

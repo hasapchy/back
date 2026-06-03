@@ -340,7 +340,7 @@ class OrderController extends BaseController
 
         $order = $this->itemsRepository->getItemById($id);
         if (! $order) {
-            return $this->errorResponse('Заказ не найден', 404);
+            return $this->errorResponse(__('api.orders.not_found'), 404);
         }
 
         $this->authorize('update', $order);
@@ -455,7 +455,7 @@ class OrderController extends BaseController
     {
         $order = $this->itemsRepository->getItemById($id);
         if (! $order) {
-            return $this->errorResponse('Заказ не найден', 404);
+            return $this->errorResponse(__('api.orders.not_found'), 404);
         }
 
         $this->requireAuthenticatedUser();
@@ -479,9 +479,9 @@ class OrderController extends BaseController
 
             event(new OrderFirstStageCountUpdated((int) $this->getCurrentCompanyId()));
 
-            return $this->successResponse($deleted, 'Заказ успешно удалён');
+            return $this->successResponse($deleted, __('api.orders.deleted_success'));
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка при удалении заказа: '.$th->getMessage(), 400);
+            return $this->errorResponse(__('api.orders.delete_failed_prefix').$th->getMessage(), 400);
         }
     }
 
@@ -499,7 +499,7 @@ class OrderController extends BaseController
     {
         $item = $this->itemsRepository->getItemById($id);
         if (! $item) {
-            return $this->errorResponse('Not found', 404);
+            return $this->errorResponse(__('api.common.not_found'), 404);
         }
 
         $this->requireAuthenticatedUser();
@@ -539,11 +539,11 @@ class OrderController extends BaseController
 
         $primaryId = SimpleUser::rootCategoryIdForCurrentCompany($user);
         if ($primaryId === null) {
-            return $this->errorResponse('Не настроена основная категория заказов (simple).', 400);
+            return $this->errorResponse(__('api.orders.simple_category_not_configured'), 400);
         }
 
         if ($categoryId !== null && (int) $categoryId !== $primaryId) {
-            return $this->errorResponse('У вас нет доступа к указанной категории', 403);
+            return $this->errorResponse(__('api.orders.category_access_forbidden'), 403);
         }
 
         return $primaryId;

@@ -126,7 +126,7 @@ class TransfersRepository extends BaseRepository
         $toCashRegister = CashRegister::findOrFail($cash_to_id);
 
         // if ($fromCashRegister->balance < $amount) {
-        //     throw new \Exception('Недостаточно средств на кассе отправителя');
+        //     throw new \Exception(__('Недостаточно средств на кассе отправителя'));
         // }
 
         $fromCurrency = $fromCashRegister->currency;
@@ -254,7 +254,7 @@ class TransfersRepository extends BaseRepository
         return DB::transaction(function () use ($id) {
             $transfer = $this->getItemById($id);
             if (!$transfer) {
-                throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Transfer not found');
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException(__('api.common.transfer_not_found'));
             }
 
             $fromTransactionId = $transfer->tr_id_from;

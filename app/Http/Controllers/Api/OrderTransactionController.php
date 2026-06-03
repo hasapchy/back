@@ -58,14 +58,14 @@ class OrderTransactionController extends BaseController
         $transaction = Transaction::findOrFail($request->transaction_id);
 
         if ($transaction->creator_id != $userId) {
-            return $this->errorResponse('Нет доступа к транзакции', 403);
+            return $this->errorResponse(__('Нет доступа к транзакции'), 403);
         }
 
         $transaction->source_type = Order::class;
         $transaction->source_id = $orderId;
         $transaction->save();
 
-        return $this->successResponse(null, 'Транзакция успешно связана с заказом');
+        return $this->successResponse(null, __('Транзакция успешно связана с заказом'));
     }
 
     /**
@@ -97,7 +97,7 @@ class OrderTransactionController extends BaseController
             $trx->save();
         }
 
-        return $this->successResponse(null, 'Транзакция успешно отвязана от заказа');
+        return $this->successResponse(null, __('Транзакция успешно отвязана от заказа'));
     }
 
     /**

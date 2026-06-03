@@ -17,9 +17,11 @@ use App\Models\Traits\HasManyToManyUsers;
  * @property int $currency_id ID валюты
  * @property int|null $company_id ID компании
  * @property int|null $creator_id ID создателя
+ * @property int $sort_order Порядок сортировки
  * @property bool $is_cash Наличная касса
  * @property bool $is_working_minus Разрешено ли уходить в минус
  * @property string|null $icon CSS класс иконки кассы
+ * @property string $icon_size Размер иконки кассы
  * @property string|null $color Акцентный цвет (#RRGGBB)
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -43,9 +45,11 @@ class CashRegister extends Model
         'currency_id',
         'company_id',
         'creator_id',
+        'sort_order',
         'is_cash',
         'is_working_minus',
         'icon',
+        'icon_size',
         'color',
     ];
 
@@ -72,10 +76,19 @@ class CashRegister extends Model
         'fa-solid fa-star',
     ];
 
+    public const ALLOWED_ICON_SIZES = [
+        'small',
+        'medium',
+        'large',
+    ];
+
+    public const DEFAULT_ICON_SIZE = 'medium';
+
     protected $casts = [
         'balance' => 'decimal:5',
         'is_cash' => 'boolean',
         'is_working_minus' => 'boolean',
+        'sort_order' => 'integer',
     ];
 
     protected static function booted()
@@ -147,15 +160,4 @@ class CashRegister extends Model
         return $this->belongsToMany(User::class, 'cash_register_users', 'cash_register_id', 'user_id');
     }
 
-    /**
-     * Получить разрешенных пользователей кассы
-     *
-     * @return \Illuminate\Database\Eloquent\Collection|\App\Models\User[]
-     */
-    public function permittedUsers()
-    {
-        return $this->users()->get();
-    }
-
-    // roundAmount удален — логика округления теперь на уровне компании
 }

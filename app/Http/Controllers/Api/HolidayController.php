@@ -105,7 +105,7 @@ class HolidayController extends BaseController
 
             return $this->successResponse(new HolidayResource($holiday));
         } catch (\Exception $e) {
-            return $this->errorResponse('Праздник не найден', 404);
+            return $this->errorResponse(__('Праздник не найден'), 404);
         }
     }
 
@@ -132,7 +132,7 @@ class HolidayController extends BaseController
 
         $created = $this->repository->createItem($data);
         if (! $created) {
-            return $this->errorResponse('Ошибка создания праздника', 400);
+            return $this->errorResponse(__('Ошибка создания праздника'), 400);
         }
 
         $companyId = $this->getCurrentCompanyId();
@@ -169,7 +169,7 @@ class HolidayController extends BaseController
 
             $updated = $this->repository->updateItem($id, $data);
             if (! $updated) {
-                return $this->errorResponse('Ошибка обновления', 400);
+                return $this->errorResponse(__('api.transfers.update_failed'), 400);
             }
 
             $companyId = $this->getCurrentCompanyId();
@@ -179,7 +179,7 @@ class HolidayController extends BaseController
                 'Праздник обновлен'
             );
         } catch (\Exception $e) {
-            return $this->errorResponse('Праздник не найден', 404);
+            return $this->errorResponse(__('Праздник не найден'), 404);
         }
     }
 
@@ -198,12 +198,12 @@ class HolidayController extends BaseController
 
             $deleted = $this->repository->deleteItem($id);
             if (! $deleted) {
-                return $this->errorResponse('Ошибка удаления', 400);
+                return $this->errorResponse(__('api.transfers.delete_failed'), 400);
             }
 
-            return $this->successResponse(null, 'Праздник удален');
+            return $this->successResponse(null, __('Праздник удален'));
         } catch (\Exception $e) {
-            return $this->errorResponse('Праздник не найден', 404);
+            return $this->errorResponse(__('Праздник не найден'), 404);
         }
     }
 

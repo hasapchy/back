@@ -101,12 +101,12 @@ class ProjectStatusController extends BaseController
             'creator_id' => $userUuid,
         ]);
         if (! $created) {
-            return $this->errorResponse('Ошибка создания статуса', 400);
+            return $this->errorResponse(__('api.statuses.create_failed'), 400);
         }
 
         CacheService::invalidateProjectsCache();
 
-        return $this->successResponse(null, 'Статус создан');
+        return $this->successResponse(null, __('api.statuses.created'));
     }
 
     /**
@@ -129,12 +129,12 @@ class ProjectStatusController extends BaseController
             'is_visible' => $validatedData['is_visible'] ?? true,
         ]);
         if (! $updated) {
-            return $this->errorResponse('Ошибка обновления статуса', 400);
+            return $this->errorResponse(__('api.statuses.update_failed'), 400);
         }
 
         CacheService::invalidateProjectsCache();
 
-        return $this->successResponse(null, 'Статус обновлен');
+        return $this->successResponse(null, __('api.statuses.updated'));
     }
 
     /**
@@ -151,14 +151,14 @@ class ProjectStatusController extends BaseController
 
         $status = ProjectStatus::findOrFail($id);
         if ($status->projects()->count() > 0) {
-            return $this->errorResponse('Нельзя удалить статус, который используется в проектах', 400);
+            return $this->errorResponse(__('Нельзя удалить статус, который используется в проектах'), 400);
         }
 
         $deleted = $this->itemsRepository->deleteItem($id);
         if (! $deleted) {
-            return $this->errorResponse('Ошибка удаления статуса', 400);
+            return $this->errorResponse(__('api.statuses.delete_failed'), 400);
         }
 
-        return $this->successResponse(null, 'Статус удален');
+        return $this->successResponse(null, __('api.statuses.deleted'));
     }
 }

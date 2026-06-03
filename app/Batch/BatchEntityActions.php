@@ -44,27 +44,31 @@ final class BatchEntityActions
     {
         $client = Client::query()->find($id);
         if (! $client) {
-            throw new NotFoundHttpException('Клиент не найден');
+            throw new NotFoundHttpException(__('api.batch.client_not_found'));
         }
 
         Gate::forUser($user)->authorize('delete', $client);
 
+        if ($client->client_type === 'employee') {
+            throw new UnprocessableEntityHttpException(__('api.batch.employee_client_delete_forbidden'));
+        }
+
         if (DB::table('transactions')->where('client_id', $id)->exists()) {
-            throw new UnprocessableEntityHttpException('Нельзя удалить клиента: найдены связанные транзакции.');
+            throw new UnprocessableEntityHttpException(__('api.batch.client_delete_related_transactions'));
         }
 
         if (DB::table('orders')->where('client_id', $id)->exists()) {
-            throw new UnprocessableEntityHttpException('Нельзя удалить клиента: найдены связанные заказы.');
+            throw new UnprocessableEntityHttpException(__('api.batch.client_delete_related_orders'));
         }
 
         $balance = DB::table('clients')->where('id', $id)->value('balance');
         if ($balance > 0 || $balance < 0) {
-            throw new UnprocessableEntityHttpException('Нельзя удалить клиента с ненулевым балансом.');
+            throw new UnprocessableEntityHttpException(__('api.batch.client_delete_non_zero_balance'));
         }
 
         $deleted = $this->clientsRepository->deleteItem($id);
         if (! $deleted) {
-            throw new NotFoundHttpException('Клиент не найден');
+            throw new NotFoundHttpException(__('api.batch.client_not_found'));
         }
 
         CacheService::invalidateOrdersCache();

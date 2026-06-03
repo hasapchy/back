@@ -62,7 +62,7 @@ class ProjectContractsController extends BaseController
                 ],
             ]);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении контрактов проекта: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при получении контрактов проекта: ').$e->getMessage(), 500);
         }
     }
 
@@ -83,7 +83,7 @@ class ProjectContractsController extends BaseController
 
             return $this->successResponse(ProjectContractResource::collection($contracts)->resolve());
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении контрактов проекта: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при получении контрактов проекта: ').$e->getMessage(), 500);
         }
     }
 
@@ -145,7 +145,7 @@ class ProjectContractsController extends BaseController
                 ],
             ]);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении контрактов: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при получении контрактов: ').$e->getMessage(), 500);
         }
     }
 
@@ -159,7 +159,7 @@ class ProjectContractsController extends BaseController
 
             $project = Project::find($validatedData['project_id']);
             if (! $project) {
-                return $this->errorResponse('Проект не найден', 404);
+                return $this->errorResponse(__('api.projects.not_found'), 404);
             }
 
             $this->authorize('update', $project);
@@ -179,7 +179,7 @@ class ProjectContractsController extends BaseController
         } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при создании контракта: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при создании контракта: ').$e->getMessage(), 500);
         }
     }
 
@@ -194,7 +194,7 @@ class ProjectContractsController extends BaseController
             $contract = $this->repository->findContract($id);
 
             if (! $contract) {
-                return $this->errorResponse('Контракт не найден', 404);
+                return $this->errorResponse(__('Контракт не найден'), 404);
             }
 
             $this->authorize('view', $contract);
@@ -203,7 +203,7 @@ class ProjectContractsController extends BaseController
         } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении контракта: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при получении контракта: ').$e->getMessage(), 500);
         }
     }
 
@@ -223,7 +223,7 @@ class ProjectContractsController extends BaseController
             if (array_key_exists('project_id', $validatedData)) {
                 $targetProject = Project::find($validatedData['project_id']);
                 if (! $targetProject) {
-                    return $this->errorResponse('Проект не найден', 404);
+                    return $this->errorResponse(__('api.projects.not_found'), 404);
                 }
                 $this->authorize('update', $targetProject);
             }
@@ -241,7 +241,7 @@ class ProjectContractsController extends BaseController
         } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при обновлении контракта: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при обновлении контракта: ').$e->getMessage(), 500);
         }
     }
 
@@ -260,14 +260,14 @@ class ProjectContractsController extends BaseController
             $result = $this->repository->deleteContract($id);
 
             if (! $result) {
-                return $this->errorResponse('Контракт не найден', 404);
+                return $this->errorResponse(__('Контракт не найден'), 404);
             }
 
-            return $this->successResponse(null, 'Контракт успешно удален');
+            return $this->successResponse(null, __('Контракт успешно удален'));
         } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при удалении контракта: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при удалении контракта: ').$e->getMessage(), 500);
         }
     }
 
@@ -282,7 +282,7 @@ class ProjectContractsController extends BaseController
     {
         $project = Project::find($projectId);
         if (! $project) {
-            return $this->errorResponse('Проект не найден', 404);
+            return $this->errorResponse(__('api.projects.not_found'), 404);
         }
 
         $actionMessages = [

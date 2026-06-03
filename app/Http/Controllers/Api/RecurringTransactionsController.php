@@ -76,7 +76,7 @@ class RecurringTransactionsController extends BaseController
         $schedule = $this->repository->getItemById($id);
 
         if (! $schedule) {
-            return $this->errorResponse('Расписание не найдено', 404);
+            return $this->errorResponse(__('Расписание не найдено'), 404);
         }
 
         $this->authorize('view', $schedule);
@@ -107,7 +107,7 @@ class RecurringTransactionsController extends BaseController
 
         CacheService::invalidateTransactionsCache();
 
-        return $this->successResponse(new RecScheduleResource($schedule), 'Расписание создано');
+        return $this->successResponse(new RecScheduleResource($schedule), __('Расписание создано'));
     }
 
     /**
@@ -127,7 +127,7 @@ class RecurringTransactionsController extends BaseController
         $schedule = $this->repository->getItemById($id);
 
         if (! $schedule) {
-            return $this->errorResponse('Расписание не найдено', 404);
+            return $this->errorResponse(__('Расписание не найдено'), 404);
         }
 
         $this->authorize('update', $schedule);
@@ -138,7 +138,7 @@ class RecurringTransactionsController extends BaseController
 
         CacheService::invalidateTransactionsCache();
 
-        return $this->successResponse(new RecScheduleResource($schedule), 'Расписание обновлено');
+        return $this->successResponse(new RecScheduleResource($schedule), __('Расписание обновлено'));
     }
 
     /**
@@ -156,7 +156,7 @@ class RecurringTransactionsController extends BaseController
         $schedule = $this->repository->getItemById($id);
 
         if (! $schedule) {
-            return $this->errorResponse('Расписание не найдено', 404);
+            return $this->errorResponse(__('Расписание не найдено'), 404);
         }
 
         $this->authorize('delete', $schedule);
@@ -164,6 +164,6 @@ class RecurringTransactionsController extends BaseController
         $this->repository->deleteItem($schedule);
         CacheService::invalidateTransactionsCache();
 
-        return $this->successResponse(null, 'Расписание удалено');
+        return $this->successResponse(null, __('Расписание удалено'));
     }
 }

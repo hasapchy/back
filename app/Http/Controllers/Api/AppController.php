@@ -111,7 +111,7 @@ class AppController extends BaseController
 
         $currency = Currency::find($currencyId);
         if (! $currency) {
-            return $this->errorResponse('Валюта не найдена', 404);
+            return $this->errorResponse(__('Валюта не найдена'), 404);
         }
 
         $companyId = $this->getCurrentCompanyId();

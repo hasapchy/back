@@ -78,10 +78,10 @@ class TransfersController extends BaseController
         ]);
 
         if (! $item_created) {
-            return $this->errorResponse('Ошибка создания трансфера', 400);
+            return $this->errorResponse(__('api.transfers.create_failed'), 400);
         }
 
-        return $this->successResponse(null, 'Трансфер создан');
+        return $this->successResponse(null, __('api.transfers.created'));
     }
 
     /**
@@ -97,7 +97,7 @@ class TransfersController extends BaseController
 
         $transfer = $this->itemsRepository->getItemById($id);
         if (!$transfer) {
-            return $this->errorResponse('Перевод не найден', 404);
+            return $this->errorResponse(__('api.transfers.not_found'), 404);
         }
 
         $cashFromAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id_from']);
@@ -120,10 +120,10 @@ class TransfersController extends BaseController
         ]);
 
         if (! $updated) {
-            return $this->errorResponse('Ошибка обновления', 400);
+            return $this->errorResponse(__('api.transfers.update_failed'), 400);
         }
 
-        return $this->successResponse(null, 'Трансфер обновлён');
+        return $this->successResponse(null, __('api.transfers.updated'));
     }
 
     /**
@@ -137,14 +137,14 @@ class TransfersController extends BaseController
         try {
             $deleted = $this->itemsRepository->deleteItem($id);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Перевод не найден', 404);
+            return $this->errorResponse(__('api.transfers.not_found'), 404);
         }
 
         if (! $deleted) {
-            return $this->errorResponse('Ошибка удаления', 400);
+            return $this->errorResponse(__('api.transfers.delete_failed'), 400);
         }
 
-        return $this->successResponse(null, 'Трансфер удалён');
+        return $this->successResponse(null, __('api.transfers.deleted'));
     }
 
     /**

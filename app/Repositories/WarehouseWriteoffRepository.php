@@ -386,7 +386,7 @@ class WarehouseWriteoffRepository extends BaseRepository
     public function createShortageWriteoff(int $warehouseId, string $note, array $products, WhWriteoffReason $reason = WhWriteoffReason::Shortage): int
     {
         if ($products === []) {
-            throw new \RuntimeException('EMPTY_WRITE_OFF_PRODUCTS');
+            throw new \RuntimeException(__('EMPTY_WRITE_OFF_PRODUCTS'));
         }
 
         app(InventoryLockService::class)->checkWarehouseIsUnlocked($warehouseId);
@@ -538,17 +538,17 @@ class WarehouseWriteoffRepository extends BaseRepository
         }
 
         if ($sourceReceiptId === null || $sourceReceiptId <= 0) {
-            throw new \RuntimeException('SOURCE_RECEIPT_REQUIRED');
+            throw new \RuntimeException(__('SOURCE_RECEIPT_REQUIRED'));
         }
 
         $receipt = WhReceipt::query()
             ->with(['products:id,receipt_id,product_id,quantity,price'])
             ->find($sourceReceiptId);
         if (! $receipt) {
-            throw new \RuntimeException('SOURCE_RECEIPT_NOT_FOUND');
+            throw new \RuntimeException(__('SOURCE_RECEIPT_NOT_FOUND'));
         }
         if ((int) $receipt->warehouse_id !== $warehouseId) {
-            throw new \RuntimeException('SOURCE_RECEIPT_WAREHOUSE_MISMATCH');
+            throw new \RuntimeException(__('SOURCE_RECEIPT_WAREHOUSE_MISMATCH'));
         }
 
         $lineById = $receipt->products->keyBy('id');
@@ -570,13 +570,13 @@ class WarehouseWriteoffRepository extends BaseRepository
             }
 
             if (! $receiptLine instanceof WhReceiptProduct) {
-                throw new \RuntimeException('SOURCE_RECEIPT_PRODUCT_NOT_FOUND');
+                throw new \RuntimeException(__('SOURCE_RECEIPT_PRODUCT_NOT_FOUND'));
             }
             if ((int) $receiptLine->product_id !== $productId) {
-                throw new \RuntimeException('SOURCE_RECEIPT_PRODUCT_MISMATCH');
+                throw new \RuntimeException(__('SOURCE_RECEIPT_PRODUCT_MISMATCH'));
             }
             if ($quantity > (float) $receiptLine->quantity) {
-                throw new \RuntimeException('RETURN_QUANTITY_EXCEEDS_RECEIPT');
+                throw new \RuntimeException(__('RETURN_QUANTITY_EXCEEDS_RECEIPT'));
             }
 
             return array_merge([
@@ -604,10 +604,10 @@ class WarehouseWriteoffRepository extends BaseRepository
 
         if ($remove_quantity > 0) {
             if (! $stock) {
-                throw new \RuntimeException('INSUFFICIENT_STOCK');
+                throw new \RuntimeException(__('INSUFFICIENT_STOCK'));
             }
             if ((float) $stock->quantity < $remove_quantity) {
-                throw new \RuntimeException('INSUFFICIENT_STOCK');
+                throw new \RuntimeException(__('INSUFFICIENT_STOCK'));
             }
             $stock->decrement('quantity', $remove_quantity);
         } elseif ($stock) {

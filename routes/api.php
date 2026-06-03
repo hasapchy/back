@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\ProductionCalendarController;
 use App\Http\Controllers\Api\CurrenciesController;
 use App\Http\Controllers\Api\CurrencyHistoryController;
 use App\Http\Controllers\Api\DepartmentController;
+use App\Http\Controllers\Api\DriveController;
 use App\Http\Controllers\Api\FcmStorageController;
 use App\Http\Controllers\Api\InAppNotificationController;
 use App\Http\Controllers\Api\InventoryController;
@@ -271,6 +272,11 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions/{id}', [TransactionsController::class, 'show']);
 
     Route::middleware('permission:reports_view_by_categories')->get('reports/by-categories', [ReportsController::class, 'byCategories']);
+    Route::middleware('permission:reports_view_by_categories')->get('reports/cashflow', [ReportsController::class, 'cashflow']);
+    Route::middleware('permission:reports_view_by_categories')->get('reports/counterparties', [ReportsController::class, 'counterparties']);
+    Route::middleware('permission:reports_view_by_categories')->get('reports/orders', [ReportsController::class, 'orders']);
+    Route::middleware('permission:reports_view_by_categories')->get('reports/contracts', [ReportsController::class, 'contracts']);
+    Route::middleware('permission:reports_view_by_categories')->get('reports/plan-fact-blueprint', [ReportsController::class, 'planFactBlueprint']);
 
     Route::middleware('permission.scope:transaction_templates_view_all,transaction_templates_view_own')->get('transaction-templates', [TransactionTemplateController::class, 'index']);
     Route::middleware('permission.scope:transaction_templates_view_all,transaction_templates_view_own')->get('transaction-templates/all', [TransactionTemplateController::class, 'all']);
@@ -401,6 +407,16 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
 
     // Task files
     Route::middleware(['permission.scope:tasks_update_all,tasks_update', 'throttle:20,1'])->post('tasks/{id}/files', [TasksController::class, 'uploadFiles']);
+
+    Route::middleware('permission.scope:drive_view_all,drive_view')->get('drive', [DriveController::class, 'index']);
+    Route::middleware('permission:drive_create')->post('drive/folders', [DriveController::class, 'createFolder']);
+    Route::middleware('permission.scope:drive_update_all,drive_update')->put('drive/folders/{id}', [DriveController::class, 'renameFolder']);
+    Route::middleware('permission.scope:drive_delete_all,drive_delete')->delete('drive/folders/{id}', [DriveController::class, 'deleteFolder']);
+    Route::middleware('permission:drive_create')->post('drive/files/upload', [DriveController::class, 'upload']);
+    Route::middleware('permission.scope:drive_view_all,drive_view')->get('drive/files/{id}/download', [DriveController::class, 'download']);
+    Route::middleware('permission.scope:drive_delete_all,drive_delete')->delete('drive/files/{id}', [DriveController::class, 'deleteFile']);
+    Route::middleware('permission.scope:drive_update_all,drive_update')->post('drive/files/{id}/move', [DriveController::class, 'moveFile']);
+    Route::middleware('permission:drive_share')->post('drive/permissions', [DriveController::class, 'setPermission']);
 
     Route::prefix('v2')->group(function () {
         Route::middleware(['permission.scope:projects_update_all,projects_update', 'throttle:20,1'])->delete('projects/{id}/files', [ProjectsController::class, 'deleteFile']);

@@ -240,7 +240,7 @@ class SalesRepository extends BaseRepository
             $discountCalc = $roundingService->roundForCompany($companyId, (float) $discountCalc);
 
             if ($discountCalc > $price) {
-                throw new \Exception('Скидка не может превышать сумму продажи');
+                throw new \Exception(__('api.sales.discount_exceeds_total'));
             }
 
             $totalPrice = $price - $discountCalc;
@@ -395,7 +395,7 @@ class SalesRepository extends BaseRepository
             $discountCalc = $roundingService->roundForCompany($companyId, (float) $discountCalc);
 
             if ($discountCalc > $price) {
-                throw new \Exception('Скидка не может превышать сумму продажи');
+                throw new \Exception(__('api.sales.discount_exceeds_total'));
             }
 
             $totalPrice = $price - $discountCalc;

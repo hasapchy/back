@@ -451,7 +451,7 @@ class TransactionsRepository extends BaseRepository
 
         $convertedAmount = $skipAmountRounding
             ? (float) $convertedAmount
-            : $roundingService->roundForCompany($companyId, (float) $convertedAmount);
+            : $roundingService->roundAmountBySourceType($companyId, (float) $convertedAmount, isset($data['source_type']) ? (string) $data['source_type'] : null);
 
         if ($fromCurrency->id !== $defaultCurrency->id) {
             $convertedAmountDefault = CurrencyConverter::convert($originalAmount, $fromCurrency, $defaultCurrency, null, $companyId, $transactionDate);
@@ -461,16 +461,16 @@ class TransactionsRepository extends BaseRepository
 
         $roundedConvertedAmountDefault = $skipAmountRounding
             ? (float) $convertedAmountDefault
-            : $roundingService->roundForCompany($companyId, (float) $convertedAmountDefault);
+            : $roundingService->roundAmountBySourceType($companyId, (float) $convertedAmountDefault, isset($data['source_type']) ? (string) $data['source_type'] : null);
 
         if (! $reportCurrency) {
-            throw new \Exception('Валюта отчетов не найдена для компании');
+            throw new \Exception(__('api.transactions.report_currency_not_found'));
         }
 
         $repAmount = CurrencyConverter::convert($originalAmount, $fromCurrency, $reportCurrency, $defaultCurrency, $companyId, $transactionDate);
         $repAmount = $skipAmountRounding
             ? (float) $repAmount
-            : $roundingService->roundForCompany($companyId, $repAmount);
+            : $roundingService->roundAmountBySourceType($companyId, (float) $repAmount, isset($data['source_type']) ? (string) $data['source_type'] : null);
 
         if ($fromCurrency->id === $reportCurrency->id) {
             $repRate = 1.0;
@@ -864,7 +864,7 @@ class TransactionsRepository extends BaseRepository
 
             $newConvertedAmount = $skipAmountRounding
                 ? (float) $newConvertedAmount
-                : $roundingService->roundForCompany($companyId, (float) $newConvertedAmount);
+                : $roundingService->roundAmountBySourceType($companyId, (float) $newConvertedAmount, $transaction->source_type);
 
             if ($fromCurrency->id !== $defaultCurrency->id) {
                 $newConvertedAmountDefault = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $defaultCurrency, null, $companyId, $transactionDate);
@@ -874,16 +874,16 @@ class TransactionsRepository extends BaseRepository
 
             $roundedNewConvertedAmountDefault = $skipAmountRounding
                 ? (float) $newConvertedAmountDefault
-                : $roundingService->roundForCompany($companyId, (float) $newConvertedAmountDefault);
+                : $roundingService->roundAmountBySourceType($companyId, (float) $newConvertedAmountDefault, $transaction->source_type);
 
             if (! $reportCurrency) {
-                throw new \Exception('Валюта отчетов не найдена для компании');
+                throw new \Exception(__('api.transactions.report_currency_not_found'));
             }
 
             $repAmount = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $reportCurrency, $defaultCurrency, $companyId, $transactionDate);
             $repAmount = $skipAmountRounding
                 ? (float) $repAmount
-                : $roundingService->roundForCompany($companyId, $repAmount);
+                : $roundingService->roundAmountBySourceType($companyId, (float) $repAmount, $transaction->source_type);
 
             if ($fromCurrency->id === $reportCurrency->id) {
                 $repRate = 1.0;
@@ -1676,7 +1676,7 @@ class TransactionsRepository extends BaseRepository
         $newBalance = (float) $lockedCashRegister->balance + (float) $delta;
 
         if ($newBalance < 0 && ! $lockedCashRegister->is_working_minus) {
-            throw new \Exception('Операция запрещена: касса не может уходить в минус');
+            throw new \Exception(__('api.transactions.cash_cannot_go_negative'));
         }
 
         $lockedCashRegister->balance = $newBalance;
@@ -1909,4 +1909,5 @@ class TransactionsRepository extends BaseRepository
 
         app(WarehousePurchaseRepository::class)->syncPurchaseCompletionState($purchaseId);
     }
+
 }

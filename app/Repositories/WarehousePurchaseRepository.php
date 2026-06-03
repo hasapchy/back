@@ -214,7 +214,7 @@ class WarehousePurchaseRepository extends BaseRepository
             $purchase->client_balance_id = $data['client_balance_id'] ?? $purchase->client_balance_id;
             $purchase->cash_id = isset($data['cash_id']) ? (int) $data['cash_id'] : $purchase->cash_id;
             if (! $purchase->cash_id) {
-                throw new \RuntimeException('Не выбрана касса для закупки');
+                throw new \RuntimeException(__('api.warehouse_purchase.cash_register_required'));
             }
             $purchase->currency_id = $this->resolvePurchaseCurrencyId($data, (int) ($purchase->currency_id ?? $this->getDefaultCurrency()->id), $purchase->client_balance_id);
             $purchase->date = $data['date'] ?? $purchase->date;
@@ -481,7 +481,7 @@ class WarehousePurchaseRepository extends BaseRepository
     private function resolvePurchaseCashId(array $data): int
     {
         if (empty($data['cash_id'])) {
-            throw new \RuntimeException('Не выбрана касса для закупки');
+            throw new \RuntimeException(__('api.warehouse_purchase.cash_register_required'));
         }
 
         return (int) $data['cash_id'];

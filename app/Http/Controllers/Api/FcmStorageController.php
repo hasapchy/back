@@ -62,7 +62,7 @@ class FcmStorageController extends BaseController
         $hasMobileToken = array_key_exists('mobile_token', $validated);
 
         if (!$hasWebToken && !$hasMobileToken) {
-            return $this->errorResponse('Нужно передать web_token или mobile_token', 422);
+            return $this->errorResponse(__('Нужно передать web_token или mobile_token'), 422);
         }
 
         $token = UserFcmToken::query()->firstOrNew([
@@ -109,13 +109,13 @@ class FcmStorageController extends BaseController
         $token = $user->fcmToken()->first();
 
         if (!$token) {
-            return $this->successResponse(null, 'FCM токены не найдены');
+            return $this->successResponse(null, __('FCM токены не найдены'));
         }
 
         if ($platform === 'all') {
             $token->delete();
 
-            return $this->successResponse(null, 'FCM токены удалены');
+            return $this->successResponse(null, __('FCM токены удалены'));
         }
 
         if ($platform === 'web') {
@@ -132,7 +132,7 @@ class FcmStorageController extends BaseController
             $token->save();
         }
 
-        return $this->successResponse(null, 'FCM токен удален');
+        return $this->successResponse(null, __('FCM токен удален'));
     }
 
     /**
@@ -169,7 +169,7 @@ class FcmStorageController extends BaseController
 
         if (($result['error'] ?? null) === 'push_service_not_configured') {
             return $this->errorResponse(
-                'Push service не настроен: задайте PUSH_SERVICE_BASE_URL и PUSH_SERVICE_API_KEY в .env',
+                __('Push service не настроен: задайте PUSH_SERVICE_BASE_URL и PUSH_SERVICE_API_KEY в .env'),
                 503
             );
         }

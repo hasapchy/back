@@ -90,7 +90,7 @@ class UserSessionsController extends BaseController
             ->first();
 
         if ($session === null) {
-            return $this->errorResponse('Session not found', 404);
+            return $this->errorResponse(__('api.common.session_not_found'), 404);
         }
 
         $this->credentialRevocationService->revokeSession($session, $request);
@@ -114,7 +114,7 @@ class UserSessionsController extends BaseController
             ->first();
 
         if ($session === null) {
-            return $this->errorResponse('Session not found', 404);
+            return $this->errorResponse(__('api.common.session_not_found'), 404);
         }
 
         $this->credentialRevocationService->revokeSession($session, $request);

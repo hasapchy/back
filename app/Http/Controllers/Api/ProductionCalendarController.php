@@ -94,7 +94,7 @@ class ProductionCalendarController extends BaseController
                 ->first();
 
             if (! $row) {
-                return $this->errorResponse('Запись не найдена', 404);
+                return $this->errorResponse(__('Запись не найдена'), 404);
             }
 
             $targetDate = $validated['date'];
@@ -105,7 +105,7 @@ class ProductionCalendarController extends BaseController
                 ->exists();
 
             if ($exists) {
-                return $this->errorResponse('Дата уже существует', 422);
+                return $this->errorResponse(__('Дата уже существует'), 422);
             }
 
             $row->date = $targetDate;
@@ -129,7 +129,7 @@ class ProductionCalendarController extends BaseController
                 ->whereKey($id)
                 ->first();
             if (! $row) {
-                return $this->errorResponse('Запись не найдена', 404);
+                return $this->errorResponse(__('Запись не найдена'), 404);
             }
             $row->delete();
 
@@ -145,7 +145,7 @@ class ProductionCalendarController extends BaseController
         $this->getAuthenticatedUserIdOrFail();
         $companyId = $this->getCurrentCompanyId();
         if (! $companyId) {
-            return $this->errorResponse('Не указана компания', 422);
+            return $this->errorResponse(__('Не указана компания'), 422);
         }
 
         return $fn($companyId);

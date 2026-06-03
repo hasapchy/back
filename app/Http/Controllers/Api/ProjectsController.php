@@ -151,14 +151,14 @@ class ProjectsController extends BaseController
             $itemCreated = $this->itemsRepository->createItem($itemData);
 
             if (! $itemCreated) {
-                return $this->errorResponse('Ошибка создания проекта', 400);
+                return $this->errorResponse(__('api.projects.create_failed'), 400);
             }
 
             CacheService::invalidateProjectsCache();
 
-            return $this->successResponse(null, 'Проект создан');
+            return $this->successResponse(null, __('api.projects.created'));
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка создания проекта: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('api.projects.create_failed_prefix').$e->getMessage(), 500);
         }
     }
 
@@ -185,14 +185,14 @@ class ProjectsController extends BaseController
             $itemUpdated = $this->itemsRepository->updateItem($id, $itemData);
 
             if (! $itemUpdated) {
-                return $this->errorResponse('Ошибка обновления проекта', 400);
+                return $this->errorResponse(__('api.projects.update_failed'), 400);
             }
 
             CacheService::invalidateProjectsCache();
 
-            return $this->successResponse(null, 'Проект обновлен');
+            return $this->successResponse(null, __('api.projects.updated'));
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка обновления проекта: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('api.projects.update_failed_prefix').$e->getMessage(), 500);
         }
     }
 
@@ -213,7 +213,7 @@ class ProjectsController extends BaseController
         $project = $this->itemsRepository->findItemWithRelations($id);
 
         if (! $project) {
-            return $this->errorResponse('Проект не найден или доступ запрещен', 404);
+            return $this->errorResponse(__('api.projects.not_found_or_forbidden'), 404);
         }
 
         return $this->successResponse(new ProjectResource($project));
@@ -243,11 +243,11 @@ class ProjectsController extends BaseController
         }
 
         if (count($files) == 0) {
-            return $this->errorResponse('No files uploaded', 400);
+            return $this->errorResponse(__('api.common.no_files_uploaded'), 400);
         }
 
         if (count($files) > 8) {
-            return $this->errorResponse('Максимум 8 файлов за раз', 400);
+            return $this->errorResponse(__('api.tasks.max_files_per_upload'), 400);
         }
 
         try {
@@ -257,7 +257,7 @@ class ProjectsController extends BaseController
 
             $storedFiles = $project->files ?? [];
             if (count($storedFiles) + count($files) > 100) {
-                return $this->errorResponse('Максимум 100 файлов в проекте', 400);
+                return $this->errorResponse(__('api.projects.max_files_total'), 400);
             }
 
             foreach ($files as $file) {
@@ -275,11 +275,11 @@ class ProjectsController extends BaseController
 
             $project->update(['files' => $storedFiles]);
 
-            return $this->successResponse($storedFiles, 'Files uploaded successfully');
+            return $this->successResponse($storedFiles, __('api.common.files_uploaded_success'));
         } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при загрузке файлов: Internal server error', 500);
+            return $this->errorResponse(__('Ошибка при загрузке файлов: Internal server error'), 500);
         }
     }
 
@@ -300,14 +300,14 @@ class ProjectsController extends BaseController
             ->filter(fn ($file) => Storage::disk('public')->exists($file['path']));
 
         if ($files->isEmpty()) {
-            return $this->errorResponse('Файлы не найдены', 404);
+            return $this->errorResponse(__('api.projects.files_not_found'), 404);
         }
 
         $zipPath = storage_path('app/temp/project_'.$project->id.'_'.time().'.zip');
         $zip = new ZipArchive;
 
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            return $this->errorResponse('Не удалось создать архив', 500);
+            return $this->errorResponse(__('api.projects.archive_create_failed'), 500);
         }
 
         foreach ($files as $file) {
@@ -338,7 +338,7 @@ class ProjectsController extends BaseController
 
             $filePath = $request->input('path');
             if (! $filePath || str_contains($filePath, '..') || ! str_starts_with($filePath, 'projects/'.$id.'/')) {
-                return $this->errorResponse('Некорректный путь файла', 400);
+                return $this->errorResponse(__('api.tasks.invalid_file_path'), 400);
             }
 
             $files = $project->files ?? [];
@@ -358,17 +358,17 @@ class ProjectsController extends BaseController
             }
 
             if (! $deletedFile) {
-                return $this->errorResponse('Файл не найден в проекте', 404);
+                return $this->errorResponse(__('api.projects.file_not_found'), 404);
             }
 
             $project->files = $updatedFiles;
             $project->save();
 
-            return $this->successResponse($updatedFiles, 'Файл успешно удалён');
+            return $this->successResponse($updatedFiles, __('api.projects.file_deleted'));
         } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return $this->errorResponse('Внутренняя ошибка сервера', 500);
+            return $this->errorResponse(__('api.projects.internal_server_error'), 500);
         }
     }
 
@@ -424,7 +424,7 @@ class ProjectsController extends BaseController
         } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            return $this->errorResponse('Ошибка при получении истории баланса проекта: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('api.projects.balance_history_failed_prefix').$e->getMessage(), 500);
         }
     }
 
@@ -447,7 +447,7 @@ class ProjectsController extends BaseController
         } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            return $this->errorResponse('Ошибка при получении детального баланса проекта: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('api.projects.balance_details_failed_prefix').$e->getMessage(), 500);
         }
     }
 
@@ -469,12 +469,12 @@ class ProjectsController extends BaseController
             $deleted = $this->itemsRepository->deleteItem($id);
 
             if (! $deleted) {
-                return $this->errorResponse('Ошибка удаления проекта', 400);
+                return $this->errorResponse(__('api.projects.delete_failed'), 400);
             }
 
             CacheService::invalidateProjectsCache();
 
-            return $this->successResponse(null, 'Проект удалён');
+            return $this->successResponse(null, __('api.projects.deleted'));
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }

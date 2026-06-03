@@ -671,7 +671,7 @@ class ProjectContractsRepository extends BaseRepository
 
             $targetProject = Project::query()->select(['id', 'client_id', 'company_id'])->find($newProjectId);
             if (! $targetProject) {
-                throw new \DomainException('Проект не найден');
+                throw new \DomainException(__('api.projects.not_found'));
             }
             $companyId = (int) ($targetProject->company_id ?: $this->getCurrentCompanyId());
             $rounding = app(RoundingService::class);
@@ -900,7 +900,7 @@ class ProjectContractsRepository extends BaseRepository
         if (! $contractCurrencyId) {
             $defaultCurrency = Currency::where('is_default', true)->first();
             if (! $defaultCurrency) {
-                throw new \Exception('Валюта по умолчанию не найдена');
+                throw new \Exception(__('api.common.default_currency_not_found'));
             }
             $contractCurrencyId = $defaultCurrency->id;
         }

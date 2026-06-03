@@ -102,7 +102,7 @@ class LeaveController extends BaseController
 
             return $this->successResponse(new LeaveResource($leave));
         } catch (\Exception $e) {
-            return $this->errorResponse('Запись отпуска не найдена', 404);
+            return $this->errorResponse(__('Запись отпуска не найдена'), 404);
         }
     }
 
@@ -133,7 +133,7 @@ class LeaveController extends BaseController
 
         $created = $this->itemsRepository->createItem($data);
         if (! $created) {
-            return $this->errorResponse('Ошибка создания записи отпуска', 400);
+            return $this->errorResponse(__('Ошибка создания записи отпуска'), 400);
         }
 
         $companyId = (int) $this->getCurrentCompanyId();
@@ -149,7 +149,7 @@ class LeaveController extends BaseController
             );
         }
 
-        return $this->successResponse(new LeaveResource($created), 'Запись отпуска создана');
+        return $this->successResponse(new LeaveResource($created), __('Запись отпуска создана'));
     }
 
     /**
@@ -190,12 +190,12 @@ class LeaveController extends BaseController
 
             $updated = $this->itemsRepository->updateItem($id, $data);
             if (! $updated) {
-                return $this->errorResponse('Ошибка обновления', 400);
+                return $this->errorResponse(__('api.transfers.update_failed'), 400);
             }
 
-            return $this->successResponse(new LeaveResource($updated), 'Запись отпуска обновлена');
+            return $this->successResponse(new LeaveResource($updated), __('Запись отпуска обновлена'));
         } catch (\Exception $e) {
-            return $this->errorResponse('Запись отпуска не найдена', 404);
+            return $this->errorResponse(__('Запись отпуска не найдена'), 404);
         }
     }
 
@@ -214,12 +214,12 @@ class LeaveController extends BaseController
 
             $deleted = $this->itemsRepository->deleteItem($id);
             if (! $deleted) {
-                return $this->errorResponse('Ошибка удаления', 400);
+                return $this->errorResponse(__('api.transfers.delete_failed'), 400);
             }
 
-            return $this->successResponse(null, 'Запись отпуска удалена');
+            return $this->successResponse(null, __('Запись отпуска удалена'));
         } catch (\Exception $e) {
-            return $this->errorResponse('Запись отпуска не найдена', 404);
+            return $this->errorResponse(__('Запись отпуска не найдена'), 404);
         }
     }
 

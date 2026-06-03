@@ -129,7 +129,7 @@ class SaleController extends BaseController
                 ['route' => '/sales/'.$sale->id, 'sale_id' => $sale->id]
             );
 
-            return $this->successResponse(null, 'Продажа добавлена', 201);
+            return $this->successResponse(null, __('api.sales.created'), 201);
         } catch (\Throwable $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
@@ -147,7 +147,7 @@ class SaleController extends BaseController
 
         $sale = $this->itemsRepository->getItemById($id);
         if (! $sale) {
-            return $this->errorResponse('Продажа не найдена', 404);
+            return $this->errorResponse(__('api.sales.not_found'), 404);
         }
 
         $this->authorize('update', $sale);
@@ -193,7 +193,7 @@ class SaleController extends BaseController
                 CacheService::invalidateProjectsCache();
             }
 
-            return $this->successResponse(null, 'Продажа обновлена');
+            return $this->successResponse(null, __('api.sales.updated'));
         } catch (\Throwable $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
@@ -209,7 +209,7 @@ class SaleController extends BaseController
     {
         $item = $this->itemsRepository->getItemById($id);
         if (! $item) {
-            return $this->errorResponse('Not found', 404);
+            return $this->errorResponse(__('api.common.not_found'), 404);
         }
 
         $this->authorize('view', $item);
@@ -229,7 +229,7 @@ class SaleController extends BaseController
 
         $sale = $this->itemsRepository->getItemById($id);
         if (! $sale) {
-            return $this->errorResponse('Продажа не найдена', 404);
+            return $this->errorResponse(__('api.sales.not_found'), 404);
         }
 
         $saleData = [
@@ -241,13 +241,13 @@ class SaleController extends BaseController
         try {
             $this->batchEntityActions->deleteSale($user, (int) $id);
 
-            return $this->successResponse($saleData, 'Продажа удалена успешно');
+            return $this->successResponse($saleData, __('api.sales.deleted_success'));
         } catch (AuthorizationException $e) {
             throw $e;
         } catch (NotFoundHttpException $e) {
             return $this->errorResponse($e->getMessage() ?: 'Продажа не найдена', 404);
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка при удалении продажи: '.$th->getMessage(), 400);
+            return $this->errorResponse(__('api.sales.delete_failed_prefix').$th->getMessage(), 400);
         }
     }
 }

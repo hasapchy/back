@@ -79,7 +79,7 @@ class TaskRepository extends BaseRepository
                           || $task->executor_id === $user->id;
 
                 if (! $isOwnTask) {
-                    throw new AccessDeniedHttpException('You do not have permission to view this task');
+                    throw new AccessDeniedHttpException(__('api.common.task_view_forbidden'));
                 }
             }
         }
@@ -96,7 +96,7 @@ class TaskRepository extends BaseRepository
         $data['complexity'] = $data['complexity'] ?? 'normal';
 
         if (! isset($data['company_id']) || ! $data['company_id']) {
-            throw new \Exception('Company ID is required');
+            throw new \Exception(__('api.common.company_id_required'));
         }
 
         // Если status_id не указан, устанавливаем первый доступный статус по умолчанию
@@ -105,7 +105,7 @@ class TaskRepository extends BaseRepository
             if ($defaultStatus) {
                 $data['status_id'] = $defaultStatus->id;
             } else {
-                throw new \Exception('No task statuses found. Please create at least one task status.');
+                throw new \Exception(__('api.tasks.no_statuses_found'));
             }
         }
 

@@ -79,12 +79,12 @@ class InvoiceController extends BaseController
             $orders = $this->itemsRepository->getOrdersForInvoice($validatedData['order_ids']);
 
             if ($orders->isEmpty()) {
-                return $this->errorResponse('Заказы не найдены', 400);
+                return $this->errorResponse(__('Заказы не найдены'), 400);
             }
 
             $clientId = $orders->first()->client_id;
             if ($orders->where('client_id', '!=', $clientId)->isNotEmpty()) {
-                return $this->errorResponse('Все заказы должны принадлежать одному клиенту', 400);
+                return $this->errorResponse(__('Все заказы должны принадлежать одному клиенту'), 400);
             }
 
             try {
@@ -111,14 +111,14 @@ class InvoiceController extends BaseController
             $created = $this->itemsRepository->createItem($data);
 
             if (!$created) {
-                return $this->errorResponse('Ошибка создания счета', 400);
+                return $this->errorResponse(__('Ошибка создания счета'), 400);
             }
 
             $invoice = $this->itemsRepository->getItemById($created->id);
 
-            return $this->successResponse(new InvoiceResource($invoice), 'Счет успешно создан');
+            return $this->successResponse(new InvoiceResource($invoice), __('Счет успешно создан'));
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка создания счета: ' . $th->getMessage(), 400);
+            return $this->errorResponse(__('Ошибка создания счета: ') . $th->getMessage(), 400);
         }
     }
 
@@ -150,12 +150,12 @@ class InvoiceController extends BaseController
 
             $updated = $this->itemsRepository->updateItem($id, $data);
             if (!$updated) {
-                return $this->errorResponse('Ошибка обновления счета', 400);
+                return $this->errorResponse(__('Ошибка обновления счета'), 400);
             }
 
-            return $this->successResponse(null, 'Счет сохранён');
+            return $this->successResponse(null, __('Счет сохранён'));
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка: ' . $th->getMessage(), 400);
+            return $this->errorResponse(__('Ошибка: ') . $th->getMessage(), 400);
         }
     }
 
@@ -172,9 +172,9 @@ class InvoiceController extends BaseController
         try {
             $deleted = $this->itemsRepository->deleteItem($id);
 
-            return $this->successResponse(null, 'Счет успешно удалён');
+            return $this->successResponse(null, __('Счет успешно удалён'));
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка при удалении счета: ' . $th->getMessage(), 400);
+            return $this->errorResponse(__('Ошибка при удалении счета: ') . $th->getMessage(), 400);
         }
     }
 
@@ -189,7 +189,7 @@ class InvoiceController extends BaseController
         try {
             $item = $this->itemsRepository->getItemById($id);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Счёт не найден', 404);
+            return $this->errorResponse(__('Счёт не найден'), 404);
         }
         return $this->successResponse(new InvoiceResource($item));
     }
@@ -229,7 +229,7 @@ class InvoiceController extends BaseController
                 'total_amount' => collect($products)->sum('total_price')
             ]);
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка получения данных: ' . $th->getMessage(), 400);
+            return $this->errorResponse(__('Ошибка получения данных: ') . $th->getMessage(), 400);
         }
     }
 }

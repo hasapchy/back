@@ -200,7 +200,7 @@ class TransactionsController extends BaseController
 
         if (isset($validatedData['is_adjustment']) && $validatedData['is_adjustment']) {
             if (! $this->requireAuthenticatedUser()->can('settings_client_balance_adjustment')) {
-                return $this->errorResponse('У вас нет прав на корректировку баланса', 403);
+                return $this->errorResponse(__('api.transactions.balance_adjust_forbidden'), 403);
             }
         }
 
@@ -250,7 +250,7 @@ class TransactionsController extends BaseController
         }
 
         if (! $transactionId) {
-            return $this->errorResponse('Ошибка создания транзакции', 400);
+            return $this->errorResponse(__('api.transactions.create_failed'), 400);
         }
 
         CacheService::invalidateTransactionsCache();
@@ -276,7 +276,7 @@ class TransactionsController extends BaseController
             }
         }
 
-        return $this->successResponse(null, 'Транзакция создана');
+        return $this->successResponse(null, __('api.transactions.created'));
     }
 
     /**
@@ -303,7 +303,7 @@ class TransactionsController extends BaseController
 
         if ($isAdjustmentCategory) {
             if (! $this->requireAuthenticatedUser()->can('settings_client_balance_adjustment')) {
-                return $this->errorResponse('У вас нет прав на корректировку баланса', 403);
+                return $this->errorResponse(__('api.transactions.balance_adjust_forbidden'), 403);
             }
         }
 
@@ -378,7 +378,7 @@ class TransactionsController extends BaseController
         }
 
         if (! $category_updated) {
-            return $this->errorResponse('Ошибка обновления транзакции', 400);
+            return $this->errorResponse(__('api.transactions.update_failed'), 400);
         }
 
         CacheService::invalidateTransactionsCache();
@@ -390,7 +390,7 @@ class TransactionsController extends BaseController
         }
         CacheService::invalidateCashRegistersCache();
 
-        return $this->successResponse(null, 'Транзакция обновлена');
+        return $this->successResponse(null, __('api.transactions.updated'));
     }
 
     /**
@@ -412,7 +412,7 @@ class TransactionsController extends BaseController
         } catch (NotFoundHttpException $e) {
             return $this->errorResponse($e->getMessage(), 404);
         } catch (ModelNotFoundException $e) {
-            return $this->errorResponse('Not found', 404);
+            return $this->errorResponse(__('api.common.not_found'), 404);
         } catch (AccessDeniedHttpException $e) {
             return $this->errorResponse($e->getMessage(), 403);
         } catch (AuthorizationException $e) {
@@ -421,7 +421,7 @@ class TransactionsController extends BaseController
             return $this->errorResponse($e->getMessage() ?: 'Ошибка удаления транзакции', 400);
         }
 
-        return $this->successResponse(null, 'Транзакция удалена');
+        return $this->successResponse(null, __('api.transactions.deleted'));
     }
 
     /**
@@ -435,7 +435,7 @@ class TransactionsController extends BaseController
 
         $orderId = $request->query('order_id');
         if (! $orderId) {
-            return $this->errorResponse('order_id is required', 400);
+            return $this->errorResponse(__('api.common.order_id_required'), 400);
         }
 
         $total = $this->itemsRepository->getTotalByOrderId($userUuid, $orderId);
@@ -465,7 +465,7 @@ class TransactionsController extends BaseController
 
         $item = $this->itemsRepository->getItemById($id);
         if (! $item) {
-            return $this->errorResponse('Not found', 404);
+            return $this->errorResponse(__('api.common.not_found'), 404);
         }
 
         return $this->successResponse(new TransactionResource($item));

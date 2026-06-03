@@ -15,8 +15,22 @@ class UpdateCashRegisterRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        $data = [];
+
         if ($this->has('color') && $this->input('color') === '') {
-            $this->merge(['color' => null]);
+            $data['color'] = null;
+        }
+
+        if ($this->has('icon_size') && $this->input('icon_size') === '') {
+            $data['icon_size'] = CashRegister::DEFAULT_ICON_SIZE;
+        }
+
+        if ($this->has('sort_order') && $this->input('sort_order') === '') {
+            $data['sort_order'] = 0;
+        }
+
+        if (! empty($data)) {
+            $this->merge($data);
         }
     }
 
@@ -49,7 +63,9 @@ class UpdateCashRegisterRequest extends FormRequest
             'users.*' => 'exists:users,id',
             'is_cash' => 'nullable|boolean',
             'is_working_minus' => 'nullable|boolean',
+            'sort_order' => 'nullable|integer|min:0',
             'icon' => ['nullable', 'string', 'max:100', Rule::in($this->allowedIcons())],
+            'icon_size' => ['nullable', 'string', Rule::in($this->allowedIconSizes())],
             'color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
         ];
     }
@@ -57,6 +73,11 @@ class UpdateCashRegisterRequest extends FormRequest
     private function allowedIcons(): array
     {
         return CashRegister::ALLOWED_ICONS;
+    }
+
+    private function allowedIconSizes(): array
+    {
+        return CashRegister::ALLOWED_ICON_SIZES;
     }
 
     /**

@@ -136,7 +136,7 @@ class CommentController extends BaseController
                 'error' => $e->getMessage(),
             ]);
 
-            return $this->errorResponse('Ошибка сохранения комментария', 500);
+            return $this->errorResponse(__('api.comments.save_failed'), 500);
         }
     }
 
@@ -159,7 +159,7 @@ class CommentController extends BaseController
         $updatedComment = $this->itemsRepository->updateItem($id, $user->id, $validatedData['body']);
 
         if (! $updatedComment) {
-            return $this->errorResponse('Комментарий не найден или нет прав', 403);
+            return $this->errorResponse(__('api.comments.not_found_or_forbidden'), 403);
         }
 
         $apiType = $this->itemsRepository->apiTypeFromModelClass($updatedComment->commentable_type);
@@ -176,7 +176,7 @@ class CommentController extends BaseController
             (int) $updatedComment->commentable_id
         );
 
-        return $this->successResponse(new CommentResource($updatedComment), 'Комментарий обновлён');
+        return $this->successResponse(new CommentResource($updatedComment), __('api.comments.updated'));
     }
 
     /**
@@ -198,7 +198,7 @@ class CommentController extends BaseController
             ->first();
 
         if (! $comment) {
-            return $this->errorResponse('Комментарий не найден или нет прав', 404);
+            return $this->errorResponse(__('api.comments.not_found_or_forbidden'), 404);
         }
 
         $apiType = $this->itemsRepository->apiTypeFromModelClass($comment->commentable_type);
@@ -209,12 +209,12 @@ class CommentController extends BaseController
         $deleted = $this->itemsRepository->deleteItem($id, $user->id);
 
         if (! $deleted) {
-            return $this->errorResponse('Комментарий не найден или нет прав', 404);
+            return $this->errorResponse(__('api.comments.not_found_or_forbidden'), 404);
         }
 
         $this->invalidateTimelineCache($apiType, $commentableId);
 
-        return $this->successResponse(null, 'Комментарий удалён');
+        return $this->successResponse(null, __('api.comments.deleted'));
     }
 
     /**
@@ -279,7 +279,7 @@ class CommentController extends BaseController
 
             return $this->successResponse($page);
         } catch (\InvalidArgumentException $e) {
-            return $this->errorResponse('Некорректный курсор таймлайна', 422);
+            return $this->errorResponse(__('api.comments.invalid_timeline_cursor'), 422);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             abort(404);
         } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
@@ -293,7 +293,7 @@ class CommentController extends BaseController
                 'error' => $e->getMessage(),
             ]);
 
-            return $this->errorResponse('Ошибка загрузки таймлайна: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('api.comments.timeline_load_failed_prefix').$e->getMessage(), 500);
         }
     }
 
@@ -332,7 +332,7 @@ class CommentController extends BaseController
 
         $companyId = (int) $this->getCurrentCompanyId();
         if ($companyId < 1) {
-            return $this->errorResponse('Company context is required', 422);
+            return $this->errorResponse(__('api.common.company_context_required'), 422);
         }
 
         $allowedIds = $this->timelineAccessGuard->filterAccessibleEntityIds(
@@ -388,7 +388,7 @@ class CommentController extends BaseController
 
         $companyId = (int) $this->getCurrentCompanyId();
         if ($companyId < 1) {
-            return $this->errorResponse('Company context is required', 422);
+            return $this->errorResponse(__('api.common.company_context_required'), 422);
         }
 
         $this->timelineAccessGuard->resolveEntityForCompany(

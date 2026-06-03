@@ -98,12 +98,12 @@ class WarehouseMovementController extends BaseController
         try {
             $warehouse_created = $this->itemsRepository->createItem($data);
             if (! $warehouse_created) {
-                return $this->errorResponse('Ошибка перемещения', 400);
+                return $this->errorResponse(__('api.movements.operation_failed'), 400);
             }
 
-            return $this->successResponse(null, 'Перемещение создано');
+            return $this->successResponse(null, __('api.movements.created'));
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка перемещения: '.$th->getMessage(), 400);
+            return $this->errorResponse(__('api.movements.operation_failed_prefix').$th->getMessage(), 400);
         }
     }
 
@@ -152,12 +152,12 @@ class WarehouseMovementController extends BaseController
         try {
             $warehouse_created = $this->itemsRepository->updateItem($id, $data);
             if (! $warehouse_created) {
-                return $this->errorResponse('Ошибка обновления перемещения', 400);
+                return $this->errorResponse(__('api.movements.update_failed'), 400);
             }
 
-            return $this->successResponse(null, 'Перемещение обновлено');
+            return $this->successResponse(null, __('api.movements.updated'));
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка обновления перемещения: '.$th->getMessage(), 400);
+            return $this->errorResponse(__('api.movements.update_failed_prefix').$th->getMessage(), 400);
         }
     }
 
@@ -192,10 +192,10 @@ class WarehouseMovementController extends BaseController
         $warehouse_deleted = $this->itemsRepository->deleteItem($id);
 
         if (! $warehouse_deleted) {
-            return $this->errorResponse('Ошибка удаления перемещения', 400);
+            return $this->errorResponse(__('api.movements.delete_failed'), 400);
         }
 
-        return $this->successResponse(null, 'Перемещение удалено');
+        return $this->successResponse(null, __('api.movements.deleted'));
     }
 
     /**

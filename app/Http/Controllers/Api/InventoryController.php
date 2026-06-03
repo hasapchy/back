@@ -52,7 +52,7 @@ class InventoryController extends BaseController
         $inventory = $this->inventoryRepository->getByIdForUser((int) $created->id)
             ?? throw new ModelNotFoundException;
 
-        return $this->successResponse(InventoryResource::make($inventory)->resolve(), 'Инвентаризация создана');
+        return $this->successResponse(InventoryResource::make($inventory)->resolve(), __('Инвентаризация создана'));
     }
 
     /**
@@ -117,7 +117,7 @@ class InventoryController extends BaseController
             try {
                 $this->inventoryService->bulkUpdateItems($inventory, $request->validated()['items']);
 
-                return $this->successResponse(null, 'Позиции обновлены');
+                return $this->successResponse(null, __('Позиции обновлены'));
             } catch (\Throwable $e) {
                 return $this->inventoryMutationJsonResponse($e);
             }
@@ -142,7 +142,7 @@ class InventoryController extends BaseController
             $fresh = $this->inventoryRepository->getByIdForUser($id)
                 ?? throw new ModelNotFoundException;
 
-            return $this->successResponse(InventoryResource::make($fresh)->resolve(), 'Инвентаризация завершена');
+            return $this->successResponse(InventoryResource::make($fresh)->resolve(), __('Инвентаризация завершена'));
         });
     }
 
@@ -155,7 +155,7 @@ class InventoryController extends BaseController
             try {
                 $this->inventoryService->deleteInventory($inventory);
 
-                return $this->successResponse(null, 'Инвентаризация удалена');
+                return $this->successResponse(null, __('Инвентаризация удалена'));
             } catch (\Throwable $e) {
                 return $this->inventoryMutationJsonResponse($e);
             }
@@ -176,7 +176,7 @@ class InventoryController extends BaseController
             } catch (QueryException $e) {
                 report($e);
 
-                return $this->errorResponse('Списание не создано: ошибка при сохранении в базу', 422);
+                return $this->errorResponse(__('Списание не создано: ошибка при сохранении в базу'), 422);
             } catch (\Throwable $e) {
                 return $this->inventoryMutationJsonResponse($e);
             }
@@ -184,7 +184,7 @@ class InventoryController extends BaseController
             $fresh = $this->inventoryRepository->getByIdForUser($id)
                 ?? throw new ModelNotFoundException;
 
-            return $this->successResponse(InventoryResource::make($fresh)->resolve(), 'Склад обновлён по результатам инвентаризации');
+            return $this->successResponse(InventoryResource::make($fresh)->resolve(), __('Склад обновлён по результатам инвентаризации'));
         });
     }
 
@@ -240,7 +240,7 @@ class InventoryController extends BaseController
     {
         $inventory = $this->inventoryRepository->getByIdForUser($id);
         if (! $inventory) {
-            return $this->errorResponse('Инвентаризация не найдена', 404);
+            return $this->errorResponse(__('Инвентаризация не найдена'), 404);
         }
 
         return $callback($inventory);

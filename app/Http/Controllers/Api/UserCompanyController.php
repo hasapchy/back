@@ -41,7 +41,7 @@ class UserCompanyController extends BaseController
 
         $selectedCompanyId = $this->getCurrentCompanyId() ?? $request->input('company_id');
         if (! $selectedCompanyId) {
-            return $this->errorResponse('Company context missing', 409);
+            return $this->errorResponse(__('api.common.company_context_missing'), 409);
         }
 
         $query = Company::where('id', $selectedCompanyId)
@@ -56,7 +56,7 @@ class UserCompanyController extends BaseController
         $company = $query->first();
 
         if (! $company) {
-            return $this->errorResponse('Company not found or access denied', 404);
+            return $this->errorResponse(__('api.common.company_not_found_or_access_denied'), 404);
         }
 
         if ($request->hasSession() && $request->session()->isStarted()) {
@@ -84,14 +84,14 @@ class UserCompanyController extends BaseController
         if (! $companyId) {
             $company = $user->companies()->first();
             if (! $company) {
-                return $this->errorResponse('No companies available', 404);
+                return $this->errorResponse(__('api.common.no_companies_available'), 404);
             }
             $companyId = $company->id;
         } else {
             $company = $user->companies()->where('companies.id', $companyId)->first();
 
             if (! $company) {
-                return $this->errorResponse('Company not found or access denied', 404);
+                return $this->errorResponse(__('api.common.company_not_found_or_access_denied'), 404);
             }
         }
 
@@ -131,7 +131,7 @@ class UserCompanyController extends BaseController
 
         return $this->successResponse(
             (new CompanyResource($company))->resolve(),
-            'Company selected successfully'
+            __('api.common.company_selected_success')
         );
     }
 

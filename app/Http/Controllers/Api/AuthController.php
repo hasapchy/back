@@ -56,7 +56,7 @@ class AuthController extends BaseController
                 'user_found' => (bool) $user,
             ]));
 
-            return $this->errorResponse('Неверный логин или пароль', 401);
+            return $this->errorResponse(__('api.auth.invalid_credentials'), 401);
         }
 
         if (! $user->is_active) {
@@ -65,7 +65,7 @@ class AuthController extends BaseController
                 'user_id' => $user->id,
             ]));
 
-            return $this->errorResponse('Account is disabled', 403);
+            return $this->errorResponse(__('api.common.account_disabled'), 403);
         }
 
         User::where('id', $user->id)->update(['last_login_at' => now()]);
@@ -130,14 +130,14 @@ class AuthController extends BaseController
     {
         $plain = $request->input('refresh_token');
         if (! is_string($plain) || $plain === '') {
-            return $this->errorResponse('Refresh token is required', 400);
+            return $this->errorResponse(__('api.common.refresh_token_required'), 400);
         }
 
         $token = PersonalAccessToken::findToken($plain);
         if (! $token || ! $token->can('refresh') || ! $token->isMobile()) {
             $token?->delete();
 
-            return $this->errorResponse('Invalid refresh token', 401);
+            return $this->errorResponse(__('api.common.refresh_token_invalid'), 401);
         }
 
         /** @var User $user */
@@ -145,7 +145,7 @@ class AuthController extends BaseController
         if (! $user instanceof User || ! $user->is_active) {
             $token->delete();
 
-            return $this->errorResponse('User account is deactivated', 403);
+            return $this->errorResponse(__('api.common.user_account_deactivated'), 403);
         }
 
         $companyId = $token->company_id !== null && $token->company_id !== ''
@@ -155,13 +155,13 @@ class AuthController extends BaseController
         if ($companyId < 1) {
             $token->delete();
 
-            return $this->errorResponse('No companies available', 404);
+            return $this->errorResponse(__('api.common.no_companies_available'), 404);
         }
 
         if (! $user->companies()->where('companies.id', $companyId)->exists()) {
             $token->delete();
 
-            return $this->errorResponse('Company not found or access denied', 403);
+            return $this->errorResponse(__('api.common.company_not_found_or_access_denied'), 403);
         }
 
         $authSession = $token->auth_session_id
@@ -192,7 +192,7 @@ class AuthController extends BaseController
 
         $companyId = $this->getCurrentCompanyId();
         if (! $companyId) {
-            return $this->errorResponse('Company context missing', 409);
+            return $this->errorResponse(__('api.common.company_context_missing'), 409);
         }
 
         $permissions = $user->getAllPermissionsForCompany((int) $companyId)->pluck('name')->toArray();
@@ -224,14 +224,14 @@ class AuthController extends BaseController
             if ($authSession !== null) {
                 $this->credentialRevocationService->revokeSession($authSession, $request);
 
-                return $this->successResponse(null, 'Successfully logged out');
+                return $this->successResponse(null, __('api.common.logged_out_success'));
             }
 
             $user->tokens()->delete();
             $this->authSessionService->invalidateWebSession($request);
         }
 
-        return $this->successResponse(null, 'Successfully logged out');
+        return $this->successResponse(null, __('api.common.logged_out_success'));
     }
 
     /**

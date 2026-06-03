@@ -1922,7 +1922,7 @@ class OrdersRepository extends BaseRepository
         }
 
         if ($discount_calculated > $price) {
-            throw new \Exception('Скидка не может превышать сумму заказа');
+            throw new \Exception(__('api.orders.discount_exceeds_total'));
         }
 
         $total_price = max(0, $price - $discount_calculated);

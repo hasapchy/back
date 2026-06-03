@@ -123,7 +123,7 @@ class WarehousePurchaseController extends BaseController
         try {
             $txId = $this->itemsRepository->addPayment($id, $request->validated());
 
-            return $this->successResponse(['transaction_id' => $txId], 'Оплата за товар добавлена');
+            return $this->successResponse(['transaction_id' => $txId], __('api.warehouse_purchase.goods_payment_added'));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse(__('warehouse_purchase.not_found'), 404);
         } catch (\Throwable $th) {
