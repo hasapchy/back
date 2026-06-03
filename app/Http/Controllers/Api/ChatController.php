@@ -99,7 +99,7 @@ class ChatController extends BaseController
 
         $otherUserId = (int) $request->validated()['creator_id'];
         if ($otherUserId === (int) $user->id) {
-            return $this->errorResponse('Cannot create direct chat with yourself', 422);
+            return $this->errorResponse(__('api.common.chat_cannot_create_with_self'), 422);
         }
 
         $isOtherInCompany = DB::table('company_user')
@@ -108,7 +108,7 @@ class ChatController extends BaseController
             ->exists();
 
         if (! $isOtherInCompany) {
-            return $this->errorResponse('User is not in this company', 403);
+            return $this->errorResponse(__('api.common.chat_user_not_in_company'), 403);
         }
 
         $chat = $this->chatService->startDirectChat($companyId, $user, $otherUserId);
@@ -141,7 +141,7 @@ class ChatController extends BaseController
 
         $missing = array_values(array_diff($userIds, $companyUserIds));
         if (! empty($missing)) {
-            return $this->errorResponse('Some users are not in this company', 403);
+            return $this->errorResponse(__('api.common.chat_some_users_not_in_company'), 403);
         }
 
         $chat = $this->chatService->createGroupChat($companyId, $user, (string) $data['title'], $userIds);

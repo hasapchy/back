@@ -119,6 +119,6 @@ class DepartmentController extends BaseController
 
         $this->itemsRepository->deleteItem($id);
 
-        return $this->successResponse(null, 'Департамент удалён');
+        return $this->successResponse(null, __('Департамент удалён'));
     }
 }

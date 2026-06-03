@@ -348,7 +348,7 @@ class BaseController extends BaseRoutingController
                     return null;
                 }
                 if (! $user->can('view', $warehouse)) {
-                    return $this->errorResponse('У вас нет прав на этот склад', 403);
+                    return $this->errorResponse(__('У вас нет прав на этот склад'), 403);
                 }
             }
         }

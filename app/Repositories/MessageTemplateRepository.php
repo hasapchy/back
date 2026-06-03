@@ -114,7 +114,7 @@ class MessageTemplateRepository extends BaseRepository
         $this->applyCompanyFilter($query);
         $item = $query->first();
         if (! $item) {
-            throw new ModelNotFoundException('MessageTemplate not found');
+            throw new ModelNotFoundException(__('api.common.message_template_not_found'));
         }
 
         return $item;

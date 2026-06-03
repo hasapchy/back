@@ -109,7 +109,7 @@ class WarehouseController extends BaseController
         $warehouse_created = $this->itemsRepository->createItem($validatedData['name'], $validatedData['users']);
 
         if (!$warehouse_created) {
-            return $this->errorResponse('Ошибка создания склада', 400);
+            return $this->errorResponse(__('Ошибка создания склада'), 400);
         }
 
         $companyId = $this->getCurrentCompanyId();
@@ -143,7 +143,7 @@ class WarehouseController extends BaseController
         $warehouse_updated = $this->itemsRepository->updateItem($id, $validatedData['name'], $validatedData['users']);
 
         if (!$warehouse_updated) {
-            return $this->errorResponse('Ошибка обновления склада', 400);
+            return $this->errorResponse(__('Ошибка обновления склада'), 400);
         }
 
         $companyId = $this->getCurrentCompanyId();
@@ -173,9 +173,9 @@ class WarehouseController extends BaseController
         $warehouse_deleted = $this->itemsRepository->deleteItem($id);
 
         if (!$warehouse_deleted) {
-            return $this->errorResponse('Ошибка удаления склада', 400);
+            return $this->errorResponse(__('Ошибка удаления склада'), 400);
         }
 
-        return $this->successResponse(null, 'Склад удален');
+        return $this->successResponse(null, __('Склад удален'));
     }
 }

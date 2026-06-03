@@ -186,7 +186,7 @@ class ClientController extends BaseController
             $client = $this->itemsRepository->getItemById($id);
 
             if (! $client) {
-                return $this->errorResponse('Client not found', 404);
+                return $this->errorResponse(__('api.clients.not_found'), 404);
             }
 
             $currentUser = $this->getAuthenticatedUser();
@@ -194,12 +194,12 @@ class ClientController extends BaseController
                 && (int) $client->employee_id === (int) $currentUser->id;
 
             if (! $canViewOwnBalance && (! $currentUser || ! $currentUser->can('view', $client))) {
-                return $this->errorResponse('У вас нет прав на просмотр этого клиента', 403);
+                return $this->errorResponse(__('api.clients.view_forbidden'), 403);
             }
 
             return (new ClientResource($client))->response();
         } catch (\Throwable $e) {
-            return $this->errorResponse('Ошибка при получении клиента: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('api.clients.fetch_failed', ['message' => $e->getMessage()]), 500);
         }
     }
 
@@ -219,7 +219,7 @@ class ClientController extends BaseController
         $canViewAllBalance = $user->can('settings_client_balance_view');
 
         if (! $canViewOwnBalance && ! $canViewAllBalance) {
-            return $this->errorResponse('Нет доступа к просмотру баланса клиента', 403);
+            return $this->errorResponse(__('api.clients.balance_view_forbidden'), 403);
         }
 
         $excludeDebt = $request->boolean('exclude_debt');
@@ -252,7 +252,7 @@ class ClientController extends BaseController
             return $this->successResponse(['by_currency' => $items]);
         } catch (\Throwable $e) {
             return $this->errorResponse(
-                'Ошибка при получении сводки взаиморасчётов: '.$e->getMessage(),
+                __('api.clients.settlements_summary_failed', ['message' => $e->getMessage()]),
                 500
             );
         }
@@ -317,7 +317,7 @@ class ClientController extends BaseController
 
             return ClientResource::collection($items)->response();
         } catch (\Throwable $e) {
-            return $this->errorResponse('Ошибка при получении всех клиентов: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('api.clients.all_fetch_failed', ['message' => $e->getMessage()]), 500);
         }
     }
 
@@ -330,6 +330,10 @@ class ClientController extends BaseController
     public function store(StoreClientRequest $request)
     {
         $validatedData = $this->normalizeNullableFields($request->validated());
+
+        if (($validatedData['client_type'] ?? null) === 'employee') {
+            return $this->errorResponse(__('api.clients.employee_auto_created'), 422);
+        }
 
         $employeeCheck = $this->checkEmployeeIdDuplicate($validatedData['employee_id'] ?? null);
         if ($employeeCheck) {
@@ -361,14 +365,14 @@ class ClientController extends BaseController
                     $companyId,
                     'clients_new',
                     $this->getAuthenticatedUserIdOrFail(),
-                    'Новый клиент #'.$client->id,
+                    __('api.clients.new_client_notification_title', ['id' => $client->id]),
                     null,
                     ['route' => '/clients/'.$client->id, 'client_id' => $client->id]
                 );
             }
 
             return (new ClientResource($client))->additional([
-                'message' => 'Client created successfully',
+                'message' => __('api.clients.created_success'),
             ])->response();
         } catch (\DomainException $e) {
             DB::rollBack();
@@ -378,10 +382,10 @@ class ClientController extends BaseController
             DB::rollBack();
 
             if (str_contains($e->getMessage(), 'clients_emails_email_unique')) {
-                return $this->errorResponse('Email уже используется другим клиентом', 422);
+                return $this->errorResponse(__('api.clients.email_already_used'), 422);
             }
 
-            return $this->errorResponse('Ошибка при создании клиента: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('api.clients.create_failed', ['message' => $e->getMessage()]), 500);
         }
     }
 
@@ -397,6 +401,10 @@ class ClientController extends BaseController
         $validatedData = $this->normalizeNullableFields($request->validated());
 
         $existingClient = Client::findOrFail($id);
+
+        if ($existingClient->client_type === 'employee') {
+            return $this->errorResponse(__('api.clients.employee_edit_only_via_user'), 422);
+        }
 
         $this->authorize('update', $existingClient);
 
@@ -419,14 +427,14 @@ class ClientController extends BaseController
             CacheService::invalidateTransactionsCache();
 
             return (new ClientResource($client))->additional([
-                'message' => 'Client updated successfully',
+                'message' => __('api.clients.updated_success'),
             ])->response();
         } catch (\Throwable $e) {
             if (str_contains($e->getMessage(), 'clients_emails_email_unique')) {
-                return $this->errorResponse('Email уже используется другим клиентом', 422);
+                return $this->errorResponse(__('api.clients.email_already_used'), 422);
             }
 
-            return $this->errorResponse('Ошибка при обновлении клиента: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('api.clients.update_failed', ['message' => $e->getMessage()]), 500);
         }
     }
 
@@ -460,15 +468,15 @@ class ClientController extends BaseController
         try {
             $this->batchEntityActions->deleteClient($this->requireAuthenticatedUser(), (int) $id);
 
-            return $this->successResponse(null, 'Клиент успешно удалён');
+            return $this->successResponse(null, __('api.clients.deleted_success'));
         } catch (AuthorizationException $e) {
             throw $e;
         } catch (NotFoundHttpException $e) {
-            return $this->errorResponse($e->getMessage() ?: 'Клиент не найден', 404);
+            return $this->errorResponse($e->getMessage() ?: __('api.clients.not_found'), 404);
         } catch (UnprocessableEntityHttpException $e) {
             return $this->errorResponse($e->getMessage(), 422);
         } catch (\Throwable $e) {
-            return $this->errorResponse('Ошибка при удалении клиента: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('api.clients.delete_failed', ['message' => $e->getMessage()]), 500);
         }
     }
 
@@ -499,7 +507,7 @@ class ClientController extends BaseController
         }
 
         if ($query->exists()) {
-            return $this->errorResponse('Этот пользователь уже привязан к другому клиенту', 422);
+            return $this->errorResponse(__('api.clients.employee_already_attached'), 422);
         }
 
         return null;
@@ -535,7 +543,7 @@ class ClientController extends BaseController
             }
 
             if ($query->exists()) {
-                return $this->errorResponse("Телефон {$phone} уже используется другим клиентом в этой компании", 422);
+                return $this->errorResponse(__('api.clients.phone_already_used', ['phone' => $phone]), 422);
             }
         }
 

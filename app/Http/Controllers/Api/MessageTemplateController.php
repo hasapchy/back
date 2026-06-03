@@ -143,12 +143,12 @@ class MessageTemplateController extends BaseController
             $template = $this->repository->findItemWithRelations($id);
 
             if (! $template) {
-                return $this->errorResponse('Шаблон не найден', 404);
+                return $this->errorResponse(__('api.transaction_templates.not_found'), 404);
             }
 
             return $this->successResponse(new MessageTemplateResource($template));
         } catch (\Exception $e) {
-            return $this->errorResponse('Шаблон не найден', 404);
+            return $this->errorResponse(__('api.transaction_templates.not_found'), 404);
         }
     }
 
@@ -175,7 +175,7 @@ class MessageTemplateController extends BaseController
 
         $created = $this->repository->createItem($data);
 
-        return $this->successResponse(new MessageTemplateResource($created), 'Шаблон создан');
+        return $this->successResponse(new MessageTemplateResource($created), __('api.transaction_templates.created'));
     }
 
     /**
@@ -205,11 +205,11 @@ class MessageTemplateController extends BaseController
             $this->repository->updateItem($id, $data);
             $template = $this->repository->findItemWithRelations($id);
 
-            return $this->successResponse(new MessageTemplateResource($template), 'Шаблон обновлен');
+            return $this->successResponse(new MessageTemplateResource($template), __('api.transaction_templates.updated'));
         } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return $this->errorResponse('Шаблон не найден', 404);
+            return $this->errorResponse(__('api.transaction_templates.not_found'), 404);
         }
     }
 
@@ -230,11 +230,11 @@ class MessageTemplateController extends BaseController
 
             $this->repository->deleteItem($id);
 
-            return $this->successResponse(null, 'Шаблон удален');
+            return $this->successResponse(null, __('api.transaction_templates.deleted'));
         } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return $this->errorResponse('Шаблон не найден', 404);
+            return $this->errorResponse(__('api.transaction_templates.not_found'), 404);
         }
     }
 }

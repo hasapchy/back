@@ -33,7 +33,7 @@ class CurrenciesController extends BaseController
             'currency_history_view_own',
             'settings_currencies_view',
         ])) {
-            return $this->errorResponse('Forbidden', 403);
+            return $this->errorResponse(__('api.common.forbidden'), 403);
         }
 
         $companyId = $this->getCurrentCompanyId();

@@ -81,7 +81,7 @@ class LeaveTypeRepository extends BaseRepository
         $item = LeaveType::findOrFail($id);
 
         if ($item->leaves()->exists()) {
-            throw new \Exception('Нельзя удалить тип отпуска: найдены связанные записи отпусков.');
+            throw new \Exception(__('api.leave_types.delete_has_related_records'));
         }
 
         $item->delete();

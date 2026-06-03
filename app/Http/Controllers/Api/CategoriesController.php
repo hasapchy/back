@@ -117,11 +117,11 @@ class CategoriesController extends BaseController
         ]);
 
         if (!$category_created) {
-            return $this->errorResponse('Ошибка создания категории', 400);
+            return $this->errorResponse(__('Ошибка создания категории'), 400);
         }
 
         CacheService::invalidateCategoriesCache();
-        return $this->successResponse(null, 'Категория создана');
+        return $this->successResponse(null, __('Категория создана'));
     }
 
     /**
@@ -144,11 +144,11 @@ class CategoriesController extends BaseController
         ]);
 
         if (!$category_updated) {
-            return $this->errorResponse('Ошибка обновления категории', 400);
+            return $this->errorResponse(__('Ошибка обновления категории'), 400);
         }
 
         CacheService::invalidateCategoriesCache();
-        return $this->successResponse(null, 'Категория обновлена');
+        return $this->successResponse(null, __('Категория обновлена'));
     }
 
     /**
@@ -164,10 +164,10 @@ class CategoriesController extends BaseController
         $category_deleted = $this->itemsRepository->deleteItem($id);
 
         if (!$category_deleted) {
-            return $this->errorResponse('Ошибка удаления категории', 400);
+            return $this->errorResponse(__('Ошибка удаления категории'), 400);
         }
 
         CacheService::invalidateCategoriesCache();
-        return $this->successResponse(null, 'Категория удалена');
+        return $this->successResponse(null, __('Категория удалена'));
     }
 }

@@ -39,11 +39,11 @@ class CashRegistersController extends BaseController
     {
         $this->authorize('viewAny', CashRegister::class);
 
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 20);
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $items = $this->itemsRepository->getItemsWithPagination($perPage, $page);
         $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
@@ -73,8 +73,8 @@ class CashRegistersController extends BaseController
     {
         $this->authorize('viewAny', CashRegister::class);
 
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
-        $items = $this->itemsRepository->getAllItems($userUuid);
+        $this->getAuthenticatedUserIdOrFail();
+        $items = $this->itemsRepository->getAllItems();
         $useReference = $this->useReferenceContractsForWave1All($this->getCurrentCompanyId());
         $collection = $useReference
             ? CashRegisterReferenceResource::collection($items)
@@ -98,10 +98,8 @@ class CashRegistersController extends BaseController
         $user = $this->requireAuthenticatedUser();
 
         if (! $user->can('settings_cash_balance_view')) {
-            return $this->errorResponse('Нет доступа к просмотру баланса кассы', 403);
+            return $this->errorResponse(__('Нет доступа к просмотру баланса кассы'), 403);
         }
-
-        $userUuid = $user->id;
 
         $cashRegisterIds = $request->query('cash_register_ids', '');
         $all = empty($cashRegisterIds);
@@ -111,7 +109,7 @@ class CashRegistersController extends BaseController
             $cashRegisters = \App\Models\CashRegister::whereIn('id', $ids)->get();
             foreach ($cashRegisters as $cashRegister) {
                 if (! $user->can('view', $cashRegister)) {
-                    return $this->errorResponse('У вас нет прав на просмотр одной или нескольких касс', 403);
+                    return $this->errorResponse(__('У вас нет прав на просмотр одной или нескольких касс'), 403);
                 }
             }
             $cashRegisterIds = $ids;
@@ -137,11 +135,10 @@ class CashRegistersController extends BaseController
                 ? \Carbon\Carbon::createFromFormat('d.m.Y', $endRaw)->endOfDay()
                 : null;
         } catch (\Exception $e) {
-            return $this->errorResponse('Неверный формат даты', 422);
+            return $this->errorResponse(__('Неверный формат даты'), 422);
         }
 
         $balances = $this->itemsRepository->getCashBalance(
-            $userUuid,
             $cashRegisterIds,
             $all,
             $start,
@@ -163,25 +160,27 @@ class CashRegistersController extends BaseController
     {
         $this->authorize('create', CashRegister::class);
 
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
-        $item_created = $this->itemsRepository->createItem([
-            'name' => $validatedData['name'],
+        $cashRegisterCreated = $this->itemsRepository->createItem([
+            'name' => $validatedData['name'] ?? null,
             'balance' => $validatedData['balance'],
             'currency_id' => $validatedData['currency_id'] ?? null,
             'users' => $validatedData['users'],
             'is_cash' => $validatedData['is_cash'] ?? true,
             'is_working_minus' => $validatedData['is_working_minus'] ?? false,
+            'sort_order' => $validatedData['sort_order'],
             'icon' => $validatedData['icon'] ?? null,
+            'icon_size' => $validatedData['icon_size'],
             'color' => $validatedData['color'] ?? null,
         ]);
 
-        if (!$item_created) {
-            return $this->errorResponse('Ошибка создания кассы', 400);
+        if (! $cashRegisterCreated) {
+            return $this->errorResponse(__('Ошибка создания кассы'), 400);
         }
 
-        return $this->successResponse(null, 'Касса создана');
+        return $this->successResponse(null, __('Касса создана'));
     }
 
     /**
@@ -202,7 +201,7 @@ class CashRegistersController extends BaseController
         $validatedData = $request->validated();
 
         $payload = [
-            'name' => $validatedData['name'],
+            'name' => $validatedData['name'] ?? null,
             'users' => $validatedData['users'],
         ];
 
@@ -218,17 +217,25 @@ class CashRegistersController extends BaseController
             $payload['icon'] = $validatedData['icon'];
         }
 
+        if (array_key_exists('icon_size', $validatedData)) {
+            $payload['icon_size'] = $validatedData['icon_size'];
+        }
+
+        if (array_key_exists('sort_order', $validatedData)) {
+            $payload['sort_order'] = $validatedData['sort_order'];
+        }
+
         if (array_key_exists('color', $validatedData)) {
             $payload['color'] = $validatedData['color'];
         }
 
-        $category_updated = $this->itemsRepository->updateItem($id, $payload);
+        $cashRegisterUpdated = $this->itemsRepository->updateItem($id, $payload);
 
-        if (!$category_updated) {
-            return $this->errorResponse('Ошибка обновления кассы', 400);
+        if (! $cashRegisterUpdated) {
+            return $this->errorResponse(__('Ошибка обновления кассы'), 400);
         }
 
-        return $this->successResponse(null, 'Касса обновлена');
+        return $this->successResponse(null, __('Касса обновлена'));
     }
 
     /**
@@ -244,15 +251,15 @@ class CashRegistersController extends BaseController
 
             $this->authorize('delete', $cashRegister);
 
-            $category_deleted = $this->itemsRepository->deleteItem($id);
+            $cashRegisterDeleted = $this->itemsRepository->deleteItem($id);
 
-            if (!$category_deleted) {
-                return $this->errorResponse('Ошибка удаления кассы', 400);
+            if (! $cashRegisterDeleted) {
+                return $this->errorResponse(__('Ошибка удаления кассы'), 400);
             }
 
-            return $this->successResponse(null, 'Касса удалена');
+            return $this->successResponse(null, __('Касса удалена'));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Касса не найдена', 404);
+            return $this->errorResponse(__('Касса не найдена'), 404);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {

@@ -97,7 +97,7 @@ class WarehouseWriteoffController extends BaseController
         $item = $this->itemsRepository->getItemByIdForUser((int) $id, $userUuid);
 
         if (! $item) {
-            return $this->errorResponse('Списание не найдено', 404);
+            return $this->errorResponse(__('api.writeoff.not_found'), 404);
         }
 
         $warehouseAccessCheck = $this->checkWarehouseAccess($item['warehouse_id'] ?? null);
@@ -152,10 +152,10 @@ class WarehouseWriteoffController extends BaseController
         try {
             $warehouse_created = $this->itemsRepository->createItem($data);
             if (! $warehouse_created) {
-                return $this->errorResponse('Ошибка списания', 400);
+                return $this->errorResponse(__('api.writeoff.operation_failed'), 400);
             }
 
-            return $this->successResponse(null, 'Списание создано');
+            return $this->successResponse(null, __('api.writeoff.created'));
         } catch (\Throwable $th) {
             return $this->errorResponse($this->resolveWriteoffErrorMessage($th), 400);
         }
@@ -207,10 +207,10 @@ class WarehouseWriteoffController extends BaseController
         try {
             $warehouse_created = $this->itemsRepository->updateItem($id, $data);
             if (! $warehouse_created) {
-                return $this->errorResponse('Ошибка списания', 400);
+                return $this->errorResponse(__('api.writeoff.operation_failed'), 400);
             }
 
-            return $this->successResponse(null, 'Списание обновлено');
+            return $this->successResponse(null, __('api.writeoff.updated'));
         } catch (\Throwable $th) {
             return $this->errorResponse($this->resolveWriteoffErrorMessage($th), 400);
         }
@@ -240,9 +240,9 @@ class WarehouseWriteoffController extends BaseController
         $warehouse_deleted = $this->itemsRepository->deleteItem($id);
 
         if (! $warehouse_deleted) {
-            return $this->errorResponse('Ошибка удаления списания', 400);
+            return $this->errorResponse(__('api.writeoff.delete_failed'), 400);
         }
 
-        return $this->successResponse(null, 'Списание удалено');
+        return $this->successResponse(null, __('api.writeoff.deleted'));
     }
 }

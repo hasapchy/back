@@ -121,7 +121,7 @@ class CompaniesController extends BaseController
         $company = Company::findOrFail($id);
         $company->delete();
 
-        return $this->successResponse(null, 'Company deleted');
+        return $this->successResponse(null, __('Company deleted'));
     }
 
     /**
@@ -171,9 +171,9 @@ class CompaniesController extends BaseController
                 ],
             ]);
         } catch (ModelNotFoundException $e) {
-            return $this->errorResponse('Компания не найдена', 404);
+            return $this->errorResponse(__('Компания не найдена'), 404);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при начислении зарплат: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при начислении зарплат: ').$e->getMessage(), 500);
         }
     }
 
@@ -224,9 +224,9 @@ class CompaniesController extends BaseController
                 ],
             ]);
         } catch (ModelNotFoundException $e) {
-            return $this->errorResponse('Компания не найдена', 404);
+            return $this->errorResponse(__('Компания не найдена'), 404);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при выплате зарплат: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при выплате зарплат: ').$e->getMessage(), 500);
         }
     }
 
@@ -253,11 +253,11 @@ class CompaniesController extends BaseController
                 'affected_users' => [],
             ]);
         } catch (ModelNotFoundException $e) {
-            return $this->errorResponse('Компания не найдена', 404);
+            return $this->errorResponse(__('Компания не найдена'), 404);
         } catch (ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при проверке начислений: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при проверке начислений: ').$e->getMessage(), 500);
         }
     }
 
@@ -300,11 +300,11 @@ class CompaniesController extends BaseController
 
             return $this->successResponse($preview);
         } catch (ModelNotFoundException $e) {
-            return $this->errorResponse('Компания не найдена', 404);
+            return $this->errorResponse(__('Компания не найдена'), 404);
         } catch (ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении предпросмотра начисления: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при получении предпросмотра начисления: ').$e->getMessage(), 500);
         }
     }
 
@@ -347,11 +347,11 @@ class CompaniesController extends BaseController
                 'synced_at' => null,
             ]);
         } catch (ModelNotFoundException $e) {
-            return $this->errorResponse('Компания не найдена', 404);
+            return $this->errorResponse(__('Компания не найдена'), 404);
         } catch (ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при загрузке данных по зарплатам: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при загрузке данных по зарплатам: ').$e->getMessage(), 500);
         }
     }
 
@@ -366,18 +366,18 @@ class CompaniesController extends BaseController
     {
         $u = $this->requireAuthenticatedUser();
         if (! $u->can('transactions_delete_all') && ! $u->can('transactions_delete')) {
-            return $this->errorResponse('Нет права удалять проводки', 403);
+            return $this->errorResponse(__('Нет права удалять проводки'), 403);
         }
 
         try {
             $company = Company::findOrFail($id);
             $this->salaryAccrualService()->deleteSalaryMonthlyReportBatch((int) $company->id, (int) $batchId);
 
-            return $this->successResponse(null, 'Операция удалена');
+            return $this->successResponse(null, __('Операция удалена'));
         } catch (ModelNotFoundException $e) {
-            return $this->errorResponse('Не найдено', 404);
+            return $this->errorResponse(__('Не найдено'), 404);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка удаления: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка удаления: ').$e->getMessage(), 500);
         }
     }
 

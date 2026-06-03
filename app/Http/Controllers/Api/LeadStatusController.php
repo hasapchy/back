@@ -63,7 +63,7 @@ class LeadStatusController extends BaseController
         $user = $this->requireAuthenticatedUser();
         $companyId = $this->getCurrentCompanyId();
         if (! $companyId) {
-            return $this->errorResponse('Компания не выбрана', 422);
+            return $this->errorResponse(__('api.leads.company_not_selected'), 422);
         }
 
         $validated = $request->validated();
@@ -77,7 +77,7 @@ class LeadStatusController extends BaseController
             'kanban_outcome' => $validated['kanban_outcome'] ?? null,
         ]);
 
-        return $this->successResponse((new LeadStatusResource($created))->resolve(), 'Статус создан');
+        return $this->successResponse((new LeadStatusResource($created))->resolve(), __('api.statuses.created'));
     }
 
     /**
@@ -101,7 +101,7 @@ class LeadStatusController extends BaseController
         }
         $updated = $this->itemsRepository->updateItem((int) $id, $payload);
 
-        return $this->successResponse((new LeadStatusResource($updated))->resolve(), 'Статус обновлён');
+        return $this->successResponse((new LeadStatusResource($updated))->resolve(), __('Статус обновлён'));
     }
 
     /**
@@ -111,6 +111,6 @@ class LeadStatusController extends BaseController
     {
         $this->itemsRepository->deleteItem((int) $id);
 
-        return $this->successResponse(null, 'Статус удалён');
+        return $this->successResponse(null, __('Статус удалён'));
     }
 }

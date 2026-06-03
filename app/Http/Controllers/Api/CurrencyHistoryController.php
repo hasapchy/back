@@ -75,7 +75,7 @@ class CurrencyHistoryController extends BaseController
                 'per_page' => $paginator->perPage(),
             ]);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении истории курсов: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при получении истории курсов: ').$e->getMessage(), 500);
         }
     }
 
@@ -117,7 +117,7 @@ class CurrencyHistoryController extends BaseController
                 'per_page' => $paginator->perPage(),
             ]);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении истории курсов: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при получении истории курсов: ').$e->getMessage(), 500);
         }
     }
 
@@ -161,11 +161,11 @@ class CurrencyHistoryController extends BaseController
 
             CacheService::invalidateCurrenciesCache();
 
-            return $this->successResponse(new CurrencyHistoryResource($history), 'Курс валюты успешно добавлен');
+            return $this->successResponse(new CurrencyHistoryResource($history), __('Курс валюты успешно добавлен'));
         } catch (\Exception $e) {
             DB::rollback();
 
-            return $this->errorResponse('Ошибка при создании записи курса: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при создании записи курса: ').$e->getMessage(), 500);
         }
     }
 
@@ -195,7 +195,7 @@ class CurrencyHistoryController extends BaseController
                 ->first();
 
             if (! $history) {
-                return $this->errorResponse('Запись в истории не найдена', 404);
+                return $this->errorResponse(__('Запись в истории не найдена'), 404);
             }
 
             $validatedData = $request->validated();
@@ -220,11 +220,11 @@ class CurrencyHistoryController extends BaseController
 
             CacheService::invalidateCurrenciesCache();
 
-            return $this->successResponse(new CurrencyHistoryResource($history), 'Курс валюты успешно обновлен');
+            return $this->successResponse(new CurrencyHistoryResource($history), __('Курс валюты успешно обновлен'));
         } catch (\Exception $e) {
             DB::rollback();
 
-            return $this->errorResponse('Ошибка при обновлении записи курса: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при обновлении записи курса: ').$e->getMessage(), 500);
         }
     }
 
@@ -254,7 +254,7 @@ class CurrencyHistoryController extends BaseController
                 ->first();
 
             if (! $history) {
-                return $this->errorResponse('Запись в истории не найдена', 404);
+                return $this->errorResponse(__('Запись в истории не найдена'), 404);
             }
 
             DB::beginTransaction();
@@ -265,11 +265,11 @@ class CurrencyHistoryController extends BaseController
 
             CacheService::invalidateCurrenciesCache();
 
-            return $this->successResponse(null, 'Запись курса успешно удалена');
+            return $this->successResponse(null, __('Запись курса успешно удалена'));
         } catch (\Exception $e) {
             DB::rollback();
 
-            return $this->errorResponse('Ошибка при удалении записи курса: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при удалении записи курса: ').$e->getMessage(), 500);
         }
     }
 
@@ -331,7 +331,7 @@ class CurrencyHistoryController extends BaseController
 
             return $this->successResponse($result);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении валют с курсами: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при получении валют с курсами: ').$e->getMessage(), 500);
         }
     }
 
@@ -349,7 +349,7 @@ class CurrencyHistoryController extends BaseController
         $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions, true);
 
         if (! $hasAccessToCurrencyHistory && ! $hasAccessToNonDefaultCurrencies && ! $currency->is_default) {
-            return $this->errorResponse('Нет доступа к этой валюте', 403);
+            return $this->errorResponse(__('Нет доступа к этой валюте'), 403);
         }
 
         return null;

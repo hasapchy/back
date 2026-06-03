@@ -94,10 +94,10 @@ class OrderStatusCategoryController extends BaseController
             'creator_id' => $userUuid,
         ]);
         if (! $created) {
-            return $this->errorResponse('Ошибка создания категории статусов', 400);
+            return $this->errorResponse(__('Ошибка создания категории статусов'), 400);
         }
 
-        return $this->successResponse(null, 'Категория статусов создана');
+        return $this->successResponse(null, __('Категория статусов создана'));
     }
 
     /**
@@ -118,7 +118,7 @@ class OrderStatusCategoryController extends BaseController
 
         $this->itemsRepository->updateItem($id, $updateData);
 
-        return $this->successResponse(null, 'Категория статусов обновлена');
+        return $this->successResponse(null, __('Категория статусов обновлена'));
     }
 
     /**
@@ -133,9 +133,9 @@ class OrderStatusCategoryController extends BaseController
 
         $deleted = $this->itemsRepository->deleteItem($id);
         if (! $deleted) {
-            return $this->errorResponse('Ошибка удаления', 400);
+            return $this->errorResponse(__('api.transfers.delete_failed'), 400);
         }
 
-        return $this->successResponse(null, 'Категория статусов удалена');
+        return $this->successResponse(null, __('Категория статусов удалена'));
     }
 }

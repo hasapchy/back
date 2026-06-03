@@ -23,6 +23,7 @@ class CashRegisterReferenceResource extends JsonResource
             'balance' => data_get($this->resource, 'balance'),
             'is_cash' => data_get($this->resource, 'is_cash'),
             'is_working_minus' => data_get($this->resource, 'is_working_minus'),
+            'sort_order' => data_get($this->resource, 'sort_order'),
             'currency_id' => data_get($this->resource, 'currency_id'),
             'creator_id' => data_get($this->resource, 'creator_id'),
             'creator' => $creator ? [
@@ -35,6 +36,7 @@ class CashRegisterReferenceResource extends JsonResource
                 'code' => data_get($currency, 'code'),
             ] : null,
             'icon' => data_get($this->resource, 'icon'),
+            'icon_size' => data_get($this->resource, 'icon_size'),
             'color' => data_get($this->resource, 'color'),
             'created_at' => $this->formatDateTimeValue(data_get($this->resource, 'created_at')),
             'updated_at' => $this->formatDateTimeValue(data_get($this->resource, 'updated_at')),

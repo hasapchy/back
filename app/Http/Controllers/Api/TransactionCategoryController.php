@@ -104,7 +104,7 @@ class TransactionCategoryController extends BaseController
             'parent_id' => $validatedData['parent_id'],
         ]);
 
-        return $this->successResponse(null, 'Категория транзакции создана');
+        return $this->successResponse(null, __('api.transaction_categories.created'));
     }
 
     /**
@@ -135,7 +135,7 @@ class TransactionCategoryController extends BaseController
             }
             $this->itemsRepository->updateItem($id, $payload);
 
-            return $this->successResponse(null, 'Категория транзакции обновлена');
+            return $this->successResponse(null, __('api.transaction_categories.updated'));
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
@@ -158,7 +158,7 @@ class TransactionCategoryController extends BaseController
         try {
             $this->itemsRepository->deleteItem($id);
 
-            return $this->successResponse(null, 'Категория транзакции удалена');
+            return $this->successResponse(null, __('api.transaction_categories.deleted'));
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }

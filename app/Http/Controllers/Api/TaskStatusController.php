@@ -99,10 +99,10 @@ class TaskStatusController extends BaseController
             'creator_id' => $userUuid,
         ]);
         if (! $created) {
-            return $this->errorResponse('Ошибка создания статуса', 400);
+            return $this->errorResponse(__('api.statuses.create_failed'), 400);
         }
 
-        return $this->successResponse(null, 'Статус создан');
+        return $this->successResponse(null, __('api.statuses.created'));
     }
 
     /**
@@ -124,10 +124,10 @@ class TaskStatusController extends BaseController
             'color' => $validatedData['color'] ?? '#6c757d',
         ]);
         if (! $updated) {
-            return $this->errorResponse('Ошибка обновления статуса', 400);
+            return $this->errorResponse(__('api.statuses.update_failed'), 400);
         }
 
-        return $this->successResponse(null, 'Статус обновлен');
+        return $this->successResponse(null, __('api.statuses.updated'));
     }
 
     /**
@@ -144,19 +144,19 @@ class TaskStatusController extends BaseController
 
         $protectedIds = [1, 2, 3, 4];
         if (in_array($id, $protectedIds)) {
-            return $this->errorResponse('Системный статус нельзя удалить', 400);
+            return $this->errorResponse(__('api.statuses.system_delete_forbidden'), 400);
         }
 
         $status = TaskStatus::findOrFail($id);
         if ($status->tasks()->count() > 0) {
-            return $this->errorResponse('Нельзя удалить статус, который используется в задачах', 400);
+            return $this->errorResponse(__('api.statuses.used_in_tasks_delete_forbidden'), 400);
         }
 
         $deleted = $this->itemsRepository->deleteItem($id);
         if (! $deleted) {
-            return $this->errorResponse('Ошибка удаления статуса', 400);
+            return $this->errorResponse(__('api.statuses.delete_failed'), 400);
         }
 
-        return $this->successResponse(null, 'Статус удален');
+        return $this->successResponse(null, __('api.statuses.deleted'));
     }
 }

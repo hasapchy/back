@@ -99,10 +99,10 @@ class OrderStatusController extends BaseController
             'is_active' => $validatedData['is_active'] ?? true,
         ]);
         if (! $created) {
-            return $this->errorResponse('Ошибка создания статуса', 400);
+            return $this->errorResponse(__('api.statuses.create_failed'), 400);
         }
 
-        return $this->successResponse(null, 'Статус создан');
+        return $this->successResponse(null, __('api.statuses.created'));
     }
 
     /**
@@ -121,7 +121,7 @@ class OrderStatusController extends BaseController
 
         $protectedIds = [1, 5, 6];
         if (in_array($id, $protectedIds) && isset($validatedData['is_active']) && ! $validatedData['is_active']) {
-            return $this->errorResponse('Этот статус нельзя отключить', 400);
+            return $this->errorResponse(__('Этот статус нельзя отключить'), 400);
         }
 
         if (isset($validatedData['is_active']) && ! $validatedData['is_active']) {
@@ -142,10 +142,10 @@ class OrderStatusController extends BaseController
 
         $updated = $this->itemsRepository->updateItem($id, $updateData);
         if (! $updated) {
-            return $this->errorResponse('Ошибка обновления статуса', 400);
+            return $this->errorResponse(__('api.statuses.update_failed'), 400);
         }
 
-        return $this->successResponse(null, 'Статус обновлен');
+        return $this->successResponse(null, __('api.statuses.updated'));
     }
 
     /**
@@ -162,14 +162,14 @@ class OrderStatusController extends BaseController
 
         $protectedIds = [1, 2, 4, 5, 6];
         if (in_array($id, $protectedIds)) {
-            return $this->errorResponse('Системный статус нельзя удалить', 400);
+            return $this->errorResponse(__('api.statuses.system_delete_forbidden'), 400);
         }
 
         $deleted = $this->itemsRepository->deleteItem($id);
         if (! $deleted) {
-            return $this->errorResponse('Ошибка удаления статуса', 400);
+            return $this->errorResponse(__('api.statuses.delete_failed'), 400);
         }
 
-        return $this->successResponse(null, 'Статус удален');
+        return $this->successResponse(null, __('api.statuses.deleted'));
     }
 }

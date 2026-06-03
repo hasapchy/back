@@ -61,7 +61,7 @@ class LeadSourceController extends BaseController
         $user = $this->requireAuthenticatedUser();
         $companyId = $this->getCurrentCompanyId();
         if (! $companyId) {
-            return $this->errorResponse('Компания не выбрана', 422);
+            return $this->errorResponse(__('api.leads.company_not_selected'), 422);
         }
 
         $validated = $request->validate([
@@ -74,7 +74,7 @@ class LeadSourceController extends BaseController
             'name' => $validated['name'],
         ]);
 
-        return $this->successResponse((new LeadSourceResource($created))->resolve(), 'Источник создан');
+        return $this->successResponse((new LeadSourceResource($created))->resolve(), __('Источник создан'));
     }
 
     /**
@@ -90,7 +90,7 @@ class LeadSourceController extends BaseController
             'name' => $validated['name'],
         ]);
 
-        return $this->successResponse((new LeadSourceResource($updated))->resolve(), 'Источник обновлён');
+        return $this->successResponse((new LeadSourceResource($updated))->resolve(), __('Источник обновлён'));
     }
 
     /**
@@ -100,6 +100,6 @@ class LeadSourceController extends BaseController
     {
         $this->itemsRepository->deleteItem((int) $id);
 
-        return $this->successResponse(null, 'Источник удалён');
+        return $this->successResponse(null, __('Источник удалён'));
     }
 }

@@ -68,7 +68,7 @@ class TransactionCategoryRepository extends BaseRepository
         $item = TransactionCategory::findOrFail($id);
 
         if (!$item->canBeEdited()) {
-            throw new \Exception('Нельзя редактировать системную категорию: ' . $item->name);
+            throw new \Exception(__('api.transaction_categories.system_edit_forbidden_prefix') . $item->name);
         }
 
         $item->name = $data['name'];
@@ -94,7 +94,7 @@ class TransactionCategoryRepository extends BaseRepository
         $item = TransactionCategory::findOrFail($id);
 
         if ($item->children()->exists()) {
-            throw new \Exception('Нельзя удалить категорию, у которой есть подкатегории.');
+            throw new \Exception(__('api.transaction_categories.delete_with_children_forbidden'));
         }
 
         $item->delete();

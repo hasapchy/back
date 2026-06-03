@@ -62,7 +62,7 @@ class TasksController extends BaseController
         $user = $this->requireAuthenticatedUser();
         $permissions = $this->getUserPermissions($user);
         if (!in_array('tasks_view_all', $permissions) && !in_array('tasks_view_own', $permissions)) {
-            return $this->errorResponse('У вас нет прав на просмотр задач', 403);
+            return $this->errorResponse(__('api.tasks.view_forbidden'), 403);
         }
 
         $count = $this->itemsRepository->getOverdueCount();
@@ -79,7 +79,7 @@ class TasksController extends BaseController
         $data['company_id'] = $this->getCurrentCompanyId();
 
         if (!$data['company_id']) {
-            return $this->errorResponse('Company ID is required', 400);
+            return $this->errorResponse(__('api.common.company_id_required'), 400);
         }
 
         $task = $this->itemsRepository->create($data);
@@ -155,7 +155,7 @@ class TasksController extends BaseController
             ->first();
 
         if (!$completedStatus) {
-            return $this->errorResponse('Статус "Завершена" не найден', 404);
+            return $this->errorResponse(__('Статус "Завершена" не найден'), 404);
         }
 
         $task = $this->itemsRepository->changeStatus($id, $completedStatus->id);
@@ -179,7 +179,7 @@ class TasksController extends BaseController
             ->first();
 
         if (!$acceptedStatus) {
-            return $this->errorResponse('Статус "Принята" не найден', 404);
+            return $this->errorResponse(__('Статус "Принята" не найден'), 404);
         }
 
         $task = $this->itemsRepository->changeStatus($id, $acceptedStatus->id);
@@ -203,7 +203,7 @@ class TasksController extends BaseController
             ->first();
 
         if (!$inProgressStatus) {
-            return $this->errorResponse('Статус "В работе" не найден', 404);
+            return $this->errorResponse(__('Статус "В работе" не найден'), 404);
         }
 
         $task = $this->itemsRepository->changeStatus($id, $inProgressStatus->id);
@@ -236,11 +236,11 @@ class TasksController extends BaseController
         }
 
         if (count($files) == 0) {
-            return $this->errorResponse('No files uploaded', 400);
+            return $this->errorResponse(__('api.common.no_files_uploaded'), 400);
         }
 
         if (count($files) > 8) {
-            return $this->errorResponse('Максимум 8 файлов за раз', 400);
+            return $this->errorResponse(__('api.tasks.max_files_per_upload'), 400);
         }
 
         try {
@@ -248,7 +248,7 @@ class TasksController extends BaseController
 
             $storedFiles = $task->files ?? [];
             if (count($storedFiles) + count($files) > 50) {
-                return $this->errorResponse('Максимум 50 файлов в задаче', 400);
+                return $this->errorResponse(__('api.tasks.max_files_total'), 400);
             }
 
             foreach ($files as $file) {
@@ -266,9 +266,9 @@ class TasksController extends BaseController
 
             $task->update(['files' => $storedFiles]);
 
-            return $this->successResponse($storedFiles, 'Files uploaded successfully');
+            return $this->successResponse($storedFiles, __('api.common.files_uploaded_success'));
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при загрузке файлов: ' . $e->getMessage(), 500);
+            return $this->errorResponse(__('api.tasks.upload_failed_prefix') . $e->getMessage(), 500);
         }
     }
 
@@ -282,7 +282,7 @@ class TasksController extends BaseController
 
             $filePath = $request->input('path');
             if (!$filePath || str_contains($filePath, '..') || !str_starts_with($filePath, 'tasks/' . $id . '/')) {
-                return $this->errorResponse('Некорректный путь файла', 400);
+                return $this->errorResponse(__('api.tasks.invalid_file_path'), 400);
             }
 
             $files = $task->files ?? [];
@@ -301,15 +301,15 @@ class TasksController extends BaseController
             }
 
             if (!$deletedFile) {
-                return $this->errorResponse('Файл не найден в задаче', 404);
+                return $this->errorResponse(__('api.tasks.file_not_found'), 404);
             }
 
             $task->files = $updatedFiles;
             $task->save();
 
-            return $this->successResponse($updatedFiles, 'File deleted successfully');
+            return $this->successResponse($updatedFiles, __('api.common.file_deleted_success'));
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при удалении файла: ' . $e->getMessage(), 500);
+            return $this->errorResponse(__('api.tasks.delete_file_failed_prefix') . $e->getMessage(), 500);
         }
     }
 }

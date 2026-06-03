@@ -29,6 +29,10 @@ use App\Models\Template;
 use App\Models\Comment;
 use App\Models\EmployeeSalary;
 use App\Models\Currency;
+use App\Models\ClientsPhone;
+use App\Models\ClientsEmail;
+use App\Services\ClientBalanceService;
+use App\Services\Timeline\TimelineCache;
 
 class UsersRepository extends BaseRepository
 {
@@ -466,7 +470,7 @@ class UsersRepository extends BaseRepository
     {
         return DB::transaction(function () use ($data) {
             if (empty($data['companies']) || !is_array($data['companies'])) {
-                throw new \InvalidArgumentException('Пользователь должен быть привязан хотя бы к одной компании');
+                throw new \InvalidArgumentException(__('api.users.must_have_company'));
             }
 
             $user = new User();
@@ -514,6 +518,8 @@ class UsersRepository extends BaseRepository
                 $user->companies()->sync($data['companies']);
             }
 
+            $this->syncEmployeeClientsFromUser($user);
+
             $this->syncUserRoles($user, $data);
 
             if (array_key_exists('departments', $data)) {
@@ -521,7 +527,7 @@ class UsersRepository extends BaseRepository
             }
 
             if ($user->companies()->count() === 0) {
-                throw new \InvalidArgumentException('Пользователь должен быть привязан хотя бы к одной компании');
+                throw new \InvalidArgumentException(__('api.users.must_have_company'));
             }
 
             $this->loadUserRelations($user);
@@ -529,6 +535,7 @@ class UsersRepository extends BaseRepository
             CacheService::invalidateByLike('%users_paginated%');
             CacheService::invalidateByLike('%users_all%');
             CacheService::invalidateDepartmentsCache();
+            CacheService::invalidateClientsCache();
 
             return $user;
         });
@@ -610,6 +617,8 @@ class UsersRepository extends BaseRepository
                 $user->companies()->sync($data['companies']);
             }
 
+            $this->syncEmployeeClientsFromUser($user);
+
             $this->syncUserRoles($user, $data);
 
             if (array_key_exists('departments', $data)) {
@@ -617,7 +626,7 @@ class UsersRepository extends BaseRepository
             }
 
             if ($user->companies()->count() === 0) {
-                throw new \InvalidArgumentException('Пользователь должен быть привязан хотя бы к одной компании');
+                throw new \InvalidArgumentException(__('api.users.must_have_company'));
             }
 
             $this->loadUserRelations($user);
@@ -625,6 +634,7 @@ class UsersRepository extends BaseRepository
             CacheService::invalidateByLike('%users_paginated%');
             CacheService::invalidateByLike('%users_all%');
             CacheService::invalidateDepartmentsCache();
+            CacheService::invalidateClientsCache();
 
             return $user;
         });
@@ -731,7 +741,7 @@ class UsersRepository extends BaseRepository
         $user = User::findOrFail($id);
 
         if ($user->id === 1) {
-            throw new \Exception('Нельзя удалить главного администратора (ID: 1)');
+            throw new \Exception(__('api.users.cannot_delete_root_admin'));
         }
 
         $relatedData = $this->checkUserRelatedData($user);
@@ -856,7 +866,7 @@ class UsersRepository extends BaseRepository
                             'end_date' => Carbon::parse($startDate)->subDay()->format('Y-m-d'),
                         ]);
                     } else {
-                        throw new \Exception('У сотрудника уже есть активная зарплата данного типа. Сначала закройте текущую зарплату.');
+                        throw new \DomainException('salary_overlap');
                     }
                 }
             }
@@ -883,7 +893,7 @@ class UsersRepository extends BaseRepository
                         'end_date' => Carbon::parse($startDate)->subDay()->format('Y-m-d'),
                     ]);
                 } else {
-                    throw new \Exception('Зарплата пересекается по датам с существующей зарплатой данного типа. Проверьте даты начала и окончания.');
+                    throw new \DomainException('salary_overlap');
                 }
             }
 
@@ -915,6 +925,9 @@ class UsersRepository extends BaseRepository
     {
         return DB::transaction(function () use ($salaryId, $data) {
             $salary = EmployeeSalary::findOrFail($salaryId);
+            if ($salary->end_date !== null) {
+                throw new \DomainException('salary_inactive_locked');
+            }
 
             $newStartDate = $data['start_date'] ?? $salary->start_date;
             $newEndDate = array_key_exists('end_date', $data) ? $data['end_date'] : $salary->end_date;
@@ -929,7 +942,7 @@ class UsersRepository extends BaseRepository
                     ->first();
 
                 if ($activeSalary) {
-                    throw new \Exception('У сотрудника уже есть активная зарплата данного типа. Сначала закройте текущую зарплату.');
+                    throw new \DomainException('salary_overlap');
                 }
             }
 
@@ -950,7 +963,7 @@ class UsersRepository extends BaseRepository
                     ->first();
 
                 if ($conflictingSalary) {
-                    throw new \Exception('Зарплата пересекается по датам с существующей зарплатой данного типа. Проверьте даты начала и окончания.');
+                    throw new \DomainException('salary_overlap');
                 }
             }
 
@@ -992,6 +1005,9 @@ class UsersRepository extends BaseRepository
     public function deleteSalary($salaryId)
     {
         $salary = EmployeeSalary::findOrFail($salaryId);
+        if ($salary->end_date !== null) {
+            throw new \DomainException('salary_inactive_locked');
+        }
         $deleted = $salary->delete();
 
         if ($deleted) {
@@ -1126,5 +1142,147 @@ class UsersRepository extends BaseRepository
                 return $user;
             });
         });
+    }
+
+    /**
+     * @param User $user
+     * @return void
+     */
+    private function syncEmployeeClientsFromUser(User $user): void
+    {
+        $companyIds = $user->companies()->pluck('companies.id')->map(static fn ($id) => (int) $id)->all();
+
+        if ($companyIds === []) {
+            return;
+        }
+
+        foreach ($companyIds as $companyId) {
+            $client = Client::query()
+                ->where('employee_id', $user->id)
+                ->where('client_type', 'employee')
+                ->where('company_id', $companyId)
+                ->first();
+
+            if (! $client) {
+                $client = Client::create([
+                    'creator_id' => auth('api')->id() ?: $user->id,
+                    'company_id' => $companyId,
+                    'employee_id' => $user->id,
+                    'client_type' => 'employee',
+                    'first_name' => $user->name,
+                    'last_name' => $user->surname,
+                    'patronymic' => null,
+                    'position' => $user->position,
+                    'status' => (bool) $user->is_active,
+                    'is_supplier' => false,
+                    'is_conflict' => false,
+                    'discount' => 0,
+                    'discount_type' => 'fixed',
+                ]);
+                $this->ensureDefaultClientBalance($client, $companyId);
+            } else {
+                $client->update([
+                    'first_name' => $user->name,
+                    'last_name' => $user->surname,
+                    'position' => $user->position,
+                    'status' => (bool) $user->is_active,
+                ]);
+            }
+
+            $this->syncEmployeeClientPhone($client->id, $user->phone);
+            $this->syncEmployeeClientEmail($client->id, $user->email);
+            TimelineCache::forget('client', (int) $client->id);
+        }
+    }
+
+    /**
+     * @param Client $client
+     * @param int $companyId
+     * @return void
+     */
+    private function ensureDefaultClientBalance(Client $client, int $companyId): void
+    {
+        if ($client->balances()->exists()) {
+            return;
+        }
+
+        $defaultCurrency = Currency::query()
+            ->where('is_default', true)
+            ->where(function ($query) use ($companyId) {
+                $query->where('company_id', $companyId)
+                    ->orWhereNull('company_id');
+            })
+            ->orderByRaw('CASE WHEN company_id = ? THEN 0 ELSE 1 END', [$companyId])
+            ->first();
+
+        if (! $defaultCurrency) {
+            return;
+        }
+
+        ClientBalanceService::createBalance($client, $defaultCurrency, true);
+    }
+
+    /**
+     * @param int $clientId
+     * @param string|null $phone
+     * @return void
+     */
+    private function syncEmployeeClientPhone(int $clientId, ?string $phone): void
+    {
+        $normalizedPhone = $phone !== null && trim($phone) !== '' ? trim($phone) : null;
+
+        if ($normalizedPhone === null) {
+            ClientsPhone::query()->where('client_id', $clientId)->delete();
+
+            return;
+        }
+
+        $existing = ClientsPhone::query()->where('client_id', $clientId)->orderBy('id')->first();
+        if ($existing) {
+            $existing->update(['phone' => $normalizedPhone]);
+            ClientsPhone::query()
+                ->where('client_id', $clientId)
+                ->where('id', '!=', $existing->id)
+                ->delete();
+
+            return;
+        }
+
+        ClientsPhone::query()->create([
+            'client_id' => $clientId,
+            'phone' => $normalizedPhone,
+        ]);
+    }
+
+    /**
+     * @param int $clientId
+     * @param string|null $email
+     * @return void
+     */
+    private function syncEmployeeClientEmail(int $clientId, ?string $email): void
+    {
+        $normalizedEmail = $email !== null && trim($email) !== '' ? trim($email) : null;
+
+        if ($normalizedEmail === null) {
+            ClientsEmail::query()->where('client_id', $clientId)->delete();
+
+            return;
+        }
+
+        $existing = ClientsEmail::query()->where('client_id', $clientId)->orderBy('id')->first();
+        if ($existing) {
+            $existing->update(['email' => $normalizedEmail]);
+            ClientsEmail::query()
+                ->where('client_id', $clientId)
+                ->where('id', '!=', $existing->id)
+                ->delete();
+
+            return;
+        }
+
+        ClientsEmail::query()->create([
+            'client_id' => $clientId,
+            'email' => $normalizedEmail,
+        ]);
     }
 }

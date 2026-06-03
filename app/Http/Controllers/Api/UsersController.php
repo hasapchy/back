@@ -133,80 +133,88 @@ class UsersController extends BaseController
      */
     public function update(UpdateUserRequest $request, $id)
     {
-        $targetUser = User::findOrFail($id);
+        try {
+            $targetUser = User::findOrFail($id);
 
-        $this->authorize('update', $targetUser);
+            $this->authorize('update', $targetUser);
 
-        $validated = $request->validated();
-        $data = $validated;
-        unset($data['photo']);
+            $validated = $request->validated();
+            $data = $validated;
+            unset($data['photo']);
 
-        $companies = $data['companies'] ?? null;
-        $roles = $data['roles'] ?? null;
-        $companyRoles = $data['company_roles'] ?? null;
-        $position = $data['position'] ?? null;
-        $hireDate = $data['hire_date'] ?? null;
-        $dismissalDate = $data['dismissal_date'] ?? null;
-        $birthday = $data['birthday'] ?? null;
+            $companies = $data['companies'] ?? null;
+            $roles = $data['roles'] ?? null;
+            $companyRoles = $data['company_roles'] ?? null;
+            $position = $data['position'] ?? null;
+            $hireDate = $data['hire_date'] ?? null;
+            $dismissalDate = $data['dismissal_date'] ?? null;
+            $birthday = $data['birthday'] ?? null;
 
-        $hasPosition = array_key_exists('position', $request->all());
-        $hasHireDate = array_key_exists('hire_date', $request->all());
-        $hasDismissalDate = array_key_exists('dismissal_date', $request->all());
-        $hasBirthday = array_key_exists('birthday', $request->all());
+            $hasPosition = $request->exists('position');
+            $hasHireDate = $request->exists('hire_date');
+            $hasDismissalDate = $request->exists('dismissal_date');
+            $hasBirthday = $request->exists('birthday');
 
-        $data = array_filter($data, function ($value) {
-            return $value !== null;
-        });
+            $data = array_filter($data, function ($value) {
+                return $value !== null;
+            });
 
-        if ($companies !== null) {
-            $data['companies'] = $companies;
+            if ($companies !== null) {
+                $data['companies'] = $companies;
+            }
+            if ($roles !== null) {
+                $data['roles'] = $roles;
+            }
+            if ($companyRoles !== null) {
+                $data['company_roles'] = $companyRoles;
+            }
+            if ($hasPosition) {
+                $data['position'] = $position;
+            }
+            if ($hasHireDate) {
+                $data['hire_date'] = $hireDate;
+            }
+            if ($hasDismissalDate) {
+                $data['dismissal_date'] = $dismissalDate;
+            }
+            if ($hasBirthday) {
+                $data['birthday'] = $birthday;
+            }
+
+            Log::info('users.update simple fields', [
+                'target_user_id' => (int) $id,
+                'request_is_simple_user' => $request->input('is_simple_user'),
+                'request_simple_category_id' => $request->input('simple_category_id'),
+                'validated_has_is_simple_user' => array_key_exists('is_simple_user', $validated),
+                'validated_is_simple_user' => $validated['is_simple_user'] ?? null,
+                'validated_has_simple_category_id' => array_key_exists('simple_category_id', $validated),
+                'validated_simple_category_id' => $validated['simple_category_id'] ?? null,
+                'payload_has_is_simple_user' => array_key_exists('is_simple_user', $data),
+                'payload_is_simple_user' => $data['is_simple_user'] ?? null,
+                'payload_has_simple_category_id' => array_key_exists('simple_category_id', $data),
+                'payload_simple_category_id' => $data['simple_category_id'] ?? null,
+            ]);
+
+            $user = $this->itemsRepository->updateItem($id, $data);
+            $user = $this->handlePhotoUpload($request, $user);
+
+            $companyId = $this->getCurrentCompanyId();
+            $user = $user->fresh(['companies']);
+            $user->setRelation('permissions', $companyId ? $user->getAllPermissionsForCompany((int)$companyId) : $user->getAllPermissions());
+            if ($companyId) {
+                $user->setRelation('roles', $user->getRolesForCompany((int)$companyId));
+            } else {
+                $user->load(['roles']);
+            }
+
+            return $this->userResponse($user);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse(__('api.users.not_found'), 404);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 400);
         }
-        if ($roles !== null) {
-            $data['roles'] = $roles;
-        }
-        if ($companyRoles !== null) {
-            $data['company_roles'] = $companyRoles;
-        }
-        if ($hasPosition) {
-            $data['position'] = $position;
-        }
-        if ($hasHireDate) {
-            $data['hire_date'] = $hireDate;
-        }
-        if ($hasDismissalDate) {
-            $data['dismissal_date'] = $dismissalDate;
-        }
-        if ($hasBirthday) {
-            $data['birthday'] = $birthday;
-        }
-
-        Log::info('users.update simple fields', [
-            'target_user_id' => (int) $id,
-            'request_is_simple_user' => $request->input('is_simple_user'),
-            'request_simple_category_id' => $request->input('simple_category_id'),
-            'validated_has_is_simple_user' => array_key_exists('is_simple_user', $validated),
-            'validated_is_simple_user' => $validated['is_simple_user'] ?? null,
-            'validated_has_simple_category_id' => array_key_exists('simple_category_id', $validated),
-            'validated_simple_category_id' => $validated['simple_category_id'] ?? null,
-            'payload_has_is_simple_user' => array_key_exists('is_simple_user', $data),
-            'payload_is_simple_user' => $data['is_simple_user'] ?? null,
-            'payload_has_simple_category_id' => array_key_exists('simple_category_id', $data),
-            'payload_simple_category_id' => $data['simple_category_id'] ?? null,
-        ]);
-
-        $user = $this->itemsRepository->updateItem($id, $data);
-        $user = $this->handlePhotoUpload($request, $user);
-
-        $companyId = $this->getCurrentCompanyId();
-        $user = $user->fresh(['companies']);
-        $user->setRelation('permissions', $companyId ? $user->getAllPermissionsForCompany((int)$companyId) : $user->getAllPermissions());
-        if ($companyId) {
-            $user->setRelation('roles', $user->getRolesForCompany((int)$companyId));
-        } else {
-            $user->load(['roles']);
-        }
-
-        return $this->userResponse($user);
     }
 
     /**
@@ -224,9 +232,9 @@ class UsersController extends BaseController
 
             $this->itemsRepository->deleteItem($id);
 
-            return $this->successResponse(null, 'User deleted');
+            return $this->successResponse(null, __('api.users.deleted'));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Пользователь не найден', 404);
+            return $this->errorResponse(__('api.users.not_found'), 404);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
@@ -388,16 +396,16 @@ class UsersController extends BaseController
         }
 
         if ($request->filled('current_password') && !$request->filled('password')) {
-            return $this->errorResponse('Новый пароль обязателен при указании текущего пароля', 422);
+            return $this->errorResponse(__('api.users.profile_new_password_required'), 422);
         }
 
         if ($request->filled('password')) {
             if (!$request->filled('current_password')) {
-                return $this->errorResponse('Текущий пароль обязателен для смены пароля', 422);
+                return $this->errorResponse(__('api.users.profile_current_password_required'), 422);
             }
 
             if (!Hash::check($request->input('current_password'), $user->password)) {
-                return $this->errorResponse('Неверный текущий пароль', 422);
+                return $this->errorResponse(__('api.users.profile_current_password_invalid'), 422);
             }
         }
 
@@ -476,16 +484,16 @@ class UsersController extends BaseController
             $currentUser = $this->requireAuthenticatedUser();
 
             if (! $currentUser->can('employee_salaries_view_all') && $user->id !== $currentUser->id) {
-                return $this->errorResponse('Нет прав на просмотр зарплат', 403);
+                return $this->errorResponse(__('api.users.salary_view_forbidden'), 403);
             }
 
             $salaries = $this->itemsRepository->getSalaries($id);
 
             return $this->successResponse($salaries);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Пользователь не найден', 404);
+            return $this->errorResponse(__('api.users.not_found'), 404);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении зарплат: ' . $e->getMessage(), 500);
+            return $this->errorResponse(__('api.users.salary_fetch_failed', ['message' => $e->getMessage()]), 500);
         }
     }
 
@@ -518,17 +526,15 @@ class UsersController extends BaseController
 
             $salary = $this->itemsRepository->createSalary($id, $validatedData, $isClose);
 
-            return $this->successResponse($salary, 'Зарплата создана успешно');
+            return $this->successResponse($salary, __('api.users.salary_created'));
+        } catch (\DomainException $e) {
+            return $this->salaryDomainErrorResponse($e);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Пользователь не найден', 404);
+            return $this->errorResponse(__('api.users.not_found'), 404);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {
-            $message = $e->getMessage();
-            if (str_contains($message, 'активная зарплата') || str_contains($message, 'пересекается по датам')) {
-                return $this->errorResponse($message, 422);
-            }
-            return $this->errorResponse('Ошибка при создании зарплаты: ' . $message, 500);
+            return $this->errorResponse(__('api.users.salary_create_failed', ['message' => $e->getMessage()]), 500);
         }
     }
 
@@ -558,24 +564,17 @@ class UsersController extends BaseController
 
             $updatedSalary = $this->itemsRepository->updateSalary($salaryId, $validatedData);
 
-            return $this->successResponse($updatedSalary, 'Зарплата обновлена успешно');
+            return $this->successResponse($updatedSalary, __('api.users.salary_updated'));
+        } catch (\DomainException $e) {
+            return $this->salaryDomainErrorResponse($e);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Пользователь или зарплата не найдены', 404);
+            return $this->errorResponse(__('api.users.salary_or_user_not_found'), 404);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            $message = $e->getMessage();
-            if (
-                str_contains($message, 'активная зарплата') ||
-                str_contains($message, 'более новая активная') ||
-                str_contains($message, 'разблокировать') ||
-                str_contains($message, 'пересекается по датам')
-            ) {
-                return $this->errorResponse($message, 422);
-            }
-            return $this->errorResponse('Ошибка при обновлении зарплаты: ' . $message, 500);
+            return $this->errorResponse(__('api.users.salary_update_failed', ['message' => $e->getMessage()]), 500);
         }
     }
 
@@ -595,14 +594,38 @@ class UsersController extends BaseController
 
             $this->itemsRepository->deleteSalary($salaryId);
 
-            return $this->successResponse(null, 'Зарплата удалена успешно');
+            return $this->successResponse(null, __('api.users.salary_deleted'));
+        } catch (\DomainException $e) {
+            return $this->salaryDomainErrorResponse($e);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Пользователь или зарплата не найдены', 404);
+            return $this->errorResponse(__('api.users.salary_or_user_not_found'), 404);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при удалении зарплаты: ' . $e->getMessage(), 500);
+            return $this->errorResponse(__('api.users.salary_delete_failed', ['message' => $e->getMessage()]), 500);
         }
+    }
+
+    /**
+     * @return \Illuminate\Http\JsonResponse
+     */
+    private function salaryDomainErrorResponse(\DomainException $exception)
+    {
+        $errorCode = $exception->getMessage();
+
+        return match ($errorCode) {
+            'salary_overlap' => response()->json([
+                'error' => __('salary.overlap'),
+                'code' => 'salary_overlap',
+            ], 422),
+            'salary_inactive_locked' => response()->json([
+                'error' => __('salary.inactive_locked'),
+                'code' => 'salary_inactive_locked',
+            ], 422),
+            default => response()->json([
+                'error' => __('salary.operation_failed'),
+            ], 422),
+        };
     }
 
     /**
@@ -620,16 +643,16 @@ class UsersController extends BaseController
 
             if (! $currentUser->can('settings_client_balance_view') &&
                 (! $currentUser->can('settings_client_balance_view_own') || $user->id !== $currentUser->id)) {
-                return $this->errorResponse('Нет доступа к просмотру баланса', 403);
+                return $this->errorResponse(__('api.users.balance_view_forbidden'), 403);
             }
 
             $balance = $this->itemsRepository->getEmployeeBalance($id);
 
             return $this->successResponse($balance);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Пользователь не найден', 404);
+            return $this->errorResponse(__('api.users.not_found'), 404);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении баланса: ' . $e->getMessage(), 500);
+            return $this->errorResponse(__('api.users.balance_fetch_failed', ['message' => $e->getMessage()]), 500);
         }
     }
 
@@ -648,16 +671,16 @@ class UsersController extends BaseController
 
             if (! $currentUser->can('settings_client_balance_view') &&
                 (! $currentUser->can('settings_client_balance_view_own') || $targetUser->id !== $currentUser->id)) {
-                return $this->errorResponse('Нет доступа к просмотру баланса', 403);
+                return $this->errorResponse(__('api.users.balance_view_forbidden'), 403);
             }
 
             $history = $this->itemsRepository->getEmployeeBalanceHistory($id);
 
             return $this->successResponse($history);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Пользователь не найден', 404);
+            return $this->errorResponse(__('api.users.not_found'), 404);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении истории баланса: ' . $e->getMessage(), 500);
+            return $this->errorResponse(__('api.users.balance_history_fetch_failed', ['message' => $e->getMessage()]), 500);
         }
     }
 }

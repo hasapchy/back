@@ -97,7 +97,7 @@ class LeaveTypeController extends BaseController
             'is_penalty' => (bool) $request->boolean('is_penalty'),
         ]);
         if (! $created) {
-            return $this->errorResponse('Ошибка создания типа отпуска', 400);
+            return $this->errorResponse(__('Ошибка создания типа отпуска'), 400);
         }
 
         $companyId = $this->getCurrentCompanyId();
@@ -130,7 +130,7 @@ class LeaveTypeController extends BaseController
             'is_penalty' => (bool) $request->boolean('is_penalty'),
         ]);
         if (! $updated) {
-            return $this->errorResponse('Ошибка обновления', 400);
+            return $this->errorResponse(__('api.transfers.update_failed'), 400);
         }
 
         $companyId = $this->getCurrentCompanyId();
@@ -154,10 +154,10 @@ class LeaveTypeController extends BaseController
         try {
             $deleted = $this->itemsRepository->deleteItem($id);
             if (! $deleted) {
-                return $this->errorResponse('Ошибка удаления', 400);
+                return $this->errorResponse(__('api.transfers.delete_failed'), 400);
             }
 
-            return $this->successResponse(null, 'Тип отпуска удален');
+            return $this->successResponse(null, __('Тип отпуска удален'));
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 422);
         }

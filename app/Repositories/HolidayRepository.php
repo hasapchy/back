@@ -95,7 +95,7 @@ class HolidayRepository extends BaseRepository
         $this->applyCompanyFilter($query);
         $item = $query->first();
         if (! $item) {
-            throw new ModelNotFoundException('Holiday not found');
+            throw new ModelNotFoundException(__('api.common.holiday_not_found'));
         }
 
         return $item;

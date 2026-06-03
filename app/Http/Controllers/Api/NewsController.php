@@ -94,7 +94,7 @@ class NewsController extends BaseController
             $itemCreated = $this->itemsRepository->createItem($itemData);
 
             if (! $itemCreated) {
-                return $this->errorResponse('Ошибка создания новости', 400);
+                return $this->errorResponse(__('Ошибка создания новости'), 400);
             }
 
             // После создания перемещаем изображения в папку с ID новости и обновляем контент
@@ -115,9 +115,9 @@ class NewsController extends BaseController
                 );
             }
 
-            return $this->successResponse(null, 'Новость создана');
+            return $this->successResponse(null, __('Новость создана'));
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка создания новости: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка создания новости: ').$e->getMessage(), 500);
         }
     }
 
@@ -153,12 +153,12 @@ class NewsController extends BaseController
             }
 
             if (! $itemUpdated) {
-                return $this->errorResponse('Ошибка обновления новости', 400);
+                return $this->errorResponse(__('Ошибка обновления новости'), 400);
             }
 
-            return $this->successResponse(null, 'Новость обновлена');
+            return $this->successResponse(null, __('Новость обновлена'));
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка обновления новости: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка обновления новости: ').$e->getMessage(), 500);
         }
     }
 
@@ -172,12 +172,12 @@ class NewsController extends BaseController
             $news = $this->itemsRepository->findItemWithRelations($id);
 
             if (! $news) {
-                return $this->errorResponse('Новость не найдена или доступ запрещен', 404);
+                return $this->errorResponse(__('Новость не найдена или доступ запрещен'), 404);
             }
 
             return $this->successResponse(new NewsResource($news));
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении новости: '.$e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при получении новости: ').$e->getMessage(), 500);
         }
     }
 
@@ -198,10 +198,10 @@ class NewsController extends BaseController
             $deleted = $this->itemsRepository->deleteItem($id);
 
             if (! $deleted) {
-                return $this->errorResponse('Ошибка удаления новости', 400);
+                return $this->errorResponse(__('Ошибка удаления новости'), 400);
             }
 
-            return $this->successResponse(null, 'Новость удалена');
+            return $this->successResponse(null, __('Новость удалена'));
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }

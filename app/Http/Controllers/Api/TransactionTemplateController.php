@@ -101,7 +101,7 @@ class TransactionTemplateController extends BaseController
 
         $template = $this->repository->getItemById($id);
         if (!$template) {
-            return $this->errorResponse('Шаблон не найден', 404);
+            return $this->errorResponse(__('api.transaction_templates.not_found'), 404);
         }
         return $this->successResponse(new TransactionTemplateResource($template));
     }
@@ -117,7 +117,7 @@ class TransactionTemplateController extends BaseController
 
         $template = $this->repository->getItemById($id);
         if (!$template) {
-            return $this->errorResponse('Шаблон не найден', 404);
+            return $this->errorResponse(__('api.transaction_templates.not_found'), 404);
         }
 
         $data = (new TransactionTemplateResource($template))->toArray($request);
@@ -182,7 +182,7 @@ class TransactionTemplateController extends BaseController
         ];
 
         $created = $this->repository->createItem($data);
-        return $this->successResponse(new TransactionTemplateResource($created), 'Шаблон создан');
+        return $this->successResponse(new TransactionTemplateResource($created), __('api.transaction_templates.created'));
     }
 
     /**
@@ -203,7 +203,7 @@ class TransactionTemplateController extends BaseController
 
         $template = $this->repository->getItemById($id);
         if (!$template) {
-            return $this->errorResponse('Шаблон не найден', 404);
+            return $this->errorResponse(__('api.transaction_templates.not_found'), 404);
         }
         $this->authorize('update', $template);
 
@@ -229,7 +229,7 @@ class TransactionTemplateController extends BaseController
         ], fn ($v) => $v !== null);
 
         $updated = $this->repository->updateItem($id, $data);
-        return $this->successResponse(new TransactionTemplateResource($updated), 'Шаблон обновлен');
+        return $this->successResponse(new TransactionTemplateResource($updated), __('api.transaction_templates.updated'));
     }
 
     /**
@@ -248,12 +248,12 @@ class TransactionTemplateController extends BaseController
 
         $template = $this->repository->getItemById($id);
         if (!$template) {
-            return $this->errorResponse('Шаблон не найден', 404);
+            return $this->errorResponse(__('api.transaction_templates.not_found'), 404);
         }
         $this->authorize('delete', $template);
 
         $this->repository->deleteItem($template->id);
-        return $this->successResponse(null, 'Шаблон удален');
+        return $this->successResponse(null, __('api.transaction_templates.deleted'));
     }
 
     /**

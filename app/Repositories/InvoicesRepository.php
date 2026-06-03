@@ -101,7 +101,7 @@ class InvoicesRepository extends BaseRepository
 
         $invoice = $query->first();
         if (!$invoice) {
-            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Invoice not found');
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException(__('api.common.invoice_not_found'));
         }
 
         return $invoice;
@@ -239,7 +239,7 @@ class InvoicesRepository extends BaseRepository
 
         if ($currencyKeys->count() > 1) {
             throw new \InvalidArgumentException(
-                'Нельзя объединять в одном счёте заказы с разной валютой.'
+                __('api.invoices.merge_different_currencies_forbidden')
             );
         }
     }

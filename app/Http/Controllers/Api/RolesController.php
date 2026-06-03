@@ -76,7 +76,7 @@ class RolesController extends BaseController
 
                 if ($e->getCode() == '40001' && str_contains($e->getMessage(), 'Deadlock')) {
                     if ($attempt >= $maxAttempts) {
-                        return $this->errorResponse('Ошибка при получении ролей. Попробуйте обновить страницу.', 500);
+                        return $this->errorResponse(__('Ошибка при получении ролей. Попробуйте обновить страницу.'), 500);
                     }
 
                     Cache::forget('spatie.permission.cache');
@@ -124,9 +124,9 @@ class RolesController extends BaseController
 
             return $this->successResponse(new RoleResource($role));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Роль не найдена', 404);
+            return $this->errorResponse(__('Роль не найдена'), 404);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении роли', 500);
+            return $this->errorResponse(__('Ошибка при получении роли'), 500);
         }
     }
 
@@ -144,9 +144,9 @@ class RolesController extends BaseController
 
             $role = $this->itemsRepository->createItem($validatedData, $companyId);
 
-            return $this->successResponse(new RoleResource($role), 'Роль создана успешно', 201);
+            return $this->successResponse(new RoleResource($role), __('Роль создана успешно'), 201);
         } catch (\Illuminate\Database\QueryException $e) {
-            return $this->errorResponse('Ошибка при создании роли: ' . $e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при создании роли: ') . $e->getMessage(), 500);
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
@@ -167,11 +167,11 @@ class RolesController extends BaseController
 
             $role = $this->itemsRepository->updateItem($id, $validatedData, $companyId);
 
-            return $this->successResponse(new RoleResource($role), 'Роль обновлена успешно');
+            return $this->successResponse(new RoleResource($role), __('Роль обновлена успешно'));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Роль не найдена', 404);
+            return $this->errorResponse(__('Роль не найдена'), 404);
         } catch (\Illuminate\Database\QueryException $e) {
-            return $this->errorResponse('Ошибка при обновлении роли: ' . $e->getMessage(), 500);
+            return $this->errorResponse(__('Ошибка при обновлении роли: ') . $e->getMessage(), 500);
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
@@ -188,9 +188,9 @@ class RolesController extends BaseController
         try {
             $companyId = $this->getCurrentCompanyId();
             $this->itemsRepository->deleteItem($id, $companyId);
-            return $this->successResponse(null, 'Роль удалена успешно');
+            return $this->successResponse(null, __('Роль удалена успешно'));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Роль не найдена', 404);
+            return $this->errorResponse(__('Роль не найдена'), 404);
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }

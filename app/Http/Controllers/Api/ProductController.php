@@ -63,14 +63,6 @@ class ProductController extends BaseController
         $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, true, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy, $categoryIds);
-        Log::info('products.list', [
-            'user_id' => auth('api')->id(),
-            'page' => (int) $page,
-            'per_page' => (int) $per_page,
-            'warehouse_id' => $warehouseId,
-            'items_count' => count($items->items()),
-            'total' => $items->total(),
-        ]);
 
         return $this->successResponse([
             'items' => ProductResource::collection($items->items())->resolve(),
@@ -188,7 +180,7 @@ class ProductController extends BaseController
 
         $product = $this->itemsRepository->createItem($data);
 
-        return $this->successResponse(new ProductResource($product), 'Product successfully created');
+        return $this->successResponse(new ProductResource($product), __('Product successfully created'));
     }
 
     /**
@@ -223,7 +215,7 @@ class ProductController extends BaseController
 
         $product = $this->itemsRepository->updateItem($id, $data);
 
-        return $this->successResponse(new ProductResource($product), 'Product successfully updated');
+        return $this->successResponse(new ProductResource($product), __('Product successfully updated'));
     }
 
     /**
@@ -245,7 +237,7 @@ class ProductController extends BaseController
             return $this->errorResponse($result['message'], 400);
         }
 
-        return $this->successResponse(null, 'Товар/услуга успешно удалена');
+        return $this->successResponse(null, __('Товар/услуга успешно удалена'));
     }
 
     /**
@@ -286,7 +278,7 @@ class ProductController extends BaseController
                     'date' => $r->date,
                     'creator' => $u ? [
                         'id' => (int) $u->id,
-                        'name' => trim($u->name.' '.($u->surname ?? '')),
+                        'name' => trim($u->name . ' ' . ($u->surname ?? '')),
                     ] : null,
                 ], $this->productHistoryOrigPayload($rp, $productUnitId, $qty)));
             }
@@ -312,7 +304,7 @@ class ProductController extends BaseController
                     'date' => $w->date,
                     'creator' => $u ? [
                         'id' => (int) $u->id,
-                        'name' => trim($u->name.' '.($u->surname ?? '')),
+                        'name' => trim($u->name . ' ' . ($u->surname ?? '')),
                     ] : null,
                 ], $this->productHistoryOrigPayload($wp, $productUnitId, $qty)));
             }
@@ -331,7 +323,7 @@ class ProductController extends BaseController
                     'date' => $s->date,
                     'creator' => $u ? [
                         'id' => (int) $u->id,
-                        'name' => trim($u->name.' '.($u->surname ?? '')),
+                        'name' => trim($u->name . ' ' . ($u->surname ?? '')),
                     ] : null,
                 ]);
             }
@@ -350,7 +342,7 @@ class ProductController extends BaseController
                     'date' => $o->date,
                     'creator' => $u ? [
                         'id' => (int) $u->id,
-                        'name' => trim($u->name.' '.($u->surname ?? '')),
+                        'name' => trim($u->name . ' ' . ($u->surname ?? '')),
                     ] : null,
                 ]);
             }
@@ -420,7 +412,7 @@ class ProductController extends BaseController
             'date' => $movement->date,
             'creator' => $creator ? [
                 'id' => (int) $creator->id,
-                'name' => trim($creator->name.' '.($creator->surname ?? '')),
+                'name' => trim($creator->name . ' ' . ($creator->surname ?? '')),
             ] : null,
         ], $this->productHistoryOrigPayload($movementProduct, $productUnitId, $qty)));
     }

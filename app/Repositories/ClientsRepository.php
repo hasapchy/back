@@ -434,7 +434,7 @@ class ClientsRepository extends BaseRepository
 
             $defaultCurrency = $defaultCurrencyQuery->first();
             if (! $defaultCurrency) {
-                throw new \DomainException('Для компании не настроена валюта по умолчанию. Укажите дефолтную валюту в настройках.');
+                throw new \DomainException(__('api.common.default_currency_not_configured'));
             }
 
             ClientBalanceService::createBalance($client, $defaultCurrency, true);

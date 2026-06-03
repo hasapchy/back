@@ -14,48 +14,48 @@ class CashRegistersRepository extends BaseRepository
     /**
      * Получить кассы с пагинацией
      *
-     * @param int $userUuid ID пользователя
      * @param int $perPage Количество записей на страницу
      * @param int $page Номер страницы
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
+    public function getItemsWithPagination($perPage = 20, $page = 1)
     {
         $query = CashRegister::with(['currency:id,name,code', 'creator:id,name', 'users:id,name']);
 
-        $this->applyUserFilter($query, $userUuid);
+        $this->applyUserFilter($query);
         $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
-        return $query->orderBy('cash_registers.created_at', 'desc')
+        return $query->orderBy('cash_registers.sort_order')
+            ->orderBy('cash_registers.id')
             ->paginate($perPage, ['*'], 'page', (int)$page);
     }
 
     /**
      * Получить все кассы пользователя
      *
-     * @param int $userUuid ID пользователя
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getAllItems($userUuid)
+    public function getAllItems()
     {
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('cash_registers_all', [$userUuid, $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('cash_registers_all', [$currentUser?->id, $companyId]);
 
-        return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
+        return CacheService::getReferenceData($cacheKey, function() {
             $query = CashRegister::with(['currency:id,name,code', 'creator:id,name', 'users:id,name']);
 
-            $this->applyUserFilter($query, $userUuid);
+            $this->applyUserFilter($query);
             $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
-            return $query->orderBy('cash_registers.id')->get();
+            return $query->orderBy('cash_registers.sort_order')
+                ->orderBy('cash_registers.id')
+                ->get();
         });
     }
 
     /**
      * Получить баланс касс
      *
-     * @param int $userUuid ID пользователя
      * @param array $cash_register_ids Массив ID касс
      * @param bool $all Получить все кассы
      * @param string|null $startDate Начальная дата
@@ -65,7 +65,6 @@ class CashRegistersRepository extends BaseRepository
      * @return \Illuminate\Support\Collection
      */
     public function getCashBalance(
-        $userUuid,
         $cash_register_ids = [],
         $all = false,
         $startDate = null,
@@ -75,7 +74,7 @@ class CashRegistersRepository extends BaseRepository
     ) {
         $query = CashRegister::with(['currency:id,name,code']);
 
-        $this->applyUserFilter($query, $userUuid);
+        $this->applyUserFilter($query);
         $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
         if (!$all && !empty($cash_register_ids)) {
@@ -143,9 +142,10 @@ class CashRegistersRepository extends BaseRepository
                 'id' => $cashRegister->id,
                 'name' => $cashRegister->name,
                 'currency_id' => $cashRegister->currency_id,
-                'currency_symbol' => $cashRegister->currency ? $cashRegister->currency->code : null,
+                'currency_code' => $cashRegister->currency ? $cashRegister->currency->code : null,
                 'is_cash' => (bool) $cashRegister->is_cash,
                 'icon' => $cashRegister->icon,
+                'icon_size' => $cashRegister->icon_size,
                 'color' => $cashRegister->color,
                 'balance' => $balance,
             ];
@@ -172,7 +172,9 @@ class CashRegistersRepository extends BaseRepository
             $item->creator_id = auth('api')->id();
             $item->is_cash = (bool) ($data['is_cash'] ?? true);
             $item->is_working_minus = (bool) ($data['is_working_minus'] ?? false);
+            $item->sort_order = (int) $data['sort_order'];
             $item->icon = $data['icon'] ?? null;
+            $item->icon_size = $data['icon_size'];
             $item->color = $data['color'] ?? null;
             $item->save();
 
@@ -202,7 +204,7 @@ class CashRegistersRepository extends BaseRepository
         return DB::transaction(function () use ($id, $data) {
             $item = CashRegister::findOrFail($id);
 
-            $item->fill(Arr::only($data, ['name', 'balance', 'currency_id']));
+            $item->fill(Arr::only($data, ['name', 'balance', 'currency_id', 'sort_order']));
 
             if (array_key_exists('is_cash', $data)) {
                 $item->is_cash = (bool) $data['is_cash'];
@@ -214,6 +216,10 @@ class CashRegistersRepository extends BaseRepository
 
             if (array_key_exists('icon', $data)) {
                 $item->icon = $data['icon'];
+            }
+
+            if (array_key_exists('icon_size', $data)) {
+                $item->icon_size = $data['icon_size'];
             }
 
             if (array_key_exists('color', $data)) {
@@ -251,7 +257,7 @@ class CashRegistersRepository extends BaseRepository
                 ->count();
 
             if ($transactionsCount > 0) {
-                throw new \Exception('Невозможно удалить кассу, так как с ней связаны транзакции');
+                throw new \Exception(__('api.cash_registers.delete_has_transactions'));
             }
 
             $transfersCount = \App\Models\CashTransfer::where(function($query) use ($id) {
@@ -260,7 +266,7 @@ class CashRegistersRepository extends BaseRepository
             })->count();
 
             if ($transfersCount > 0) {
-                throw new \Exception('Невозможно удалить кассу, так как с ней связаны трансферы');
+                throw new \Exception(__('api.cash_registers.delete_has_transfers'));
             }
 
             CashRegisterUser::where('cash_register_id', $id)->delete();
@@ -302,10 +308,9 @@ class CashRegistersRepository extends BaseRepository
      * Применить фильтр пользователя к запросу касс
      *
      * @param \Illuminate\Database\Eloquent\Builder $query Query builder
-     * @param int $userUuid ID пользователя
      * @return void
      */
-    private function applyUserFilter($query, $userUuid)
+    private function applyUserFilter($query)
     {
         if (!$this->shouldApplyUserFilter('cash_registers')) {
             return;

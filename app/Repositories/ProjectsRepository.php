@@ -383,7 +383,7 @@ class ProjectsRepository extends BaseRepository
                 ->notDeleted()
                 ->count();
             if ($transactionsCount > 0) {
-                throw new \Exception('Невозможно удалить проект, к нему привязано транзакций: '.$transactionsCount);
+                throw new \Exception(__('api.projects.delete_has_transactions_prefix').$transactionsCount);
             }
 
             ProjectUser::where('project_id', $id)->delete();

@@ -246,7 +246,7 @@ class WarehouseReceiptRepository extends BaseRepository
             if ($purchase_id !== null) {
                 $purchase = WhPurchase::query()->with('products')->lockForUpdate()->findOrFail($purchase_id);
                 if ($purchase->status === \App\Enums\WhPurchaseStatus::Draft) {
-                    throw new \RuntimeException('Нельзя создать оприходование из закупки в статусе Черновик');
+                    throw new \RuntimeException(__('api.warehouse_receipt.from_draft_purchase_forbidden'));
                 }
                 $this->assertPurchaseReceiptQuantities($purchase, $products, null);
             }
@@ -423,7 +423,7 @@ class WarehouseReceiptRepository extends BaseRepository
             if ($receipt->purchase_id !== null) {
                 $purchase = WhPurchase::query()->with('products')->lockForUpdate()->findOrFail((int) $receipt->purchase_id);
                 if ($purchase->status === \App\Enums\WhPurchaseStatus::Draft) {
-                    throw new \RuntimeException('Нельзя создать оприходование из закупки в статусе Черновик');
+                    throw new \RuntimeException(__('api.warehouse_receipt.from_draft_purchase_forbidden'));
                 }
                 $this->assertPurchaseReceiptQuantities($purchase, $products, (int) $receipt_id);
             }
@@ -683,7 +683,7 @@ class WarehouseReceiptRepository extends BaseRepository
     public function createInventoryOverageReceipt(int $warehouseId, string $note, array $products): int
     {
         if ($products === []) {
-            throw new \RuntimeException('EMPTY_RECEIPT_PRODUCTS');
+            throw new \RuntimeException(__('EMPTY_RECEIPT_PRODUCTS'));
         }
 
         app(InventoryLockService::class)->checkWarehouseIsUnlocked($warehouseId);
@@ -704,7 +704,7 @@ class WarehouseReceiptRepository extends BaseRepository
                 }
             }
             if ($normalized === []) {
-                throw new \RuntimeException('EMPTY_RECEIPT_PRODUCTS');
+                throw new \RuntimeException(__('EMPTY_RECEIPT_PRODUCTS'));
             }
 
             $receipt = new WhReceipt();
@@ -780,7 +780,7 @@ class WarehouseReceiptRepository extends BaseRepository
             ->first();
 
         if (! $pp) {
-            throw new \RuntimeException('PRODUCT_PURCHASE_PRICE_MISSING');
+            throw new \RuntimeException(__('PRODUCT_PURCHASE_PRICE_MISSING'));
         }
 
         return (float) $pp->purchase_price;
@@ -819,7 +819,7 @@ class WarehouseReceiptRepository extends BaseRepository
             $currentQty = (float) ($stock?->quantity ?? 0.0);
             $removeQty = (float) $line->quantity;
             if (($currentQty - $removeQty) < -1e-9) {
-                throw new \RuntimeException('Нельзя удалить оприходование: остаток по товару уйдет в минус');
+                throw new \RuntimeException(__('api.warehouse_receipt.delete_would_cause_negative_stock'));
             }
         }
     }

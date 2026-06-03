@@ -52,10 +52,12 @@ class ClientControllerTest extends TestCase
 
     public function test_store_client_with_valid_data(): void
     {
+        $phone = '9'.substr((string) mt_rand(100000000, 999999999), 0, 9);
         $clientData = [
             'first_name' => 'Test Client',
             'client_type' => 'company',
-            'phones' => ['1234567890'],
+            'phones' => [$phone],
+            'discount_type' => 'fixed',
             'is_supplier' => true,
             'is_conflict' => false,
             'status' => true,
@@ -71,7 +73,7 @@ class ClientControllerTest extends TestCase
             $this->fail("Server error (500): {$message}\nFull response: {$content}");
         }
 
-        $response->assertCreated();
+        $response->assertStatus(200);
         $this->assertDatabaseHas('clients', [
             'first_name' => 'Test Client',
             'client_type' => 'company',
@@ -80,10 +82,12 @@ class ClientControllerTest extends TestCase
 
     public function test_store_client_normalizes_boolean_fields(): void
     {
+        $phone = '9'.substr((string) mt_rand(100000000, 999999999), 0, 9);
         $clientData = [
             'first_name' => 'Test Client',
             'client_type' => 'company',
-            'phones' => ['1234567890'],
+            'phones' => [$phone],
+            'discount_type' => 'fixed',
             'is_supplier' => 'true',
             'is_conflict' => 'false',
             'status' => 'true',
@@ -96,7 +100,7 @@ class ClientControllerTest extends TestCase
             $this->fail('Server error: '.$response->getContent());
         }
 
-        $response->assertCreated();
+        $response->assertStatus(200);
         $client = Client::where('first_name', 'Test Client')->first();
         $this->assertTrue((bool) $client->is_supplier);
         $this->assertFalse((bool) $client->is_conflict);
@@ -105,10 +109,12 @@ class ClientControllerTest extends TestCase
 
     public function test_store_client_normalizes_empty_strings_to_null(): void
     {
+        $phone = '9'.substr((string) mt_rand(100000000, 999999999), 0, 9);
         $clientData = [
             'first_name' => 'Test Client',
             'client_type' => 'company',
-            'phones' => ['1234567890'],
+            'phones' => [$phone],
+            'discount_type' => 'fixed',
             'last_name' => '',
             'patronymic' => '',
             'position' => '',
@@ -123,7 +129,7 @@ class ClientControllerTest extends TestCase
             $this->fail('Server error: '.$response->getContent());
         }
 
-        $response->assertCreated();
+        $response->assertStatus(200);
         $client = Client::where('first_name', 'Test Client')->first();
         $this->assertNull($client->last_name);
         $this->assertNull($client->patronymic);
@@ -134,10 +140,13 @@ class ClientControllerTest extends TestCase
 
     public function test_store_client_normalizes_string_phones_to_array(): void
     {
+        $phoneA = '9'.substr((string) mt_rand(100000000, 999999999), 0, 9);
+        $phoneB = '9'.substr((string) mt_rand(100000000, 999999999), 0, 9);
         $clientData = [
             'first_name' => 'Test Client',
             'client_type' => 'company',
-            'phones' => '1234567890,0987654321',
+            'phones' => $phoneA.','.$phoneB,
+            'discount_type' => 'fixed',
         ];
 
         $response = $this->actingAsApi($this->adminUser)
@@ -147,7 +156,25 @@ class ClientControllerTest extends TestCase
             $this->fail('Server error: '.$response->getContent());
         }
 
-        $response->assertCreated();
+        $response->assertStatus(200);
+    }
+
+    public function test_store_employee_client_is_forbidden(): void
+    {
+        $employee = User::factory()->create();
+        $employee->companies()->attach($this->company->id);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/clients', [
+                'first_name' => 'Manual Employee Client',
+                'client_type' => 'employee',
+                'employee_id' => $employee->id,
+                'phones' => ['993610000010'],
+                'discount_type' => 'fixed',
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('создается автоматически', (string) $response->json('error'));
     }
 
     public function test_update_client_requires_validation(): void
@@ -179,6 +206,7 @@ class ClientControllerTest extends TestCase
             'first_name' => 'New Name',
             'client_type' => 'company',
             'phones' => ['1234567890'],
+            'discount_type' => 'fixed',
         ];
 
         $response = $this->actingAsApi($this->adminUser)
@@ -193,6 +221,7 @@ class ClientControllerTest extends TestCase
 
     public function test_update_client_normalizes_boolean_fields(): void
     {
+        $phone = '9'.substr((string) mt_rand(100000000, 999999999), 0, 9);
         $client = Client::factory()->create([
             'is_supplier' => false,
             'is_conflict' => true,
@@ -203,7 +232,8 @@ class ClientControllerTest extends TestCase
         $updateData = [
             'first_name' => $client->first_name,
             'client_type' => $client->client_type,
-            'phones' => ['1234567890'],
+            'phones' => [$phone],
+            'discount_type' => 'fixed',
             'is_supplier' => 'true',
             'is_conflict' => 'false',
             'status' => 'true',
@@ -231,6 +261,7 @@ class ClientControllerTest extends TestCase
             'first_name' => $client->first_name,
             'client_type' => $client->client_type,
             'phones' => ['1234567890'],
+            'discount_type' => 'fixed',
             'last_name' => '',
             'patronymic' => '',
             'position' => '',
@@ -248,6 +279,39 @@ class ClientControllerTest extends TestCase
         $this->assertNull($client->position);
         $this->assertNull($client->address);
         $this->assertNull($client->note);
+    }
+
+    public function test_update_employee_client_is_forbidden(): void
+    {
+        $employee = User::factory()->create([
+            'name' => 'Sync',
+            'surname' => 'Employee',
+            'email' => 'sync.employee@example.com',
+            'phone' => '993610000011',
+        ]);
+        $employee->companies()->attach($this->company->id);
+
+        $employeeClient = Client::factory()->create([
+            'employee_id' => $employee->id,
+            'client_type' => 'employee',
+            'company_id' => $this->company->id,
+            'first_name' => 'Sync',
+            'last_name' => 'Employee',
+            'status' => true,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->putJson("/api/clients/{$employeeClient->id}", [
+                'first_name' => 'New Name',
+                'client_type' => 'employee',
+                'phones' => ['993610000099'],
+                'emails' => ['new.employee@example.com'],
+                'discount_type' => 'fixed',
+                'status' => false,
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('редактируется только через карточку сотрудника', (string) $response->json('error'));
     }
 
     public function test_destroy_client_successfully(): void
@@ -286,6 +350,26 @@ class ClientControllerTest extends TestCase
 
         $response->assertStatus(422);
         $this->assertDatabaseHas('clients', ['id' => $client->id]);
+    }
+
+    public function test_destroy_employee_client_is_forbidden(): void
+    {
+        $employee = User::factory()->create();
+        $employee->companies()->attach($this->company->id);
+
+        $employeeClient = Client::factory()->create([
+            'employee_id' => $employee->id,
+            'client_type' => 'employee',
+            'company_id' => $this->company->id,
+            'balance' => 0,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->deleteJson("/api/clients/{$employeeClient->id}");
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('удаляется только через сотрудника', (string) $response->json('error'));
+        $this->assertDatabaseHas('clients', ['id' => $employeeClient->id]);
     }
 
     public function test_show_client_successfully(): void
@@ -327,10 +411,12 @@ class ClientControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
-            'data',
-            'meta' => [
-                'current_page',
-                'total',
+            'data' => [
+                'items',
+                'meta' => [
+                    'current_page',
+                    'total',
+                ],
             ],
         ]);
     }
@@ -376,7 +462,7 @@ class ClientControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'data');
         $response->assertJsonPath('data.0.id', $client->id);
-        $response->assertJsonPath('data.0.currency_symbol', null);
+        $response->assertJsonPath('data.0.currency_symbol', 'TMT');
     }
 
     public function test_settlements_summary_returns_totals_grouped_by_currency(): void

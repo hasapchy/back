@@ -124,7 +124,7 @@ class RolesRepository extends BaseRepository
                 $isAdmin = $user && $user->is_admin;
 
                 if (!$isAdmin && $role->name === 'admin' && $newName !== 'admin') {
-                    throw new \Exception('Нельзя изменить название роли администратора');
+                    throw new \Exception(__('api.roles.admin_name_change_forbidden'));
                 }
                 $role->name = $newName;
                 $role->save();
@@ -237,7 +237,7 @@ class RolesRepository extends BaseRepository
     public function deleteItem($id, $companyId = null)
     {
         if (empty($id)) {
-            throw new \Exception('ID роли не указан');
+            throw new \Exception(__('api.roles.id_required'));
         }
 
         $query = Role::where('guard_name', 'api');
@@ -245,7 +245,7 @@ class RolesRepository extends BaseRepository
         $role = $query->findOrFail($id);
 
         if ($role->name === 'admin') {
-            throw new \Exception('Нельзя удалить роль администратора');
+            throw new \Exception(__('api.roles.admin_delete_forbidden'));
         }
 
         $usersCount = $role->users()->count();

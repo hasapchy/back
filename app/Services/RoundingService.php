@@ -110,6 +110,34 @@ class RoundingService
     }
 
     /**
+     * Round amount according to transaction source module settings.
+     *
+     * @param int|null $companyId
+     * @param float $value
+     * @param string|null $sourceType
+     * @return float
+     */
+    public function roundAmountBySourceType(?int $companyId, float $value, ?string $sourceType): float
+    {
+        if ($sourceType === \App\Models\ProjectContract::class || str_contains((string) $sourceType, 'ProjectContract')) {
+            return $this->roundContractAmountForCompany($companyId, $value);
+        }
+        if ($sourceType === \App\Models\Order::class || str_contains((string) $sourceType, 'Order')) {
+            return $this->roundOrderAmountForCompany($companyId, $value);
+        }
+        if (
+            $sourceType === \App\Models\WhReceipt::class
+            || $sourceType === \App\Models\WhPurchase::class
+            || str_contains((string) $sourceType, 'WhReceipt')
+            || str_contains((string) $sourceType, 'WhPurchase')
+        ) {
+            return $this->roundWarehouseAmountForCompany($companyId, $value);
+        }
+
+        return $this->roundForCompany($companyId, $value);
+    }
+
+    /**
      * @param int|null $companyId
      * @param float $value
      * @param string $moduleEnabledField

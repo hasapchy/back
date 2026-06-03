@@ -71,7 +71,7 @@ class LeadController extends BaseController
         $user = $this->requireAuthenticatedUser();
         $companyId = $this->getCurrentCompanyId();
         if (! $companyId) {
-            return $this->errorResponse('Компания не выбрана', 422);
+            return $this->errorResponse(__('api.leads.company_not_selected'), 422);
         }
 
         $validated = $request->validated();
@@ -93,7 +93,7 @@ class LeadController extends BaseController
 
         $lead = $this->itemsRepository->createItem($payload, $user);
 
-        return $this->successResponse((new LeadResource($lead))->resolve(), 'Лид создан');
+        return $this->successResponse((new LeadResource($lead))->resolve(), __('api.leads.created'));
     }
 
     /**
@@ -104,7 +104,7 @@ class LeadController extends BaseController
         $user = $this->requireAuthenticatedUser();
         $companyId = $this->getCurrentCompanyId();
         if (! $companyId) {
-            return $this->errorResponse('Компания не выбрана', 422);
+            return $this->errorResponse(__('api.leads.company_not_selected'), 422);
         }
 
         $validated = $request->validated();
@@ -114,7 +114,7 @@ class LeadController extends BaseController
 
         $lead = $this->itemsRepository->updateItem((int) $id, $validated, $user);
 
-        return $this->successResponse((new LeadResource($lead))->resolve(), 'Лид сохранён');
+        return $this->successResponse((new LeadResource($lead))->resolve(), __('api.leads.saved'));
     }
 
     /**
@@ -127,7 +127,7 @@ class LeadController extends BaseController
         $this->authorize('delete', $lead);
         $this->itemsRepository->deleteItem((int) $id);
 
-        return $this->successResponse(null, 'Лид удалён');
+        return $this->successResponse(null, __('api.leads.deleted'));
     }
 
     /**
@@ -148,7 +148,7 @@ class LeadController extends BaseController
             $files = [$files];
         }
         if (count($files) === 0) {
-            return $this->errorResponse('No files uploaded', 400);
+            return $this->errorResponse(__('api.common.no_files_uploaded'), 400);
         }
 
         $lead = $this->itemsRepository->getItemById($id);
@@ -156,7 +156,7 @@ class LeadController extends BaseController
 
         $existing = is_array($lead->files) ? $lead->files : [];
         if (count($existing) + count($files) > 50) {
-            return $this->errorResponse('Максимум 50 файлов у лида', 400);
+            return $this->errorResponse(__('api.leads.max_files_total'), 400);
         }
 
         $paths = [];
@@ -167,6 +167,6 @@ class LeadController extends BaseController
 
         $lead = $this->itemsRepository->appendStoredFilePaths($id, $paths);
 
-        return $this->successResponse((new LeadResource($lead))->resolve(), 'Files uploaded successfully');
+        return $this->successResponse((new LeadResource($lead))->resolve(), __('api.common.files_uploaded_success'));
     }
 }

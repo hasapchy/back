@@ -24,7 +24,7 @@ class UnitsController extends BaseController
             return $this->errorResponse(null, 401);
         }
         if (! CompanyScopedPermissions::userHasAny($user, ['units_view', 'units_create', 'units_update'])) {
-            return $this->errorResponse('Forbidden', 403);
+            return $this->errorResponse(__('api.common.forbidden'), 403);
         }
 
         $units = Unit::forCompanyCatalog($this->getCurrentCompanyId())->get();
@@ -39,7 +39,7 @@ class UnitsController extends BaseController
     {
         $companyId = $this->getCurrentCompanyId();
         if (! $companyId) {
-            return $this->errorResponse('Forbidden', 403);
+            return $this->errorResponse(__('api.common.forbidden'), 403);
         }
         $unit = new Unit;
         $unit->company_id = $companyId;
@@ -59,7 +59,7 @@ class UnitsController extends BaseController
     {
         $companyId = $this->getCurrentCompanyId();
         if (! $companyId) {
-            return $this->errorResponse('Forbidden', 403);
+            return $this->errorResponse(__('api.common.forbidden'), 403);
         }
         $unit = Unit::query()->whereKey($id)->firstOrFail();
         if ($response = $this->guardMutableCompanyUnit($unit, $companyId)) {
@@ -84,11 +84,11 @@ class UnitsController extends BaseController
             return $this->errorResponse(null, 401);
         }
         if (! CompanyScopedPermissions::userHas($user, 'units_delete')) {
-            return $this->errorResponse('Forbidden', 403);
+            return $this->errorResponse(__('api.common.forbidden'), 403);
         }
         $companyId = $this->getCurrentCompanyId();
         if (! $companyId) {
-            return $this->errorResponse('Forbidden', 403);
+            return $this->errorResponse(__('api.common.forbidden'), 403);
         }
         $unit = Unit::query()->whereKey($id)->firstOrFail();
         if ($response = $this->guardMutableCompanyUnit($unit, $companyId)) {
@@ -115,7 +115,7 @@ class UnitsController extends BaseController
     private function guardMutableCompanyUnit(Unit $unit, int $companyId): ?JsonResponse
     {
         if ($unit->company_id !== $companyId) {
-            return $this->errorResponse('Forbidden', 403);
+            return $this->errorResponse(__('api.common.forbidden'), 403);
         }
 
         return null;
