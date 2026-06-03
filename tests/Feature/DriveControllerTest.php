@@ -104,6 +104,68 @@ class DriveControllerTest extends TestCase
     /**
      * @return void
      */
+    public function test_drive_rename_file_success(): void
+    {
+        Storage::fake('local');
+        $file = DriveFile::query()->create([
+            'company_id' => $this->company->id,
+            'folder_id' => null,
+            'creator_id' => $this->adminUser->id,
+            'disk' => 'local',
+            'name' => 'old-name.pdf',
+            'stored_name' => 'stored.pdf',
+            'path' => 'drive/'.$this->company->id.'/root/stored.pdf',
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'size' => 100,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)->putJson('/api/drive/files/'.$file->id, [
+            'name' => 'new-name.pdf',
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('drive_files', [
+            'id' => $file->id,
+            'name' => 'new-name.pdf',
+            'extension' => 'pdf',
+        ]);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_drive_rename_file_keeps_extension_when_basename_only(): void
+    {
+        Storage::fake('local');
+        $file = DriveFile::query()->create([
+            'company_id' => $this->company->id,
+            'folder_id' => null,
+            'creator_id' => $this->adminUser->id,
+            'disk' => 'local',
+            'name' => 'old-name.pdf',
+            'stored_name' => 'stored.pdf',
+            'path' => 'drive/'.$this->company->id.'/root/stored.pdf',
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'size' => 100,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)->putJson('/api/drive/files/'.$file->id, [
+            'name' => 'new-name',
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('drive_files', [
+            'id' => $file->id,
+            'name' => 'new-name.pdf',
+            'extension' => 'pdf',
+        ]);
+    }
+
+    /**
+     * @return void
+     */
     public function test_drive_permission_endpoint_creates_acl_rule(): void
     {
         $folder = DriveFolder::query()->create([

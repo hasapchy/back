@@ -18,6 +18,7 @@ final class BatchOperationRegistrar
         self::registerUsersDelete($registry, $app);
         self::registerTransactionsDelete($registry, $app);
         self::registerEmployeeSalariesDelete($registry, $app);
+        self::registerDriveFilesDelete($registry, $app);
     }
 
     private static function registerProjectsUpdateStatus(BatchOperationRegistry $registry, Application $app): void
@@ -201,6 +202,21 @@ final class BatchOperationRegistrar
             scopePermissionsAny: ['transactions_delete_all', 'transactions_delete'],
             loopHandler: static function (int $id, array $payload, $user, ?int $companyId) use ($app) {
                 $app->make(BatchEntityActions::class)->deleteTransaction($user, $id);
+            },
+        ));
+    }
+
+    private static function registerDriveFilesDelete(BatchOperationRegistry $registry, Application $app): void
+    {
+        $registry->register(new BatchOperation(
+            entity: 'drive_files',
+            action: 'delete',
+            financial: false,
+            permissionsAny: [],
+            preferredStrategy: 'loop',
+            scopePermissionsAny: ['drive_delete_all', 'drive_delete'],
+            loopHandler: static function (int $id, array $payload, $user, ?int $companyId) use ($app) {
+                $app->make(BatchEntityActions::class)->deleteDriveFile($user, $id, $companyId);
             },
         ));
     }

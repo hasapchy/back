@@ -17,6 +17,11 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class DriveController extends BaseController
 {
+    private const ALLOWED_FILE_EXTENSIONS = [
+        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg',
+        'zip', 'rar', '7z', 'txt', 'md', 'csv', 'webp',
+    ];
+
     public function __construct(
         private readonly DriveAccessService $driveAccessService
     ) {}
@@ -223,8 +228,6 @@ class DriveController extends BaseController
 
         $validated = $request->validate([
             'folder_id' => 'nullable|integer',
-            'files' => 'required',
-            'files.*' => 'file|max:10240|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,gif,bmp,svg,zip,rar,7z,txt,md,csv,webp',
             'file_paths' => 'nullable|array',
             'file_paths.*' => 'nullable|string|max:500',
         ]);
@@ -246,6 +249,19 @@ class DriveController extends BaseController
         }
         if (! is_array($rawFiles) || count($rawFiles) === 0) {
             return $this->errorResponse('No files uploaded', 422);
+        }
+
+        $maxBytes = 10240 * 1024;
+        foreach ($rawFiles as $file) {
+            if (! $file instanceof UploadedFile || ! $file->isValid()) {
+                return $this->errorResponse('Invalid file upload', 422);
+            }
+            if ($file->getSize() > $maxBytes) {
+                return $this->errorResponse('File exceeds 10MB', 422);
+            }
+            if (! $this->isAllowedDriveFile($file)) {
+                return $this->errorResponse($this->unsupportedFileTypeMessage($file), 422);
+            }
         }
 
         $createdFiles = [];
@@ -309,7 +325,136 @@ class DriveController extends BaseController
             return $this->errorResponse('File not found on disk', 404);
         }
 
-        return response()->download(storage_path('app/'.$file->path), $file->name);
+        return $this->fileBinaryResponse($file, false);
+    }
+
+    /**
+     * @return BinaryFileResponse|JsonResponse
+     */
+    public function preview(int $id): BinaryFileResponse|JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = $this->getCurrentCompanyId();
+        if (! $companyId) {
+            return $this->errorResponse('Company is required', 422);
+        }
+
+        $file = DriveFile::query()
+            ->where('company_id', $companyId)
+            ->with('folder')
+            ->findOrFail($id);
+
+        if (! $this->driveAccessService->can($user, $companyId, 'view', $file->folder, $file)) {
+            return $this->errorResponse('Forbidden', 403);
+        }
+
+        if (! $this->isImageDriveFile($file)) {
+            return $this->errorResponse('Preview is available for images only', 422);
+        }
+
+        if (! Storage::disk('local')->exists($file->path)) {
+            return $this->errorResponse('File not found on disk', 404);
+        }
+
+        return $this->fileBinaryResponse($file, true);
+    }
+
+    /**
+     * @return BinaryFileResponse
+     */
+    private function fileBinaryResponse(DriveFile $file, bool $inline): BinaryFileResponse
+    {
+        $absolutePath = storage_path('app/'.$file->path);
+        $mimeType = $file->mime_type ?: 'application/octet-stream';
+        $disposition = ($inline ? 'inline' : 'attachment').'; filename="'.str_replace('"', '', $file->name).'"';
+
+        return response()->file($absolutePath, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => $disposition,
+        ]);
+    }
+
+    private function isImageDriveFile(DriveFile $file): bool
+    {
+        $extension = strtolower((string) ($file->extension ?: pathinfo((string) $file->name, PATHINFO_EXTENSION)));
+        $imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'];
+
+        return in_array($extension, $imageExtensions, true);
+    }
+
+    private function resolveRenameFileName(DriveFile $file, string $inputName): string
+    {
+        $baseName = trim($inputName);
+        if ($baseName === '') {
+            return '';
+        }
+
+        $extension = strtolower((string) ($file->extension ?: pathinfo((string) $file->name, PATHINFO_EXTENSION)));
+        if ($extension === '') {
+            return $baseName;
+        }
+
+        $suffix = '.'.$extension;
+        if (str_ends_with(strtolower($baseName), $suffix)) {
+            $baseName = substr($baseName, 0, -strlen($suffix));
+        }
+
+        $baseName = rtrim(trim($baseName), '.');
+        if ($baseName === '') {
+            return '';
+        }
+
+        return $baseName.'.'.$extension;
+    }
+
+    /**
+     * @return JsonResponse
+     */
+    public function renameFile(Request $request, int $id): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = $this->getCurrentCompanyId();
+        if (! $companyId) {
+            return $this->errorResponse('Company is required', 422);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:191',
+        ]);
+
+        $file = DriveFile::query()
+            ->where('company_id', $companyId)
+            ->with('folder')
+            ->findOrFail($id);
+
+        if (! $this->driveAccessService->can($user, $companyId, 'rename', $file->folder, $file)) {
+            return $this->errorResponse('Forbidden', 403);
+        }
+
+        $name = $this->resolveRenameFileName($file, trim($validated['name']));
+        if ($name === '') {
+            return $this->errorResponse('Invalid file name', 422);
+        }
+
+        $extension = strtolower((string) $file->extension);
+        if ($extension !== '' && ! in_array($extension, self::ALLOWED_FILE_EXTENSIONS, true)) {
+            return $this->errorResponse('Unsupported file type', 422);
+        }
+
+        $duplicate = DriveFile::query()
+            ->where('company_id', $companyId)
+            ->where('folder_id', $file->folder_id)
+            ->where('name', $name)
+            ->where('id', '!=', $file->id)
+            ->exists();
+        if ($duplicate) {
+            return $this->errorResponse('File with this name already exists', 422);
+        }
+
+        $file->name = $name;
+        $file->save();
+
+        return $this->successResponse($file);
     }
 
     /**
@@ -485,6 +630,25 @@ class DriveController extends BaseController
         }
 
         return array_values(array_unique($ids));
+    }
+
+    /**
+     * @param  array<int, string>  $segments
+     */
+    private function isAllowedDriveFile(UploadedFile $file): bool
+    {
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        return $extension !== '' && in_array($extension, self::ALLOWED_FILE_EXTENSIONS, true);
+    }
+
+    private function unsupportedFileTypeMessage(UploadedFile $file): string
+    {
+        $name = $file->getClientOriginalName();
+        $extension = strtolower($file->getClientOriginalExtension() ?: (string) pathinfo($name, PATHINFO_EXTENSION));
+        $typeLabel = $extension !== '' ? '.'.$extension : 'unknown';
+
+        return "Неподдерживаемый тип файла: {$name} ({$typeLabel})";
     }
 
     /**
