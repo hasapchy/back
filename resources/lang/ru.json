@@ -226,6 +226,7 @@
     "warehouse_receipt.receipt_completed_readonly": "Оприходование завершено — редактирование недоступно.",
     "warehouse_receipt.completed_success": "Оприходование завершено; закупочные цены обновлены по полной себестоимости.",
     "warehouse_receipt.completion_not_ready": "Завершить можно только приход со статусом «Все оприходовано» (для режима без устаревшего оформления) или упрощённый/устаревший приход.",
+    "warehouse_receipt.completion_requires_full_goods_payment": "Нельзя завершить оприходование без полной оплаты товара.",
     "warehouse_receipt.already_completed": "Оприходование уже завершено.",
     "warehouse_receipt.cannot_delete_completed": "Нельзя удалить завершённое оприходование.",
     "warehouse_receipt.cannot_create_completed": "Нельзя создавать оприходование сразу в статусе «Завершено».",

@@ -16,6 +16,7 @@ use App\Models\Project;
 use App\Models\ClientBalance;
 use App\Contracts\SupportsTimeline;
 use App\Services\CacheService;
+use App\Services\TransactionDeletionService;
 
 
 /**
@@ -72,10 +73,8 @@ class Sale extends Model implements SupportsTimeline
     protected static function booted()
     {
         static::deleting(function ($sale) {
-            $transactions = $sale->transactions()->get();
-            foreach ($transactions as $transaction) {
-                $transaction->delete();
-            }
+            $transactions = $sale->transactions()->where('is_deleted', false)->get();
+            TransactionDeletionService::softDeleteMany($transactions);
 
             CacheService::invalidateTransactionsCache();
             if ($sale->client_id) {

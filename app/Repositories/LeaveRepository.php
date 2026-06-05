@@ -4,14 +4,9 @@ namespace App\Repositories;
 
 use App\Models\Leave;
 use App\Services\CacheService;
-use App\Services\PenaltyLeaveTransactionService;
 
 class LeaveRepository extends BaseRepository
 {
-    public function __construct(
-        protected PenaltyLeaveTransactionService $penaltyLeaveTransactionService
-    ) {
-    }
     /**
      * Связи для списков и /all (без company).
      *
@@ -47,7 +42,7 @@ class LeaveRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $filters = [], $page = 1)
     {
-        $filtersKey = !empty($filters) ? md5(json_encode($filters)) : 'no_filters';
+        $filtersKey = ! empty($filters) ? md5(json_encode($filters)) : 'no_filters';
         $cacheKey = $this->generateCacheKey('leaves_paginated', [$userUuid, $perPage, $filtersKey, $page]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $filters, $page) {
@@ -69,7 +64,7 @@ class LeaveRepository extends BaseRepository
      */
     public function getAllItems($userUuid, $filters = [])
     {
-        $filtersKey = !empty($filters) ? md5(json_encode($filters)) : 'no_filters';
+        $filtersKey = ! empty($filters) ? md5(json_encode($filters)) : 'no_filters';
         $cacheKey = $this->generateCacheKey('leaves_all', [$userUuid, $filtersKey]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($filters) {
@@ -112,8 +107,6 @@ class LeaveRepository extends BaseRepository
         $item = Leave::create($itemData);
         $item->load(['leaveType', 'user']);
 
-        $this->penaltyLeaveTransactionService->createTransactionForPenaltyLeave($item);
-
         CacheService::invalidateLeavesCache();
 
         return $item;
@@ -133,7 +126,6 @@ class LeaveRepository extends BaseRepository
         $item = $query->firstOrFail();
         $item->update($data);
         $item->load(['leaveType', 'user']);
-        $this->penaltyLeaveTransactionService->createTransactionForPenaltyLeave($item);
         CacheService::invalidateLeavesCache();
 
         return $item->load(['leaveType', 'user']);
@@ -150,8 +142,6 @@ class LeaveRepository extends BaseRepository
         $query = Leave::where('id', $id);
         $this->applyCompanyFilter($query);
         $item = $query->firstOrFail();
-        $item->load(['leaveType', 'user']);
-        $this->penaltyLeaveTransactionService->deleteTransactionsForLeave($item);
         $item->delete();
         CacheService::invalidateLeavesCache();
 
@@ -172,10 +162,10 @@ class LeaveRepository extends BaseRepository
      */
     private function applyFilters($query, array $filters)
     {
-        $query->when(isset($filters['user_id']), fn($q) => $q->where('user_id', $filters['user_id']))
-            ->when(isset($filters['leave_type_id']), fn($q) => $q->where('leave_type_id', $filters['leave_type_id']))
-            ->when(isset($filters['date_from']), fn($q) => $q->where('date_from', '>=', $filters['date_from']))
-            ->when(isset($filters['date_to']), fn($q) => $q->where('date_to', '<=', $filters['date_to']))
-            ->when(! empty($filters['active_only']), fn($q) => $q->whereHas('user', fn($userQuery) => $userQuery->where('is_active', true)));
+        $query->when(isset($filters['user_id']), fn ($q) => $q->where('user_id', $filters['user_id']))
+            ->when(isset($filters['leave_type_id']), fn ($q) => $q->where('leave_type_id', $filters['leave_type_id']))
+            ->when(isset($filters['date_from']), fn ($q) => $q->where('date_from', '>=', $filters['date_from']))
+            ->when(isset($filters['date_to']), fn ($q) => $q->where('date_to', '<=', $filters['date_to']))
+            ->when(! empty($filters['active_only']), fn ($q) => $q->whereHas('user', fn ($userQuery) => $userQuery->where('is_active', true)));
     }
 }

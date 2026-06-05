@@ -935,10 +935,13 @@ class SalaryAccrualService
         DB::beginTransaction();
 
         try {
-            foreach ($report->lines as $line) {
-                if ($line->transaction_id) {
-                    $this->transactionsRepository->deleteItem((int) $line->transaction_id, false);
-                }
+            $transactionIds = $report->lines
+                ->pluck('transaction_id')
+                ->filter()
+                ->values()
+                ->all();
+            if ($transactionIds !== []) {
+                $this->transactionsRepository->deleteLinkedTransactions($transactionIds);
             }
             $report->delete();
             DB::commit();

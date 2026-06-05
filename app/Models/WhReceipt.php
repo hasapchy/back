@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Contracts\SupportsTimeline;
 use App\Enums\WhReceiptStatus;
 use App\Services\CacheService;
-use App\Services\TransactionDeletionService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -70,14 +69,6 @@ class WhReceipt extends Model implements SupportsTimeline
         'orig_amount' => 'decimal:5',
         'status' => WhReceiptStatus::class,
     ];
-
-    protected static function booted()
-    {
-        static::deleting(function ($receipt) {
-            $transactions = $receipt->transactions()->get();
-            TransactionDeletionService::softDeleteMany($transactions);
-        });
-    }
 
     /**
      * @return LogOptions

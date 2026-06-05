@@ -21,6 +21,7 @@ use App\Services\CurrencyConverter;
 use App\Services\InventoryLockService;
 use App\Services\ReceiptExpenseAllocationService;
 use App\Services\RoundingService;
+use App\Services\WarehouseReceiptGoodsPaymentLimitService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -577,7 +578,10 @@ class WarehouseReceiptRepository extends BaseRepository
             }
 
             if (! $this->receiptEligibleForCompletion($receipt)) {
-                throw new \RuntimeException((string) __('warehouse_receipt.completion_not_ready'));
+                $messageKey = $receipt->purchase_id === null
+                    ? 'warehouse_receipt.completion_requires_full_goods_payment'
+                    : 'warehouse_receipt.completion_not_ready';
+                throw new \RuntimeException((string) __($messageKey));
             }
 
             app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $receipt->warehouse_id);
@@ -641,7 +645,11 @@ class WarehouseReceiptRepository extends BaseRepository
      */
     private function receiptEligibleForCompletion(WhReceipt $receipt): bool
     {
-        return true;
+        if ($receipt->purchase_id !== null) {
+            return true;
+        }
+
+        return app(WarehouseReceiptGoodsPaymentLimitService::class)->remainingDefault($receipt, null) <= 1e-9;
     }
 
     /**
@@ -655,9 +663,10 @@ class WarehouseReceiptRepository extends BaseRepository
         $meta = DB::transaction(function () use ($receipt_id) {
             $receipt = WhReceipt::findOrFail($receipt_id);
             app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $receipt->warehouse_id);
-            $reverseStock = $receipt->status === WhReceiptStatus::Completed;
+            $isCompleted = $receipt->status === WhReceiptStatus::Completed;
             $purchaseId = $receipt->purchase_id !== null ? (int) $receipt->purchase_id : null;
-            $this->reverseReceiptStockAndDeleteLines($receipt, $reverseStock);
+            $this->reverseReceiptStockAndDeleteLines($receipt, $isCompleted);
+            $this->purgeReceiptTransactions($receipt);
 
             $rid = (int) $receipt->id;
             $wid = (int) $receipt->warehouse_id;
@@ -824,6 +833,21 @@ class WarehouseReceiptRepository extends BaseRepository
         }
     }
 
+    /**
+     * @return void
+     */
+    private function purgeReceiptTransactions(WhReceipt $receipt): void
+    {
+        $transactions = Transaction::query()
+            ->where('source_type', WhReceipt::class)
+            ->where('source_id', (int) $receipt->id)
+            ->where('is_deleted', false)
+            ->orderBy('id')
+            ->get();
+
+        app(TransactionsRepository::class)->deleteLinkedTransactions($transactions);
+    }
+
     public function deleteReceiptWithoutInventoryLock(int $receiptId): void
     {
         $warehouseId = 0;
@@ -832,6 +856,7 @@ class WarehouseReceiptRepository extends BaseRepository
             $warehouseId = (int) $receipt->warehouse_id;
 
             $this->reverseReceiptStockAndDeleteLines($receipt, true);
+            $this->purgeReceiptTransactions($receipt);
 
             $receipt->delete();
         });
