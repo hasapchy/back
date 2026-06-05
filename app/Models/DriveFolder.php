@@ -17,6 +17,7 @@ class DriveFolder extends Model
         'creator_id',
         'name',
         'icon',
+        'icon_color',
     ];
 
     /**
@@ -33,22 +34,6 @@ class DriveFolder extends Model
     public function parent()
     {
         return $this->belongsTo(self::class, 'parent_id');
-    }
-
-    /**
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function children()
-    {
-        return $this->hasMany(self::class, 'parent_id');
-    }
-
-    /**
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function files()
-    {
-        return $this->hasMany(DriveFile::class, 'folder_id');
     }
 
     /**

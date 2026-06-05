@@ -167,6 +167,7 @@ class LeaveRepository extends BaseRepository
      *                                         - leave_type_id (int|null) ID типа отпуска
      *                                         - date_from (string|null) Дата начала периода
      *                                         - date_to (string|null) Дата окончания периода
+     *                                         - active_only (bool) Только активные сотрудники
      * @return void
      */
     private function applyFilters($query, array $filters)
@@ -174,6 +175,7 @@ class LeaveRepository extends BaseRepository
         $query->when(isset($filters['user_id']), fn($q) => $q->where('user_id', $filters['user_id']))
             ->when(isset($filters['leave_type_id']), fn($q) => $q->where('leave_type_id', $filters['leave_type_id']))
             ->when(isset($filters['date_from']), fn($q) => $q->where('date_from', '>=', $filters['date_from']))
-            ->when(isset($filters['date_to']), fn($q) => $q->where('date_to', '<=', $filters['date_to']));
+            ->when(isset($filters['date_to']), fn($q) => $q->where('date_to', '<=', $filters['date_to']))
+            ->when(! empty($filters['active_only']), fn($q) => $q->whereHas('user', fn($userQuery) => $userQuery->where('is_active', true)));
     }
 }

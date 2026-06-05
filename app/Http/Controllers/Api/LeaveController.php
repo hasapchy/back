@@ -240,6 +240,8 @@ class LeaveController extends BaseController
             $filters['date_to'] = $request->input('date_to');
         }
 
+        $filters['active_only'] = $request->boolean('active_only', true);
+
         return $filters;
     }
 }

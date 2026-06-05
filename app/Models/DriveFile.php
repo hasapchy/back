@@ -47,4 +47,14 @@ class DriveFile extends Model
     {
         return $this->belongsTo(User::class, 'creator_id');
     }
+
+    /**
+     * @return string
+     */
+    public function getDiskNameAttribute(): string
+    {
+        $disk = trim((string) $this->disk);
+
+        return $disk !== '' ? $disk : 'local';
+    }
 }

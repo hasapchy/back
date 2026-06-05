@@ -2,29 +2,50 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Requests\ListDrivePermissionsRequest;
+use App\Http\Requests\MoveDriveFilesRequest;
+use App\Http\Requests\RenameDriveFileRequest;
+use App\Http\Requests\SetDrivePermissionRequest;
+use App\Http\Requests\StoreDriveFolderRequest;
+use App\Http\Requests\UpdateDriveFolderRequest;
+use App\Http\Requests\UploadDriveFilesRequest;
+use App\Http\Resources\DriveFileResource;
+use App\Http\Resources\DriveFolderResource;
+use App\Http\Resources\DriveListingResource;
+use App\Http\Resources\DrivePermissionResource;
 use App\Models\DriveFile;
 use App\Models\DriveFolder;
 use App\Models\DrivePermission;
 use App\Models\User;
+use App\Repositories\DriveRepository;
 use App\Services\DriveAccessService;
+use App\Support\DriveFileRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class DriveController extends BaseController
 {
-    private const ALLOWED_FILE_EXTENSIONS = [
-        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg',
-        'zip', 'rar', '7z', 'txt', 'md', 'csv', 'webp',
-    ];
-
     public function __construct(
-        private readonly DriveAccessService $driveAccessService
+        private readonly DriveAccessService $driveAccessService,
+        private readonly DriveRepository $driveRepository,
     ) {}
+
+    /**
+     * @return JsonResponse
+     */
+    public function config(): JsonResponse
+    {
+        $this->requireAuthenticatedUser();
+        $companyId = $this->getCurrentCompanyId();
+        if (! $companyId) {
+            return $this->errorResponse('Company is required', 422);
+        }
+
+        return $this->successResponse(DriveFileRules::publicConfig());
+    }
 
     /**
      * @return JsonResponse
@@ -38,11 +59,10 @@ class DriveController extends BaseController
         }
 
         $parentId = $request->input('parent_id');
-        $parentFolder = null;
-        if ($parentId !== null) {
-            $parentFolder = DriveFolder::query()
-                ->where('company_id', $companyId)
-                ->findOrFail((int) $parentId);
+        $parentIdInt = $parentId !== null && $parentId !== '' ? (int) $parentId : null;
+
+        if ($parentIdInt !== null) {
+            $parentFolder = $this->driveRepository->findFolder($companyId, $parentIdInt);
             if (! $this->driveAccessService->can($user, $companyId, 'view', $parentFolder)) {
                 return $this->errorResponse('Forbidden', 403);
             }
@@ -52,36 +72,25 @@ class DriveController extends BaseController
             return $this->errorResponse('Forbidden', 403);
         }
 
-        $folders = DriveFolder::query()
-            ->where('company_id', $companyId)
-            ->where('parent_id', $parentFolder?->id)
-            ->with('creator:id,name,surname')
-            ->orderBy('name')
-            ->get()
+        $listing = $this->driveRepository->listContents($companyId, $parentIdInt);
+
+        $listing['folders'] = $listing['folders']
             ->filter(fn (DriveFolder $folder) => $this->driveAccessService->can($user, $companyId, 'view', $folder))
             ->values();
 
-        $files = DriveFile::query()
-            ->where('company_id', $companyId)
-            ->where('folder_id', $parentFolder?->id)
-            ->with('creator:id,name,surname')
-            ->orderBy('name')
-            ->get()
+        $listing['files'] = $listing['files']
             ->filter(fn (DriveFile $file) => $this->driveAccessService->can($user, $companyId, 'view', $file->folder, $file))
             ->values();
 
-        return $this->successResponse([
-            'parent' => $parentFolder,
-            'folders' => $folders,
-            'files' => $files,
-            'breadcrumbs' => $parentFolder ? $this->breadcrumbs($parentFolder) : [],
-        ]);
+        return $this->successResponse(
+            DriveListingResource::make($listing)->resolve()
+        );
     }
 
     /**
      * @return JsonResponse
      */
-    public function createFolder(Request $request): JsonResponse
+    public function createFolder(StoreDriveFolderRequest $request): JsonResponse
     {
         $user = $this->requireAuthenticatedUser();
         $companyId = $this->getCurrentCompanyId();
@@ -89,47 +98,34 @@ class DriveController extends BaseController
             return $this->errorResponse('Company is required', 422);
         }
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:191',
-            'parent_id' => 'nullable|integer',
-            'icon' => 'nullable|string|max:120',
-        ]);
-
-        $parentFolder = null;
-        if (! empty($validated['parent_id'])) {
-            $parentFolder = DriveFolder::query()
-                ->where('company_id', $companyId)
-                ->findOrFail((int) $validated['parent_id']);
-        }
+        $validated = $request->validated();
+        $parentFolder = $this->driveRepository->findOptionalFolder(
+            $companyId,
+            ! empty($validated['parent_id']) ? (int) $validated['parent_id'] : null
+        );
 
         if (! $this->driveAccessService->can($user, $companyId, 'upload', $parentFolder)) {
             return $this->errorResponse('Forbidden', 403);
         }
 
-        $exists = DriveFolder::query()
-            ->where('company_id', $companyId)
-            ->where('parent_id', $parentFolder?->id)
-            ->where('name', trim($validated['name']))
-            ->exists();
-        if ($exists) {
+        if ($this->driveRepository->folderNameExists($companyId, $parentFolder?->id, $validated['name'])) {
             return $this->errorResponse('Folder with this name already exists', 422);
         }
 
-        $folder = DriveFolder::query()->create([
-            'company_id' => $companyId,
-            'parent_id' => $parentFolder?->id,
-            'creator_id' => $user->id,
-            'name' => trim($validated['name']),
-            'icon' => isset($validated['icon']) ? trim((string) $validated['icon']) : null,
-        ]);
+        $folder = $this->driveRepository->createFolder($companyId, $user->id, $validated, $parentFolder);
+        $folder->load('creator:id,name,surname');
 
-        return $this->successResponse($folder, null, 201);
+        return $this->successResponse(
+            DriveFolderResource::make($folder)->resolve(),
+            null,
+            201
+        );
     }
 
     /**
      * @return JsonResponse
      */
-    public function renameFolder(Request $request, int $id): JsonResponse
+    public function renameFolder(UpdateDriveFolderRequest $request, int $id): JsonResponse
     {
         $user = $this->requireAuthenticatedUser();
         $companyId = $this->getCurrentCompanyId();
@@ -137,34 +133,20 @@ class DriveController extends BaseController
             return $this->errorResponse('Company is required', 422);
         }
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:191',
-            'icon' => 'nullable|string|max:120',
-        ]);
-
-        $folder = DriveFolder::query()
-            ->where('company_id', $companyId)
-            ->findOrFail($id);
+        $validated = $request->validated();
+        $folder = $this->driveRepository->findFolder($companyId, $id);
 
         if (! $this->driveAccessService->can($user, $companyId, 'rename', $folder)) {
             return $this->errorResponse('Forbidden', 403);
         }
 
-        $duplicate = DriveFolder::query()
-            ->where('company_id', $companyId)
-            ->where('parent_id', $folder->parent_id)
-            ->where('name', trim($validated['name']))
-            ->where('id', '!=', $folder->id)
-            ->exists();
-        if ($duplicate) {
+        if ($this->driveRepository->folderNameExists($companyId, $folder->parent_id, $validated['name'], $folder->id)) {
             return $this->errorResponse('Folder with this name already exists', 422);
         }
 
-        $folder->name = trim($validated['name']);
-        $folder->icon = isset($validated['icon']) ? trim((string) $validated['icon']) : $folder->icon;
-        $folder->save();
+        $folder = $this->driveRepository->renameFolder($folder, $validated);
 
-        return $this->successResponse($folder);
+        return $this->successResponse(DriveFolderResource::make($folder)->resolve());
     }
 
     /**
@@ -178,39 +160,19 @@ class DriveController extends BaseController
             return $this->errorResponse('Company is required', 422);
         }
 
-        $folder = DriveFolder::query()
-            ->where('company_id', $companyId)
-            ->findOrFail($id);
+        $folder = $this->driveRepository->findFolder($companyId, $id);
 
         if (! $this->driveAccessService->can($user, $companyId, 'delete', $folder)) {
             return $this->errorResponse('Forbidden', 403);
         }
 
-        $folderIds = $this->collectFolderIds($folder);
-        $fileIds = DriveFile::query()
-            ->where('company_id', $companyId)
-            ->whereIn('folder_id', $folderIds)
-            ->pluck('id')
-            ->all();
-        foreach ($fileIds as $fileId) {
-            $file = DriveFile::query()->find($fileId);
-            if ($file && ! $this->driveAccessService->can($user, $companyId, 'delete', $file->folder, $file)) {
+        foreach ($this->driveRepository->filesInFolderTree($companyId, $folder) as $file) {
+            if (! $this->driveAccessService->can($user, $companyId, 'delete', $file->folder, $file)) {
                 return $this->errorResponse('Forbidden', 403);
             }
         }
 
-        DB::transaction(function () use ($folder, $folderIds): void {
-            $paths = DriveFile::query()
-                ->whereIn('folder_id', $folderIds)
-                ->pluck('path')
-                ->all();
-
-            foreach ($paths as $path) {
-                Storage::disk('local')->delete($path);
-            }
-
-            $folder->delete();
-        });
+        $this->driveRepository->deleteFolder($folder);
 
         return $this->successResponse(null);
     }
@@ -218,7 +180,7 @@ class DriveController extends BaseController
     /**
      * @return JsonResponse
      */
-    public function upload(Request $request): JsonResponse
+    public function upload(UploadDriveFilesRequest $request): JsonResponse
     {
         $user = $this->requireAuthenticatedUser();
         $companyId = $this->getCurrentCompanyId();
@@ -226,18 +188,11 @@ class DriveController extends BaseController
             return $this->errorResponse('Company is required', 422);
         }
 
-        $validated = $request->validate([
-            'folder_id' => 'nullable|integer',
-            'file_paths' => 'nullable|array',
-            'file_paths.*' => 'nullable|string|max:500',
-        ]);
-
-        $folder = null;
-        if (! empty($validated['folder_id'])) {
-            $folder = DriveFolder::query()
-                ->where('company_id', $companyId)
-                ->findOrFail((int) $validated['folder_id']);
-        }
+        $validated = $request->validated();
+        $folder = $this->driveRepository->findOptionalFolder(
+            $companyId,
+            ! empty($validated['folder_id']) ? (int) $validated['folder_id'] : null
+        );
 
         if (! $this->driveAccessService->can($user, $companyId, 'upload', $folder)) {
             return $this->errorResponse('Forbidden', 403);
@@ -251,7 +206,7 @@ class DriveController extends BaseController
             return $this->errorResponse('No files uploaded', 422);
         }
 
-        $maxBytes = 10240 * 1024;
+        $maxBytes = DriveFileRules::maxFileBytes();
         foreach ($rawFiles as $file) {
             if (! $file instanceof UploadedFile || ! $file->isValid()) {
                 return $this->errorResponse('Invalid file upload', 422);
@@ -259,46 +214,19 @@ class DriveController extends BaseController
             if ($file->getSize() > $maxBytes) {
                 return $this->errorResponse('File exceeds 10MB', 422);
             }
-            if (! $this->isAllowedDriveFile($file)) {
-                return $this->errorResponse($this->unsupportedFileTypeMessage($file), 422);
+            if (! DriveFileRules::isAllowedUploadedFile($file)) {
+                return $this->errorResponse(DriveFileRules::unsupportedUploadMessage($file), 422);
             }
         }
 
-        $createdFiles = [];
         $filePaths = isset($validated['file_paths']) && is_array($validated['file_paths']) ? $validated['file_paths'] : [];
-        DB::transaction(function () use ($rawFiles, $filePaths, $companyId, $folder, $user, &$createdFiles): void {
-            foreach ($rawFiles as $index => $file) {
-                $originalName = $file->getClientOriginalName();
-                $relativePath = $filePaths[$index] ?? null;
-                $targetFolder = $folder;
-                if (is_string($relativePath) && trim($relativePath) !== '') {
-                    $pathParts = preg_split('/[\/\\\\]+/', trim($relativePath));
-                    if (is_array($pathParts) && count($pathParts) > 1) {
-                        array_pop($pathParts);
-                        $targetFolder = $this->ensureFolderTree($companyId, $user->id, $folder, $pathParts);
-                    }
-                }
-                $extension = strtolower($file->getClientOriginalExtension());
-                $storedName = Str::uuid().($extension !== '' ? '.'.$extension : '');
-                $path = 'drive/'.$companyId.'/'.($targetFolder ? $targetFolder->id : 'root').'/'.$storedName;
-                $file->storeAs('drive/'.$companyId.'/'.($targetFolder ? $targetFolder->id : 'root'), $storedName, 'local');
+        $createdFiles = $this->driveRepository->uploadFiles($companyId, $user->id, $folder, $rawFiles, $filePaths);
 
-                $createdFiles[] = DriveFile::query()->create([
-                    'company_id' => $companyId,
-                    'folder_id' => $targetFolder?->id,
-                    'creator_id' => $user->id,
-                    'disk' => 'local',
-                    'name' => $originalName,
-                    'stored_name' => $storedName,
-                    'path' => $path,
-                    'mime_type' => $file->getMimeType(),
-                    'extension' => $extension,
-                    'size' => $file->getSize() ?: 0,
-                ]);
-            }
-        });
-
-        return $this->successResponse($createdFiles, null, 201);
+        return $this->successResponse(
+            DriveFileResource::collection($createdFiles)->resolve(),
+            null,
+            201
+        );
     }
 
     /**
@@ -312,16 +240,13 @@ class DriveController extends BaseController
             return $this->errorResponse('Company is required', 422);
         }
 
-        $file = DriveFile::query()
-            ->where('company_id', $companyId)
-            ->with('folder')
-            ->findOrFail($id);
+        $file = $this->driveRepository->findFile($companyId, $id);
 
         if (! $this->driveAccessService->can($user, $companyId, 'view', $file->folder, $file)) {
             return $this->errorResponse('Forbidden', 403);
         }
 
-        if (! Storage::disk('local')->exists($file->path)) {
+        if (! Storage::disk($file->disk_name)->exists($file->path)) {
             return $this->errorResponse('File not found on disk', 404);
         }
 
@@ -339,20 +264,17 @@ class DriveController extends BaseController
             return $this->errorResponse('Company is required', 422);
         }
 
-        $file = DriveFile::query()
-            ->where('company_id', $companyId)
-            ->with('folder')
-            ->findOrFail($id);
+        $file = $this->driveRepository->findFile($companyId, $id);
 
         if (! $this->driveAccessService->can($user, $companyId, 'view', $file->folder, $file)) {
             return $this->errorResponse('Forbidden', 403);
         }
 
-        if (! $this->isImageDriveFile($file)) {
+        if (! DriveFileRules::isImageFile($file)) {
             return $this->errorResponse('Preview is available for images only', 422);
         }
 
-        if (! Storage::disk('local')->exists($file->path)) {
+        if (! Storage::disk($file->disk_name)->exists($file->path)) {
             return $this->errorResponse('File not found on disk', 404);
         }
 
@@ -360,57 +282,9 @@ class DriveController extends BaseController
     }
 
     /**
-     * @return BinaryFileResponse
-     */
-    private function fileBinaryResponse(DriveFile $file, bool $inline): BinaryFileResponse
-    {
-        $absolutePath = storage_path('app/'.$file->path);
-        $mimeType = $file->mime_type ?: 'application/octet-stream';
-        $disposition = ($inline ? 'inline' : 'attachment').'; filename="'.str_replace('"', '', $file->name).'"';
-
-        return response()->file($absolutePath, [
-            'Content-Type' => $mimeType,
-            'Content-Disposition' => $disposition,
-        ]);
-    }
-
-    private function isImageDriveFile(DriveFile $file): bool
-    {
-        $extension = strtolower((string) ($file->extension ?: pathinfo((string) $file->name, PATHINFO_EXTENSION)));
-        $imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'];
-
-        return in_array($extension, $imageExtensions, true);
-    }
-
-    private function resolveRenameFileName(DriveFile $file, string $inputName): string
-    {
-        $baseName = trim($inputName);
-        if ($baseName === '') {
-            return '';
-        }
-
-        $extension = strtolower((string) ($file->extension ?: pathinfo((string) $file->name, PATHINFO_EXTENSION)));
-        if ($extension === '') {
-            return $baseName;
-        }
-
-        $suffix = '.'.$extension;
-        if (str_ends_with(strtolower($baseName), $suffix)) {
-            $baseName = substr($baseName, 0, -strlen($suffix));
-        }
-
-        $baseName = rtrim(trim($baseName), '.');
-        if ($baseName === '') {
-            return '';
-        }
-
-        return $baseName.'.'.$extension;
-    }
-
-    /**
      * @return JsonResponse
      */
-    public function renameFile(Request $request, int $id): JsonResponse
+    public function renameFile(RenameDriveFileRequest $request, int $id): JsonResponse
     {
         $user = $this->requireAuthenticatedUser();
         $companyId = $this->getCurrentCompanyId();
@@ -418,43 +292,30 @@ class DriveController extends BaseController
             return $this->errorResponse('Company is required', 422);
         }
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:191',
-        ]);
-
-        $file = DriveFile::query()
-            ->where('company_id', $companyId)
-            ->with('folder')
-            ->findOrFail($id);
+        $validated = $request->validated();
+        $file = $this->driveRepository->findFile($companyId, $id);
 
         if (! $this->driveAccessService->can($user, $companyId, 'rename', $file->folder, $file)) {
             return $this->errorResponse('Forbidden', 403);
         }
 
-        $name = $this->resolveRenameFileName($file, trim($validated['name']));
+        $name = $this->driveRepository->resolveRenameFileName($file, trim($validated['name']));
         if ($name === '') {
             return $this->errorResponse('Invalid file name', 422);
         }
 
-        $extension = strtolower((string) $file->extension);
-        if ($extension !== '' && ! in_array($extension, self::ALLOWED_FILE_EXTENSIONS, true)) {
+        $extension = DriveFileRules::extensionFromDriveFile($file);
+        if ($extension !== '' && ! DriveFileRules::isAllowedExtension($extension)) {
             return $this->errorResponse('Unsupported file type', 422);
         }
 
-        $duplicate = DriveFile::query()
-            ->where('company_id', $companyId)
-            ->where('folder_id', $file->folder_id)
-            ->where('name', $name)
-            ->where('id', '!=', $file->id)
-            ->exists();
-        if ($duplicate) {
+        if ($this->driveRepository->fileNameExists($companyId, $file->folder_id, $name, $file->id)) {
             return $this->errorResponse('File with this name already exists', 422);
         }
 
-        $file->name = $name;
-        $file->save();
+        $file = $this->driveRepository->renameFile($file, $name);
 
-        return $this->successResponse($file);
+        return $this->successResponse(DriveFileResource::make($file)->resolve());
     }
 
     /**
@@ -468,19 +329,13 @@ class DriveController extends BaseController
             return $this->errorResponse('Company is required', 422);
         }
 
-        $file = DriveFile::query()
-            ->where('company_id', $companyId)
-            ->with('folder')
-            ->findOrFail($id);
+        $file = $this->driveRepository->findFile($companyId, $id);
 
         if (! $this->driveAccessService->can($user, $companyId, 'delete', $file->folder, $file)) {
             return $this->errorResponse('Forbidden', 403);
         }
 
-        DB::transaction(function () use ($file): void {
-            Storage::disk('local')->delete($file->path);
-            $file->delete();
-        });
+        $this->driveRepository->deleteFile($file);
 
         return $this->successResponse(null);
     }
@@ -488,7 +343,7 @@ class DriveController extends BaseController
     /**
      * @return JsonResponse
      */
-    public function moveFile(Request $request, int $id): JsonResponse
+    public function setPermission(SetDrivePermissionRequest $request): JsonResponse
     {
         $user = $this->requireAuthenticatedUser();
         $companyId = $this->getCurrentCompanyId();
@@ -496,75 +351,14 @@ class DriveController extends BaseController
             return $this->errorResponse('Company is required', 422);
         }
 
-        $validated = $request->validate([
-            'target_folder_id' => 'nullable|integer',
-        ]);
-
-        $file = DriveFile::query()
-            ->where('company_id', $companyId)
-            ->with('folder')
-            ->findOrFail($id);
-
-        if (! $this->driveAccessService->can($user, $companyId, 'rename', $file->folder, $file)) {
-            return $this->errorResponse('Forbidden', 403);
-        }
-
-        $targetFolder = null;
-        if (! empty($validated['target_folder_id'])) {
-            $targetFolder = DriveFolder::query()
-                ->where('company_id', $companyId)
-                ->findOrFail((int) $validated['target_folder_id']);
-            if (! $this->driveAccessService->can($user, $companyId, 'upload', $targetFolder)) {
-                return $this->errorResponse('Forbidden', 403);
-            }
-        }
-
-        $extension = $file->extension ? '.'.$file->extension : '';
-        $newStoredName = Str::uuid().$extension;
-        $newPath = 'drive/'.$companyId.'/'.($targetFolder ? $targetFolder->id : 'root').'/'.$newStoredName;
-
-        DB::transaction(function () use ($file, $targetFolder, $newPath, $newStoredName): void {
-            Storage::disk('local')->move($file->path, $newPath);
-            $file->folder_id = $targetFolder?->id;
-            $file->stored_name = $newStoredName;
-            $file->path = $newPath;
-            $file->save();
-        });
-
-        return $this->successResponse($file->fresh());
-    }
-
-    /**
-     * @return JsonResponse
-     */
-    public function setPermission(Request $request): JsonResponse
-    {
-        $user = $this->requireAuthenticatedUser();
-        $companyId = $this->getCurrentCompanyId();
-        if (! $companyId) {
-            return $this->errorResponse('Company is required', 422);
-        }
-
-        $validated = $request->validate([
-            'resource_type' => 'required|in:folder,file',
-            'resource_id' => 'required|integer',
-            'subject_type' => 'required|in:user,role',
-            'subject_id' => 'required|integer',
-            'ability' => 'required|in:view,upload,rename,delete,share',
-            'effect' => 'required|in:allow,deny',
-        ]);
-
+        $validated = $request->validated();
         $folder = null;
         $file = null;
+
         if ($validated['resource_type'] === DrivePermission::RESOURCE_FOLDER) {
-            $folder = DriveFolder::query()
-                ->where('company_id', $companyId)
-                ->findOrFail((int) $validated['resource_id']);
+            $folder = $this->driveRepository->findFolder($companyId, (int) $validated['resource_id']);
         } else {
-            $file = DriveFile::query()
-                ->where('company_id', $companyId)
-                ->with('folder')
-                ->findOrFail((int) $validated['resource_id']);
+            $file = $this->driveRepository->findFile($companyId, (int) $validated['resource_id']);
             $folder = $file->folder;
         }
 
@@ -572,109 +366,105 @@ class DriveController extends BaseController
             return $this->errorResponse('Forbidden', 403);
         }
 
-        if ($validated['subject_type'] === DrivePermission::SUBJECT_USER) {
-            User::query()->findOrFail((int) $validated['subject_id']);
+        $permission = $this->driveRepository->setPermission($companyId, $user->id, $validated);
+
+        return $this->successResponse(DrivePermissionResource::make($permission)->resolve());
+    }
+
+    /**
+     * @return JsonResponse
+     */
+    public function listPermissions(ListDrivePermissionsRequest $request): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = $this->getCurrentCompanyId();
+        if (! $companyId) {
+            return $this->errorResponse('Company is required', 422);
         }
 
-        $permission = DrivePermission::query()->updateOrCreate(
-            [
-                'company_id' => $companyId,
-                'resource_type' => $validated['resource_type'],
-                'resource_id' => (int) $validated['resource_id'],
-                'subject_type' => $validated['subject_type'],
-                'subject_id' => (int) $validated['subject_id'],
-                'ability' => $validated['ability'],
-            ],
-            [
-                'effect' => $validated['effect'],
-                'created_by' => $user->id,
-            ]
+        $validated = $request->validated();
+        $folder = null;
+        $file = null;
+
+        if ($validated['resource_type'] === DrivePermission::RESOURCE_FOLDER) {
+            $folder = $this->driveRepository->findFolder($companyId, (int) $validated['resource_id']);
+        } else {
+            $file = $this->driveRepository->findFile($companyId, (int) $validated['resource_id']);
+            $folder = $file->folder;
+        }
+
+        if (! $this->driveAccessService->can($user, $companyId, 'share', $folder, $file)) {
+            return $this->errorResponse('Forbidden', 403);
+        }
+
+        $permissions = $this->driveRepository->listPermissions(
+            $companyId,
+            $validated['resource_type'],
+            (int) $validated['resource_id']
         );
 
-        return $this->successResponse($permission);
+        return $this->successResponse(DrivePermissionResource::collection($permissions)->resolve());
     }
 
     /**
-     * @return array<int, array{id: int, name: string}>
+     * @return JsonResponse
      */
-    private function breadcrumbs(DriveFolder $folder): array
+    public function moveFiles(MoveDriveFilesRequest $request): JsonResponse
     {
-        $items = [];
-        $current = $folder;
-        while ($current) {
-            $items[] = ['id' => (int) $current->id, 'name' => $current->name];
-            $current = $current->parent;
+        $user = $this->requireAuthenticatedUser();
+        $companyId = $this->getCurrentCompanyId();
+        if (! $companyId) {
+            return $this->errorResponse('Company is required', 422);
         }
 
-        return array_reverse($items);
+        $validated = $request->validated();
+        $fileIds = array_values(array_unique(array_map('intval', $validated['file_ids'])));
+        $targetFolder = $this->driveRepository->findOptionalFolder(
+            $companyId,
+            ! empty($validated['target_folder_id']) ? (int) $validated['target_folder_id'] : null
+        );
+
+        $forbidden = $this->authorizeFilesMove($user, $companyId, $fileIds, $targetFolder);
+        if ($forbidden !== null) {
+            return $forbidden;
+        }
+
+        $moved = $this->driveRepository->moveFilesBatch($companyId, $fileIds, $targetFolder);
+
+        return $this->successResponse(DriveFileResource::collection($moved)->resolve());
     }
 
     /**
-     * @return array<int, int>
+     * @param  array<int, int>  $fileIds
      */
-    private function collectFolderIds(DriveFolder $folder): array
+    private function authorizeFilesMove(User $user, int $companyId, array $fileIds, ?DriveFolder $targetFolder): ?JsonResponse
     {
-        $ids = [(int) $folder->id];
-        $cursor = [(int) $folder->id];
-        while ($cursor !== []) {
-            $children = DriveFolder::query()
-                ->whereIn('parent_id', $cursor)
-                ->pluck('id')
-                ->map(static fn ($value) => (int) $value)
-                ->all();
-            if ($children === []) {
-                break;
+        if ($targetFolder !== null && ! $this->driveAccessService->can($user, $companyId, 'upload', $targetFolder)) {
+            return $this->errorResponse('Forbidden', 403);
+        }
+
+        foreach ($fileIds as $fileId) {
+            $file = $this->driveRepository->findFile($companyId, $fileId);
+            if (! $this->driveAccessService->can($user, $companyId, 'rename', $file->folder, $file)) {
+                return $this->errorResponse('Forbidden', 403);
             }
-            $ids = array_merge($ids, $children);
-            $cursor = $children;
         }
 
-        return array_values(array_unique($ids));
+        return null;
     }
 
     /**
-     * @param  array<int, string>  $segments
+     * @return BinaryFileResponse|JsonResponse
      */
-    private function isAllowedDriveFile(UploadedFile $file): bool
+    private function fileBinaryResponse(DriveFile $file, bool $inline): BinaryFileResponse
     {
-        $extension = strtolower($file->getClientOriginalExtension());
+        $absolutePath = Storage::disk($file->disk_name)->path($file->path);
+        $mimeType = $file->mime_type ?: 'application/octet-stream';
+        $disposition = ($inline ? 'inline' : 'attachment').'; filename="'.str_replace('"', '', $file->name).'"';
 
-        return $extension !== '' && in_array($extension, self::ALLOWED_FILE_EXTENSIONS, true);
-    }
-
-    private function unsupportedFileTypeMessage(UploadedFile $file): string
-    {
-        $name = $file->getClientOriginalName();
-        $extension = strtolower($file->getClientOriginalExtension() ?: (string) pathinfo($name, PATHINFO_EXTENSION));
-        $typeLabel = $extension !== '' ? '.'.$extension : 'unknown';
-
-        return "Неподдерживаемый тип файла: {$name} ({$typeLabel})";
-    }
-
-    /**
-     * @param  array<int, string>  $segments
-     */
-    private function ensureFolderTree(int $companyId, int $creatorId, ?DriveFolder $baseFolder, array $segments): ?DriveFolder
-    {
-        $parent = $baseFolder;
-        foreach ($segments as $segment) {
-            $name = trim((string) $segment);
-            if ($name === '' || $name === '.' || $name === '..') {
-                continue;
-            }
-            $parent = DriveFolder::query()->firstOrCreate(
-                [
-                    'company_id' => $companyId,
-                    'parent_id' => $parent?->id,
-                    'name' => $name,
-                ],
-                [
-                    'creator_id' => $creatorId,
-                    'icon' => 'fas fa-folder',
-                ]
-            );
-        }
-
-        return $parent;
+        return response()->file($absolutePath, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => $disposition,
+        ]);
     }
 }

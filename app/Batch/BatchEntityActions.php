@@ -4,13 +4,13 @@ namespace App\Batch;
 
 use App\Events\OrderFirstStageCountUpdated;
 use App\Models\Client;
-use App\Models\DriveFile;
 use App\Models\EmployeeSalary;
 use App\Models\Order;
 use App\Models\Project;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Repositories\ClientsRepository;
+use App\Repositories\DriveRepository;
 use App\Repositories\InvoicesRepository;
 use App\Repositories\OrdersRepository;
 use App\Repositories\ProjectsRepository;
@@ -42,6 +42,7 @@ final class BatchEntityActions
         private readonly TransactionsRepository $transactionsRepository,
         private readonly TransactionDeleteConstraints $transactionDeleteConstraints,
         private readonly DriveAccessService $driveAccessService,
+        private readonly DriveRepository $driveRepository,
     ) {}
 
     public function deleteDriveFile(User $user, int $id, ?int $companyId): void
@@ -50,22 +51,13 @@ final class BatchEntityActions
             throw new UnprocessableEntityHttpException('Company is required');
         }
 
-        $file = DriveFile::query()
-            ->where('company_id', $companyId)
-            ->with('folder')
-            ->find($id);
-        if (! $file) {
-            throw new NotFoundHttpException('File not found');
-        }
+        $file = $this->driveRepository->findFile($companyId, $id);
 
         if (! $this->driveAccessService->can($user, $companyId, 'delete', $file->folder, $file)) {
             throw new AccessDeniedHttpException('Forbidden');
         }
 
-        DB::transaction(function () use ($file): void {
-            Storage::disk('local')->delete($file->path);
-            $file->delete();
-        });
+        $this->driveRepository->deleteFile($file);
     }
 
     public function deleteClient(User $user, int $id): void

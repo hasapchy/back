@@ -318,5 +318,50 @@ class LeaveControllerTest extends TestCase
 
         $response->assertStatus(404);
     }
+
+    public function test_index_excludes_inactive_users_by_default(): void
+    {
+        $inactiveUser = User::factory()->create([
+            'is_active' => false,
+        ]);
+        $inactiveUser->companies()->attach($this->company->id);
+
+        Leave::factory()->create([
+            'leave_type_id' => $this->leaveType->id,
+            'user_id' => $inactiveUser->id,
+        ]);
+        Leave::factory()->create([
+            'leave_type_id' => $this->leaveType->id,
+            'user_id' => $this->regularUser->id,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/leaves');
+
+        $response->assertStatus(200);
+        $userIds = collect($response->json('items'))->pluck('user_id');
+        $this->assertFalse($userIds->contains($inactiveUser->id));
+        $this->assertTrue($userIds->contains($this->regularUser->id));
+    }
+
+    public function test_index_includes_inactive_users_when_active_only_disabled(): void
+    {
+        $inactiveUser = User::factory()->create([
+            'is_active' => false,
+        ]);
+        $inactiveUser->companies()->attach($this->company->id);
+
+        Leave::factory()->create([
+            'leave_type_id' => $this->leaveType->id,
+            'user_id' => $inactiveUser->id,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/leaves?active_only=0');
+
+        $response->assertStatus(200);
+        $userIds = collect($response->json('items'))->pluck('user_id');
+        $this->assertTrue($userIds->contains($inactiveUser->id));
+    }
 }
 
