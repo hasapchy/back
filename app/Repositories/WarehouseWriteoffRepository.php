@@ -364,9 +364,8 @@ class WarehouseWriteoffRepository extends BaseRepository
                 $product->delete();
             }
 
-            $writeoff->transactions()->get()->each(function ($tx) {
-                app(TransactionsRepository::class)->deleteItem((int) $tx->id);
-            });
+            $transactions = $writeoff->transactions()->where('is_deleted', false)->get();
+            app(TransactionsRepository::class)->deleteLinkedTransactions($transactions);
 
             $wid = (int) $writeoff->warehouse_id;
             $woid = (int) $writeoff->id;
@@ -430,9 +429,8 @@ class WarehouseWriteoffRepository extends BaseRepository
                 $product->delete();
             }
 
-            $writeoff->transactions()->get()->each(function ($tx) {
-                app(TransactionsRepository::class)->deleteItem((int) $tx->id);
-            });
+            $transactions = $writeoff->transactions()->where('is_deleted', false)->get();
+            app(TransactionsRepository::class)->deleteLinkedTransactions($transactions);
 
             $writeoff->delete();
 
@@ -454,9 +452,7 @@ class WarehouseWriteoffRepository extends BaseRepository
             ->get();
 
         if ($writeoff->reason !== WhWriteoffReason::ReturnSupplier || ! $writeoff->source_receipt_id) {
-            $activeTransactions->each(function ($tx) {
-                app(TransactionsRepository::class)->deleteItem((int) $tx->id);
-            });
+            app(TransactionsRepository::class)->deleteLinkedTransactions($activeTransactions);
             return;
         }
 
@@ -489,31 +485,35 @@ class WarehouseWriteoffRepository extends BaseRepository
             'project_id' => null,
             'note' => $writeoff->note,
             'date' => $writeoff->date ?? now(),
-            'is_debt' => true,
             'source_type' => WhWriteoff::class,
             'source_id' => (int) $writeoff->id,
         ];
+
+        $debtData = $txData;
+        $debtData['is_debt'] = true;
+
+        $paymentData = $txData;
+        $paymentData['is_debt'] = false;
 
         $debtTx = $activeTransactions->firstWhere('is_debt', true);
         $paymentTx = $activeTransactions->firstWhere('is_debt', false);
 
         if ($debtTx) {
-            app(TransactionsRepository::class)->updateItem((int) $debtTx->id, $txData + ['is_debt' => true]);
+            app(TransactionsRepository::class)->updateItem((int) $debtTx->id, $debtData);
         } else {
-            app(TransactionsRepository::class)->createItem($txData + ['is_debt' => true], false, false);
+            app(TransactionsRepository::class)->createItem($debtData, false, false);
         }
 
         if ($paymentTx) {
-            app(TransactionsRepository::class)->updateItem((int) $paymentTx->id, $txData + ['is_debt' => false]);
+            app(TransactionsRepository::class)->updateItem((int) $paymentTx->id, $paymentData);
         } else {
-            app(TransactionsRepository::class)->createItem($txData + ['is_debt' => false], false, false);
+            app(TransactionsRepository::class)->createItem($paymentData, false, false);
         }
 
-        $activeTransactions
-            ->reject(fn($tx) => ($debtTx && (int) $tx->id === (int) $debtTx->id) || ($paymentTx && (int) $tx->id === (int) $paymentTx->id))
-            ->each(function ($tx) {
-                app(TransactionsRepository::class)->deleteItem((int) $tx->id);
-            });
+        $obsoleteTransactions = $activeTransactions
+            ->reject(fn ($tx) => ($debtTx && (int) $tx->id === (int) $debtTx->id) || ($paymentTx && (int) $tx->id === (int) $paymentTx->id))
+            ->values();
+        app(TransactionsRepository::class)->deleteLinkedTransactions($obsoleteTransactions);
     }
 
     /**

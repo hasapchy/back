@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Repositories\ClientsRepository;
+use App\Repositories\DriveRepository;
 use App\Repositories\InvoicesRepository;
 use App\Repositories\OrdersRepository;
 use App\Repositories\ProjectsRepository;
@@ -18,8 +19,10 @@ use App\Repositories\TaskRepository;
 use App\Repositories\TransactionsRepository;
 use App\Repositories\UsersRepository;
 use App\Services\CacheService;
+use App\Services\DriveAccessService;
 use App\Services\TransactionDeleteConstraints;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -38,7 +41,24 @@ final class BatchEntityActions
         private readonly UsersRepository $usersRepository,
         private readonly TransactionsRepository $transactionsRepository,
         private readonly TransactionDeleteConstraints $transactionDeleteConstraints,
+        private readonly DriveAccessService $driveAccessService,
+        private readonly DriveRepository $driveRepository,
     ) {}
+
+    public function deleteDriveFile(User $user, int $id, ?int $companyId): void
+    {
+        if (! $companyId) {
+            throw new UnprocessableEntityHttpException('Company is required');
+        }
+
+        $file = $this->driveRepository->findFile($companyId, $id);
+
+        if (! $this->driveAccessService->can($user, $companyId, 'delete', $file->folder, $file)) {
+            throw new AccessDeniedHttpException('Forbidden');
+        }
+
+        $this->driveRepository->deleteFile($file);
+    }
 
     public function deleteClient(User $user, int $id): void
     {

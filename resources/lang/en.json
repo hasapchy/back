@@ -123,6 +123,7 @@
     "Источник создан":  "Источник создан",
     "Not Extended":  "Not Extended",
     "warehouse_receipt.completion_not_ready":  "Completion is only allowed when the receipt status is Fully received (for nonвЂ‘legacy receipts) or when the receipt is legacy/simplified.",
+    "warehouse_receipt.completion_requires_full_goods_payment":  "The warehouse receipt cannot be completed until goods are fully paid.",
     "Company deleted":  "Company deleted",
     "warehouse_line.orig_unit_not_allowed_for_product":  "Input unit is not linked to this product via conversions.",
     "РўСЂР°РЅР·Р°РєС†РёСЏ СѓРґР°Р»РµРЅР°":  "Transaction deleted",

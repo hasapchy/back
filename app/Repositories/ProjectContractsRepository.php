@@ -834,9 +834,7 @@ class ProjectContractsRepository extends BaseRepository
                 ->where('is_deleted', false)
                 ->get();
 
-            foreach ($linkedTransactions as $tx) {
-                $tx->delete();
-            }
+            app(TransactionsRepository::class)->deleteLinkedTransactions($linkedTransactions);
 
             $projectId = $contract->project_id;
             $contract->delete();

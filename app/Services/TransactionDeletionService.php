@@ -29,10 +29,7 @@ class TransactionDeletionService
      */
     public static function softDeleteMany($transactions, bool $skipClientUpdate = false): void
     {
-        foreach ($transactions as $transaction) {
-            $transactionId = $transaction instanceof Transaction ? $transaction->id : $transaction;
-            self::softDelete($transactionId, $skipClientUpdate);
-        }
+        app(TransactionsRepository::class)->deleteLinkedTransactions($transactions, $skipClientUpdate);
     }
 }
 

@@ -318,9 +318,8 @@ class WarehousePurchaseRepository extends BaseRepository
             }
 
             $supplierId = (int) $purchase->supplier_id;
-            $purchase->transactions()->where('is_deleted', false)->get()->each(function ($tx): void {
-                app(TransactionsRepository::class)->deleteItem((int) $tx->id);
-            });
+            $transactions = $purchase->transactions()->where('is_deleted', false)->get();
+            app(TransactionsRepository::class)->deleteLinkedTransactions($transactions);
             $purchase->delete();
             $this->invalidateCaches();
             WarehouseTimelineCache::forgetPurchase($id, $supplierId);

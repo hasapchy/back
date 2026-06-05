@@ -66,7 +66,7 @@ class DriveAccessService
     /**
      * @return string|null
      */
-    public function resolveAcl(User $user, int $companyId, string $ability, ?DriveFolder $folder = null, ?DriveFile $file = null): ?string
+    private function resolveAcl(User $user, int $companyId, string $ability, ?DriveFolder $folder = null, ?DriveFile $file = null): ?string
     {
         $subjects = $this->resolveSubjects($user, $companyId);
         $resources = $this->resolveResourceChain($folder, $file);

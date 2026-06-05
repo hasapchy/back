@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\WhReceiptStatus;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Models\WhReceipt;
 use Carbon\Carbon;
 
 final class TransactionDeleteConstraints
@@ -18,6 +20,11 @@ final class TransactionDeleteConstraints
 
     public function editRestrictionMessage(?User $user, Transaction $transaction): ?string
     {
+        $completedReceipt = $this->completedWarehouseReceiptRestrictionMessage($transaction);
+        if ($completedReceipt !== null) {
+            return $completedReceipt;
+        }
+
         if ($transaction->cashTransfersFrom()->exists() || $transaction->cashTransfersTo()->exists()) {
             return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с переводом между кассами';
         }
@@ -67,6 +74,23 @@ final class TransactionDeleteConstraints
         }
 
         return in_array(class_basename($transaction->source_type), self::DOCUMENT_SOURCE_TYPES, true);
+    }
+
+    private function completedWarehouseReceiptRestrictionMessage(Transaction $transaction): ?string
+    {
+        if (! $transaction->source_type || ! $transaction->source_id) {
+            return null;
+        }
+        if (! is_a($transaction->source_type, WhReceipt::class, true)) {
+            return null;
+        }
+
+        $receipt = WhReceipt::query()->find((int) $transaction->source_id);
+        if ($receipt instanceof WhReceipt && $receipt->status === WhReceiptStatus::Completed) {
+            return (string) __('warehouse_receipt.receipt_completed_transactions_locked');
+        }
+
+        return null;
     }
 
     private function messageForSourceType(string $sourceType): string

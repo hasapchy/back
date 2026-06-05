@@ -1537,7 +1537,7 @@ class OrdersRepository extends BaseRepository
                         ]);
                     }
                 } else {
-                    $orderTransaction->delete();
+                    app(TransactionsRepository::class)->deleteItem((int) $orderTransaction->id);
                 }
             } elseif ($client_id) {
                 $this->createTransactionForSource(
@@ -1595,12 +1595,8 @@ class OrdersRepository extends BaseRepository
             app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $order->warehouse_id);
             $products = OrderProduct::where('order_id', $id)->get();
 
-            $transactionsRepository = new TransactionsRepository();
-            $transactions = $order->transactions()->get();
-
-            foreach ($transactions as $transaction) {
-                $transactionsRepository->deleteItem($transaction->id);
-            }
+            $transactions = $order->transactions()->where('is_deleted', false)->get();
+            app(TransactionsRepository::class)->deleteLinkedTransactions($transactions);
 
             $this->returnProductsToWarehouse($products, $order->warehouse_id);
 
@@ -2078,7 +2074,7 @@ class OrdersRepository extends BaseRepository
                         $txRepo->updateItem($orderTransaction->id, $txPayload);
                     }
                 } else {
-                    $orderTransaction->delete();
+                    app(TransactionsRepository::class)->deleteItem((int) $orderTransaction->id);
                 }
             } elseif ($clientId && $newTotal > 0.00001) {
                 $this->createTransactionForSource(

@@ -356,9 +356,7 @@ class SalesRepository extends BaseRepository
                 ->where('source_id', $id)
                 ->where('is_deleted', false)
                 ->get();
-            foreach ($transactions as $tx) {
-                $tx->delete();
-            }
+            app(TransactionsRepository::class)->deleteLinkedTransactions($transactions);
 
             $defaultCurrency = Currency::firstWhere('is_default', true);
             $fromCurrency = $defaultCurrency;

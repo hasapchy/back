@@ -1234,8 +1234,3 @@ parameters:
 			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$id\\.$#"
 			count: 3
 			path: app/Services/Chat/ChatService.php
-
-		-
-			message: "#^Access to an undefined property App\\\\Models\\\\Leave\\:\\:\\$leaveType\\.$#"
-			count: 1
-			path: app/Services/PenaltyLeaveTransactionService.php

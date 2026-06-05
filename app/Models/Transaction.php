@@ -262,12 +262,17 @@ class Transaction extends Model implements SupportsTimeline
         static::deleted(function ($transaction) {
             BalanceService::updateClientBalanceOnDelete($transaction);
 
-            if ($transaction->cash_id && !$transaction->is_debt && !$transaction->getSkipCashBalanceUpdate()) {
-                $delta = $transaction->type == 1 ? -$transaction->amount : $transaction->amount;
-                $balanceExpr = 'balance + ' . (float) $delta;
-                DB::table('cash_registers')
-                    ->where('id', $transaction->cash_id)
-                    ->update(['balance' => DB::raw($balanceExpr)]);
+            if ($transaction->cash_id && ! $transaction->is_debt && ! $transaction->getSkipCashBalanceUpdate()) {
+                $cashRegister = CashRegister::query()->lockForUpdate()->find($transaction->cash_id);
+                if ($cashRegister) {
+                    $delta = $transaction->type == 1 ? -(float) $transaction->amount : (float) $transaction->amount;
+                    $newBalance = (float) $cashRegister->balance + $delta;
+                    if ($newBalance < 0 && ! $cashRegister->is_working_minus) {
+                        throw new \RuntimeException((string) __('api.transactions.cash_cannot_go_negative'));
+                    }
+                    $cashRegister->balance = $newBalance;
+                    $cashRegister->save();
+                }
             }
 
             CacheService::invalidateTransactionsCache();

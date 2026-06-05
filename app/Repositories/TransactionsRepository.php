@@ -13,6 +13,7 @@ use App\Models\Transaction;
 use App\Models\WhPurchase;
 use App\Models\WhReceipt;
 use App\Services\CacheService;
+use App\Services\CashRegisterDeletionGuard;
 use App\Services\CurrencyConverter;
 use App\Services\RoundingService;
 use App\Services\TransactionSourceService;
@@ -389,7 +390,7 @@ class TransactionsRepository extends BaseRepository
      */
     public function createItem($data, $return_id = false, bool $skipClientUpdate = false)
     {
-        $this->assertWarehouseReceiptOpenBySource(
+        $this->assertWarehouseReceiptAllowsTransactionMutation(
             isset($data['source_type']) ? (string) $data['source_type'] : null,
             isset($data['source_id']) ? (int) $data['source_id'] : null
         );
@@ -1072,6 +1073,34 @@ class TransactionsRepository extends BaseRepository
     }
 
     /**
+     * @param  iterable<Transaction|int>  $transactions
+     * @return void
+     */
+    public function deleteLinkedTransactions(iterable $transactions, bool $skipClientUpdate = false): void
+    {
+        $rows = collect($transactions)
+            ->map(function ($item): ?Transaction {
+                if ($item instanceof Transaction) {
+                    return $item;
+                }
+
+                return Transaction::query()->find((int) $item);
+            })
+            ->filter(fn (?Transaction $transaction) => $transaction instanceof Transaction && ! $transaction->is_deleted)
+            ->values();
+
+        if ($rows->isEmpty()) {
+            return;
+        }
+
+        app(CashRegisterDeletionGuard::class)->assertTransactionsDeletionSafe($rows);
+
+        foreach ($rows as $transaction) {
+            $this->deleteItem((int) $transaction->id, $skipClientUpdate);
+        }
+    }
+
+    /**
      * Удалить транзакцию
      *
      * @param  int  $id  ID транзакции
@@ -1082,7 +1111,6 @@ class TransactionsRepository extends BaseRepository
     public function deleteItem(int $id, bool $skipClientUpdate = false): bool
     {
         $transaction = Transaction::findOrFail($id);
-        $this->assertWarehouseReceiptNotCompletedIfLinked($transaction);
 
         DB::beginTransaction();
 
@@ -1787,7 +1815,7 @@ class TransactionsRepository extends BaseRepository
     {
         $sid = $transaction->source_id;
 
-        $this->assertWarehouseReceiptOpenBySource(
+        $this->assertWarehouseReceiptAllowsTransactionMutation(
             $transaction->source_type,
             ($sid !== null && $sid !== '') ? (int) $sid : null
         );
@@ -1796,7 +1824,7 @@ class TransactionsRepository extends BaseRepository
     /**
      * @return void
      */
-    private function assertWarehouseReceiptOpenBySource(?string $sourceType, ?int $sourceId): void
+    private function assertWarehouseReceiptAllowsTransactionMutation(?string $sourceType, ?int $sourceId): void
     {
         if ($sourceId === null || $sourceId <= 0 || $sourceType === null || $sourceType === '') {
             return;

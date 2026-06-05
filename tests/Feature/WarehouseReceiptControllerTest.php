@@ -106,7 +106,7 @@ class WarehouseReceiptControllerTest extends TestCase
             ->postJson('/api/warehouse_receipts', $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'РћРїСЂРёС…РѕРґРѕРІР°РЅРёРµ СЃРѕР·РґР°РЅРѕ']);
+        $response->assertJson(['message' => __('warehouse_receipt.created_success')]);
 
         $receiptId = (int) WhReceipt::query()->orderByDesc('id')->value('id');
         $this->assertDatabaseHas('wh_receipts', [
@@ -243,7 +243,7 @@ class WarehouseReceiptControllerTest extends TestCase
             ->putJson("/api/warehouse_receipts/{$receipt->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'РћРїСЂРёС…РѕРґРѕРІР°РЅРёРµ РѕР±РЅРѕРІР»РµРЅРѕ']);
+        $response->assertJson(['message' => __('warehouse_receipt.updated_success')]);
     }
 
     public function test_update_draft_receipt_note_preserves_foreign_currency_amounts(): void
@@ -325,7 +325,7 @@ class WarehouseReceiptControllerTest extends TestCase
             ->deleteJson("/api/warehouse_receipts/{$receipt->id}");
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'РћРїСЂРёС…РѕРґРѕРІР°РЅРёРµ СѓРґР°Р»РµРЅРѕ']);
+        $response->assertJson(['message' => __('warehouse_receipt.deleted_success')]);
     }
 
     public function test_draft_receipt_update_recalculates_auto_transactions_and_posts_stock_on_complete(): void
@@ -392,6 +392,24 @@ class WarehouseReceiptControllerTest extends TestCase
         $this->assertSame(0, $txs->where('is_debt', false)->count());
         $this->assertEqualsWithDelta(60.0, (float) $txs->where('is_debt', true)->first()->orig_amount, 0.01);
         $this->assertEquals((int) $defaultCurrency->id, (int) $txs->where('is_debt', true)->first()->currency_id);
+
+        Transaction::query()->create([
+            'type' => 0,
+            'creator_id' => $this->adminUser->id,
+            'orig_amount' => 60,
+            'amount' => 60,
+            'def_amount' => 60,
+            'currency_id' => (int) $defaultCurrency->id,
+            'cash_id' => $this->cashRegister->id,
+            'category_id' => 6,
+            'client_id' => $this->client->id,
+            'exchange_rate' => 1,
+            'date' => now(),
+            'is_debt' => false,
+            'is_deleted' => false,
+            'source_type' => WhReceipt::class,
+            'source_id' => (int) $receiptId,
+        ]);
 
         $repo->completeReceipt((int) $receiptId);
 

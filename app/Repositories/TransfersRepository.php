@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\CashRegister;
 use App\Models\CashTransfer;
+use App\Models\Transaction;
 use App\Models\Currency;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
@@ -260,9 +261,13 @@ class TransfersRepository extends BaseRepository
             $fromTransactionId = $transfer->tr_id_from;
             $toTransactionId = $transfer->tr_id_to;
 
+            $transactions = Transaction::query()
+                ->whereIn('id', [$fromTransactionId, $toTransactionId])
+                ->where('is_deleted', false)
+                ->get();
+            app(TransactionsRepository::class)->deleteLinkedTransactions($transactions);
+
             $transfer->delete();
-            app(TransactionsRepository::class)->deleteItem($fromTransactionId);
-            app(TransactionsRepository::class)->deleteItem($toTransactionId);
 
             app(TransactionsRepository::class)->invalidateTransactionsCache();
             CacheService::invalidateCashRegistersCache();
