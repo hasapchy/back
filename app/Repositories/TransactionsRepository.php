@@ -80,7 +80,7 @@ class TransactionsRepository extends BaseRepository
                 'cashRegister.currency:id,name,code',
                 'category:id,name,type',
                 'project:id,name',
-                'creator:id,name',
+                'creator:id,name,surname,photo',
                 'cashTransfersFrom:id,tr_id_from',
                 'cashTransfersTo:id,tr_id_to',
             ])
@@ -335,7 +335,9 @@ class TransactionsRepository extends BaseRepository
             'creator_id' => $transaction->creator_id,
             'creator' => $transaction->creator ? [
                 'id' => $transaction->creator->id,
-                'name' => trim(($transaction->creator->name ?? '').' '.($transaction->creator->surname ?? '')),
+                'name' => $transaction->creator->name,
+                'surname' => $transaction->creator->surname,
+                'photo' => $transaction->creator->photo,
             ] : null,
             'category_id' => $transaction->category_id,
             'category_name' => $transaction->category->name,
@@ -1366,6 +1368,8 @@ class TransactionsRepository extends BaseRepository
             'transactions.exchange_rate as exchange_rate',
             'transactions.creator_id as creator_id',
             'users.name as creator_name',
+            'users.surname as creator_surname',
+            'users.photo as creator_photo',
             'transactions.category_id as category_id',
             'transaction_categories.name as category_name',
             'transaction_categories.type as category_type',
@@ -1413,8 +1417,10 @@ class TransactionsRepository extends BaseRepository
             $mappedItem->creator = $mappedItem->creator_id ? [
                 'id' => (int) $mappedItem->creator_id,
                 'name' => $mappedItem->creator_name,
+                'surname' => $mappedItem->creator_surname,
+                'photo' => $mappedItem->creator_photo,
             ] : null;
-            unset($mappedItem->creator_name);
+            unset($mappedItem->creator_name, $mappedItem->creator_surname, $mappedItem->creator_photo);
 
             return $mappedItem;
         });

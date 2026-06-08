@@ -334,6 +334,50 @@ class UsersControllerTest extends TestCase
         ]);
     }
 
+    public function test_update_user_with_multiple_companies_does_not_duplicate_employee_client_email(): void
+    {
+        $secondCompany = Company::factory()->create();
+        $email = 'multi.company.employee@example.com';
+
+        $user = User::factory()->create([
+            'name' => 'Multi',
+            'surname' => 'Company',
+            'email' => $email,
+            'phone' => '993610000010',
+            'is_active' => true,
+        ]);
+        $user->companies()->attach([$this->company->id, $secondCompany->id]);
+
+        $firstClient = Client::factory()->create([
+            'employee_id' => $user->id,
+            'client_type' => 'employee',
+            'company_id' => $this->company->id,
+            'first_name' => 'Multi',
+            'last_name' => 'Company',
+            'status' => true,
+        ]);
+        ClientsEmail::query()->create(['client_id' => $firstClient->id, 'email' => $email]);
+        ClientsPhone::query()->create(['client_id' => $firstClient->id, 'phone' => '993610000010']);
+
+        Client::factory()->create([
+            'employee_id' => $user->id,
+            'client_type' => 'employee',
+            'company_id' => $secondCompany->id,
+            'first_name' => 'Multi',
+            'last_name' => 'Company',
+            'status' => true,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->putJson("/api/users/{$user->id}", [
+                'companies' => [$this->company->id, $secondCompany->id],
+            ]);
+
+        $response->assertStatus(200);
+        $this->assertSame(1, ClientsEmail::query()->where('email', $email)->count());
+        $this->assertSame(1, ClientsPhone::query()->where('phone', '993610000010')->count());
+    }
+
     public function test_update_user_normalizes_boolean_fields(): void
     {
         $user = User::factory()->create(['is_active' => false]);

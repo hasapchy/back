@@ -40,7 +40,7 @@ class ProjectsRepository extends BaseRepository
             'client.emails:id,client_id,email',
             'currency:id,name,code',
             'status:id,name,color,is_visible',
-            'creator:id,name,photo',
+            'creator:id,name,surname,photo',
             'users:id,name',
         ];
     }
@@ -380,7 +380,7 @@ class ProjectsRepository extends BaseRepository
                     'client:id,first_name,last_name,balance,client_type',
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
-                    'creator:id,name,photo',
+                    'creator:id,name,surname,photo',
                     'currency:id,name,code',
                     'status:id,name,color,is_visible',
                     'users:id,name',
@@ -452,7 +452,7 @@ class ProjectsRepository extends BaseRepository
                 ->with([
                     'cashRegister.currency:id,code',
                     'currency:id,code,name,is_default',
-                    'creator:id,name',
+                    'creator:id,name,surname,photo',
                     'category:id,name',
                 ])
                 ->select(

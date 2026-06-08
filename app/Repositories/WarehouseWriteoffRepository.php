@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Enums\WhWriteoffReason;
+use App\Http\Resources\WarehouseWriteoffProductResource;
 use App\Http\Resources\WarehouseWriteoffResource;
 use App\Models\CashRegister;
 use App\Models\User;
@@ -14,6 +15,7 @@ use App\Models\WhWriteoff;
 use App\Models\WhWriteoffProduct;
 use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
+use App\Services\UnitStockPresentationService;
 use App\Services\InventoryLockService;
 use App\Services\RoundingService;
 use App\Services\Timeline\WarehouseTimelineCache;
@@ -81,6 +83,7 @@ class WarehouseWriteoffRepository extends BaseRepository
                 'wh_write_offs.note as note',
                 'wh_write_offs.creator_id as creator_id',
                 'users.name as creator_name',
+                'users.surname as creator_surname',
                 'wh_write_offs.created_at as created_at',
                 'wh_write_offs.updated_at as updated_at'
             )
@@ -96,11 +99,12 @@ class WarehouseWriteoffRepository extends BaseRepository
                     $creator = new User;
                     $creator->id = (int) $item->creator_id;
                     $creator->name = (string) $item->creator_name;
+                    $creator->surname = (string) ($item->creator_surname ?? '');
                     $item->setRelation('creator', $creator);
                 } else {
                     $item->setRelation('creator', null);
                 }
-                unset($item->creator_name);
+                unset($item->creator_name, $item->creator_surname);
             }
 
             return $items;
@@ -154,27 +158,26 @@ class WarehouseWriteoffRepository extends BaseRepository
             return null;
         }
 
-        $productsGrouped = $this->getProducts([$row->id]);
-        $rawProducts = $productsGrouped->get($row->id, collect());
-        $products = $rawProducts->map(function ($p) {
-            return [
-                'id' => (int) $p->id,
-                'write_off_id' => (int) $p->write_off_id,
-                'product_id' => (int) $p->product_id,
-                'product_name' => $p->product_name,
-                'product_image' => $p->product_image,
-                'unit_id' => $p->unit_id !== null ? (int) $p->unit_id : null,
-                'unit_name' => $p->unit_name,
-                'unit_short_name' => $p->unit_short_name,
-                'quantity' => (float) $p->quantity,
-                'price' => (float) $p->price,
-                'source_receipt_product_id' => $p->source_receipt_product_id !== null ? (int) $p->source_receipt_product_id : null,
-                'orig_unit_id' => $p->orig_unit_id !== null ? (int) $p->orig_unit_id : null,
-                'orig_quantity' => $p->orig_quantity !== null ? (float) $p->orig_quantity : null,
-                'orig_unit_name' => $p->orig_unit_name,
-                'orig_unit_short_name' => $p->orig_unit_short_name,
-            ];
-        })->values()->all();
+        $lines = WhWriteoffProduct::query()
+            ->where('write_off_id', $row->id)
+            ->with([
+                'product.unit',
+                'origUnit',
+                'sourceReceiptProduct',
+            ])
+            ->get();
+
+        $presentation = app(UnitStockPresentationService::class);
+        $lineProducts = $lines->map(static fn ($line) => $line->product)->filter()->unique('id')->values();
+        if ($lineProducts->isNotEmpty()) {
+            $presentation->attachStockByUnitsForProducts($lineProducts);
+        }
+        $presentation->attachStockByUnitsToProductLines($lines);
+
+        $products = $lines
+            ->map(static fn ($line) => (new WarehouseWriteoffProductResource($line))->toArray(request()))
+            ->values()
+            ->all();
 
         $creator = null;
         if ($row->creator_id) {
@@ -466,9 +469,18 @@ class WarehouseWriteoffRepository extends BaseRepository
             return;
         }
 
+        $receiptLines = WhReceiptProduct::query()
+            ->where('receipt_id', (int) $writeoff->source_receipt_id)
+            ->get()
+            ->keyBy('id');
+
         $amount = 0.0;
         foreach ($products as $product) {
-            $amount += (float) ($product['price'] ?? 0) * (float) ($product['quantity'] ?? 0);
+            $receiptLine = $receiptLines->get((int) ($product['source_receipt_product_id'] ?? 0));
+            if (! $receiptLine instanceof WhReceiptProduct) {
+                continue;
+            }
+            $amount += $receiptLine->documentCurrencyUnitPrice() * (float) ($product['quantity'] ?? 0);
         }
 
         $amount = app(RoundingService::class)->roundWarehouseAmountForCompany($this->getCurrentCompanyId(), $amount);
@@ -527,6 +539,15 @@ class WarehouseWriteoffRepository extends BaseRepository
         ?int $sourceReceiptId,
         array $products
     ): array {
+        $products = array_values(array_filter(
+            $products,
+            static fn (array $product): bool => (float) ($product['quantity'] ?? 0) > 0
+        ));
+
+        if ($products === []) {
+            throw new \RuntimeException(__('EMPTY_WRITE_OFF_PRODUCTS'));
+        }
+
         if ($reason !== WhWriteoffReason::ReturnSupplier) {
             return array_map(function (array $product): array {
                 return array_merge([
@@ -543,13 +564,10 @@ class WarehouseWriteoffRepository extends BaseRepository
         }
 
         $receipt = WhReceipt::query()
-            ->with(['products:id,receipt_id,product_id,quantity,price'])
+            ->with(['products:id,receipt_id,product_id,quantity,price,orig_unit_price'])
             ->find($sourceReceiptId);
         if (! $receipt) {
             throw new \RuntimeException(__('SOURCE_RECEIPT_NOT_FOUND'));
-        }
-        if ((int) $receipt->warehouse_id !== $warehouseId) {
-            throw new \RuntimeException(__('SOURCE_RECEIPT_WAREHOUSE_MISMATCH'));
         }
 
         $lineById = $receipt->products->keyBy('id');

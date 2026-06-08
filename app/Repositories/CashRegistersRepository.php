@@ -20,7 +20,7 @@ class CashRegistersRepository extends BaseRepository
      */
     public function getItemsWithPagination($perPage = 20, $page = 1)
     {
-        $query = CashRegister::with(['currency:id,name,code', 'creator:id,name', 'users:id,name']);
+        $query = CashRegister::with(['currency:id,name,code', 'creator:id,name,surname,photo', 'users:id,name']);
 
         $this->applyUserFilter($query);
         $query = $this->addCompanyFilterDirect($query, 'cash_registers');
@@ -42,7 +42,7 @@ class CashRegistersRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('cash_registers_all', [$currentUser?->id, $companyId]);
 
         return CacheService::getReferenceData($cacheKey, function() {
-            $query = CashRegister::with(['currency:id,name,code', 'creator:id,name', 'users:id,name']);
+            $query = CashRegister::with(['currency:id,name,code', 'creator:id,name,surname,photo', 'users:id,name']);
 
             $this->applyUserFilter($query);
             $query = $this->addCompanyFilterDirect($query, 'cash_registers');

@@ -163,7 +163,7 @@ class WarehouseReceiptRepository extends BaseRepository
                 'cashRegister:id,name,currency_id,is_cash',
                 'cashRegister.currency:id,name,code',
                 'origCurrency:id,name,code',
-                'creator:id,name',
+                'creator:id,name,surname,photo',
                 'supplier:id,first_name,last_name,status,balance',
                 'supplier.phones:id,client_id,phone',
                 'supplier.emails:id,client_id,email',

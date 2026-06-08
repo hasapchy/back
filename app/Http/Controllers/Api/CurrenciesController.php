@@ -28,10 +28,8 @@ class CurrenciesController extends BaseController
         }
 
         if (! CompanyScopedPermissions::userHasAny($user, [
-            'currency_history_view',
-            'currency_history_view_all',
-            'currency_history_view_own',
-            'settings_currencies_view',
+            'currencies_view',
+            'currencies_view_all',
         ])) {
             return $this->errorResponse(__('api.common.forbidden'), 403);
         }

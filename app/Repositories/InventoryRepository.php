@@ -10,7 +10,7 @@ class InventoryRepository extends BaseRepository
     public function getByIdForUser(int $id): ?Inventory
     {
         $query = Inventory::query()
-            ->with(['warehouse:id,name', 'creator:id,name', 'finalizedBy:id,name'])
+            ->with(['warehouse:id,name', 'creator:id,name,surname,photo', 'finalizedBy:id,name,surname,photo'])
             ->withDiscrepancyItemsCount()
             ->where('id', $id);
 
@@ -26,7 +26,7 @@ class InventoryRepository extends BaseRepository
     public function getItemsPaginated(int $perPage = 20, int $page = 1, array $filters = []): LengthAwarePaginator
     {
         $query = Inventory::query()
-            ->with(['warehouse:id,name', 'creator:id,name', 'finalizedBy:id,name'])
+            ->with(['warehouse:id,name', 'creator:id,name,surname,photo', 'finalizedBy:id,name,surname,photo'])
             ->withDiscrepancyItemsCount()
             ->orderByDesc('id');
 

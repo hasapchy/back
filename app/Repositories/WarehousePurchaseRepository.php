@@ -29,7 +29,7 @@ class WarehousePurchaseRepository extends BaseRepository
         return function ($query): void {
             $query->where('is_deleted', false)
                 ->with([
-                    'creator:id,name,surname',
+                    'creator:id,name,surname,photo',
                     'category:id,name,type',
                     'cashRegister:id,name,currency_id,is_cash,icon,color',
                     'cashRegister.currency:id,name,code',
@@ -56,7 +56,7 @@ class WarehousePurchaseRepository extends BaseRepository
                     'cashRegister:id,name,currency_id,is_cash',
                     'currency:id,code',
                     'origCurrency:id,code',
-                    'creator:id,name',
+                    'creator:id,name,surname,photo',
                     'products:id,purchase_id,product_id,quantity,price,orig_unit_price,orig_currency_id,orig_unit_id,orig_quantity',
                     'products.product:id,name,image,unit_id',
                     'products.product.unit:id,name,short_name',
@@ -103,7 +103,7 @@ class WarehousePurchaseRepository extends BaseRepository
                     'cashRegister:id,name,currency_id,is_cash',
                     'currency:id,code',
                     'origCurrency:id,code',
-                    'creator:id,name',
+                    'creator:id,name,surname,photo',
                     'products:id,purchase_id,product_id,quantity,price,orig_unit_price,orig_currency_id,orig_unit_id,orig_quantity',
                     'products.product:id,name,image,unit_id',
                     'products.product.unit:id,name,short_name',

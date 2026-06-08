@@ -49,6 +49,15 @@ class DriveFile extends Model
     }
 
     /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function permissions()
+    {
+        return $this->hasMany(DrivePermission::class, 'resource_id')
+            ->where('resource_type', DrivePermission::RESOURCE_FILE);
+    }
+
+    /**
      * @return string
      */
     public function getDiskNameAttribute(): string

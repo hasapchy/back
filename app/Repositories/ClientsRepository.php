@@ -64,7 +64,7 @@ class ClientsRepository extends BaseRepository
         $query = Client::with([
             'phones:id,client_id,phone',
             'emails:id,client_id,email',
-            'creator:id,name,photo',
+            'creator:id,name,surname,photo',
             'employee:id,name,surname,position,photo',
             'balances.currency',
             'balances.users',
@@ -218,7 +218,7 @@ class ClientsRepository extends BaseRepository
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
-                'creator:id,name,photo',
+                'creator:id,name,surname,photo',
                 'employee:id,name,surname,position,photo',
                 'balances.currency',
                 'balances.users',
@@ -326,7 +326,7 @@ class ClientsRepository extends BaseRepository
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
-                'creator:id,name,photo',
+                'creator:id,name,surname,photo',
                 'employee:id,name,surname,position,photo',
             ])
                 ->where('clients.status', true);
@@ -375,7 +375,7 @@ class ClientsRepository extends BaseRepository
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
-                'creator:id,name,photo',
+                'creator:id,name,surname,photo',
                 'employee:id,name,surname,position,photo',
                 'balances.currency',
                 'balances.users',
@@ -656,7 +656,7 @@ class ClientsRepository extends BaseRepository
                     'cashRegister:id,name,currency_id',
                     'cashRegister.currency:id,code',
                     'currency:id,code',
-                    'creator:id,name',
+                    'creator:id,name,surname,photo',
                     'category:id,name',
                     'project:id,name',
                 ])

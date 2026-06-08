@@ -74,6 +74,7 @@ class WarehouseMovementRepository extends BaseRepository
                     'wh_movements.note as note',
                     'wh_movements.creator_id as creator_id',
                 'users.name as creator_name',
+                'users.surname as creator_surname',
                     'wh_movements.date as date',
                     'wh_movements.created_at as created_at',
                     'wh_movements.updated_at as updated_at'
@@ -96,11 +97,12 @@ class WarehouseMovementRepository extends BaseRepository
                     $creator = new User;
                     $creator->id = (int) $item->creator_id;
                     $creator->name = (string) $item->creator_name;
+                    $creator->surname = (string) ($item->creator_surname ?? '');
                     $item->setRelation('creator', $creator);
                 } else {
                     $item->setRelation('creator', null);
                 }
-                unset($item->creator_name);
+                unset($item->creator_name, $item->creator_surname);
             }
 
             return $items;

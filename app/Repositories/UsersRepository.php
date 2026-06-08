@@ -1224,24 +1224,48 @@ class UsersRepository extends BaseRepository
 
     /**
      * @param int $clientId
+     * @return list<int>
+     */
+    private function getEmployeeClientIds(int $clientId): array
+    {
+        $employeeId = Client::query()->where('id', $clientId)->value('employee_id');
+        if (! $employeeId) {
+            return [$clientId];
+        }
+
+        return Client::query()
+            ->where('employee_id', $employeeId)
+            ->where('client_type', 'employee')
+            ->pluck('id')
+            ->map(static fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * @param int $clientId
      * @param string|null $phone
      * @return void
      */
     private function syncEmployeeClientPhone(int $clientId, ?string $phone): void
     {
         $normalizedPhone = $phone !== null && trim($phone) !== '' ? trim($phone) : null;
+        $employeeClientIds = $this->getEmployeeClientIds($clientId);
 
         if ($normalizedPhone === null) {
-            ClientsPhone::query()->where('client_id', $clientId)->delete();
+            ClientsPhone::query()->whereIn('client_id', $employeeClientIds)->delete();
 
             return;
         }
 
-        $existing = ClientsPhone::query()->where('client_id', $clientId)->orderBy('id')->first();
+        $existing = ClientsPhone::query()
+            ->whereIn('client_id', $employeeClientIds)
+            ->orderBy('id')
+            ->first();
+
         if ($existing) {
             $existing->update(['phone' => $normalizedPhone]);
             ClientsPhone::query()
-                ->where('client_id', $clientId)
+                ->whereIn('client_id', $employeeClientIds)
                 ->where('id', '!=', $existing->id)
                 ->delete();
 
@@ -1262,18 +1286,23 @@ class UsersRepository extends BaseRepository
     private function syncEmployeeClientEmail(int $clientId, ?string $email): void
     {
         $normalizedEmail = $email !== null && trim($email) !== '' ? trim($email) : null;
+        $employeeClientIds = $this->getEmployeeClientIds($clientId);
 
         if ($normalizedEmail === null) {
-            ClientsEmail::query()->where('client_id', $clientId)->delete();
+            ClientsEmail::query()->whereIn('client_id', $employeeClientIds)->delete();
 
             return;
         }
 
-        $existing = ClientsEmail::query()->where('client_id', $clientId)->orderBy('id')->first();
+        $existing = ClientsEmail::query()
+            ->whereIn('client_id', $employeeClientIds)
+            ->orderBy('id')
+            ->first();
+
         if ($existing) {
             $existing->update(['email' => $normalizedEmail]);
             ClientsEmail::query()
-                ->where('client_id', $clientId)
+                ->whereIn('client_id', $employeeClientIds)
                 ->where('id', '!=', $existing->id)
                 ->delete();
 

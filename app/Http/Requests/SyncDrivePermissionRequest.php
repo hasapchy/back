@@ -6,7 +6,7 @@ use App\Models\DrivePermission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class SetDrivePermissionRequest extends FormRequest
+class SyncDrivePermissionRequest extends FormRequest
 {
     /**
      * @return bool
@@ -27,7 +27,8 @@ class SetDrivePermissionRequest extends FormRequest
             'resource_type' => ['required', Rule::in([DrivePermission::RESOURCE_FOLDER, DrivePermission::RESOURCE_FILE])],
             'resource_id' => 'required|integer',
             'subject_id' => ['required', 'integer', 'exists:users,id'],
-            'ability' => ['required', Rule::in(DrivePermission::abilitiesForResourceType($resourceType))],
+            'abilities' => 'present|array',
+            'abilities.*' => ['string', Rule::in(DrivePermission::abilitiesForResourceType($resourceType))],
         ];
     }
 }

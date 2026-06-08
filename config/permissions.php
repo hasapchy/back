@@ -236,6 +236,12 @@ return [
             'actions' => ['view', 'create', 'update', 'delete', 'export'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
+        'currencies' => [
+            'has_creator_id' => false,
+            'check_strategy' => 'default',
+            'actions' => ['view'],
+            'scope_actions' => ['view'],
+        ],
         'currency_history' => [
             'has_creator_id' => false,
             'check_strategy' => 'default',
@@ -312,13 +318,10 @@ return [
             'scope_actions' => ['view', 'update', 'delete'],
         ],
         'drive' => [
-            'has_creator_id' => false,
-            'check_strategy' => 'default',
+            'has_creator_id' => true,
+            'check_strategy' => 'creator_id',
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
-            'custom_permissions' => [
-                'share' => 'drive_share',
-            ],
         ],
     ],
 
@@ -345,7 +348,7 @@ return [
             'resources' => ['transactions', 'transaction_templates', 'mutual_settlements', 'transaction_categories', 'invoices', 'cash_registers', 'transfers', 'reports'],
         ],
         'warehouses' => [
-            'label' => 'warehouses',
+            'label' => 'warehouse',
             'resources' => ['warehouses', 'warehouse_stocks', 'warehouse_receipts', 'warehouse_purchases', 'warehouse_writeoffs', 'warehouse_movements', 'inventories'],
         ],
         'orders' => [
@@ -380,9 +383,9 @@ return [
             'label' => 'companies',
             'resources' => ['companies', 'holidays', 'production_calendar'],
         ],
-        'currency_history' => [
-            'label' => 'currency_history',
-            'resources' => ['currency_history'],
+        'currencies' => [
+            'label' => 'currencies',
+            'resources' => ['currencies', 'currency_history'],
         ],
         'users' => [
             'label' => 'users',

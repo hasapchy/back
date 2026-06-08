@@ -372,7 +372,7 @@ class OrdersRepository extends BaseRepository
         $withRelations = [
             'client:id,first_name,last_name,client_type,is_supplier,is_conflict',
             'client.phones:id,client_id,phone',
-            'creator:id,name,photo',
+            'creator:id,name,surname,photo',
             'status:id,name',
             'status.category:id,name,color',
             'warehouse:id,name',
@@ -648,7 +648,7 @@ class OrdersRepository extends BaseRepository
                 'cashRegister:id,name,currency_id,is_cash,company_id',
                 'cashRegister.currency:id,name,code',
                 'project:id,name',
-                'creator:id,name,photo',
+                'creator:id,name,surname,photo',
                 'status:id,name,category_id',
                 'status.category:id,name,color',
                 'category:id,name',

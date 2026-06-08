@@ -54,6 +54,7 @@ class ProjectContractsRepository extends BaseRepository
             'cash_registers.icon as cash_register_icon',
             'cash_registers.is_cash as cash_register_is_cash',
             'contract_creator.name as creator_name',
+            'contract_creator.surname as creator_surname',
             'contract_creator.photo as creator_photo',
         ])
             ->leftJoin('currencies', 'project_contracts.currency_id', '=', 'currencies.id')
@@ -121,9 +122,10 @@ class ProjectContractsRepository extends BaseRepository
             $contract->creator = $contract->creator_id ? [
                 'id' => (int) $contract->creator_id,
                 'name' => $contract->creator_name,
+                'surname' => $contract->creator_surname,
                 'photo' => $contract->creator_photo ?? null,
             ] : null;
-            unset($contract->creator_name, $contract->creator_photo);
+            unset($contract->creator_name, $contract->creator_surname, $contract->creator_photo);
         }
 
         return $contracts;
@@ -803,7 +805,7 @@ class ProjectContractsRepository extends BaseRepository
                 'client:id,first_name,last_name',
                 'currency:id,name,code',
                 'cashRegister:id,name',
-                'creator:id,name',
+                'creator:id,name,surname,photo',
             ])->where('id', $id);
 
             $this->applyCompanyFilter($query);

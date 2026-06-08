@@ -43,7 +43,7 @@ class TransfersRepository extends BaseRepository
                     'toCashRegister.currency' => function ($q) {
                         $q->select('id', 'name', 'code');
                     },
-                    'creator:id,name',
+                    'creator:id,name,surname,photo',
                 ])
                 ->select('cash_transfers.*')
                 ->where(function ($q) use ($userUuid) {
