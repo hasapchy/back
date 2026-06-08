@@ -24,7 +24,6 @@ class ProjectBalanceService
         private readonly ProjectsRepository $projectsRepository,
         private readonly OrdersRepository $ordersRepository,
         private readonly TransactionsRepository $transactionsRepository,
-        private readonly TransactionCategoryBindingResolver $categoryBindingResolver,
         private readonly RoundingService $roundingService,
     ) {}
 
@@ -462,7 +461,11 @@ class ProjectBalanceService
             return (float) $converted;
         }
 
-        return (float) $this->roundingService->roundForCompany($companyId, $converted);
+        return (float) $this->roundingService->roundForModule(
+            $companyId,
+            $converted,
+            RoundingModuleRegistry::PROJECT_BALANCE
+        );
     }
 
     /**

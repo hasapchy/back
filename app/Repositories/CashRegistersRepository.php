@@ -81,7 +81,9 @@ class CashRegistersRepository extends BaseRepository
             $query->whereIn('cash_registers.id', $cash_register_ids);
         }
 
-        $cashRegisters = $query->get();
+        $cashRegisters = $query->orderBy('cash_registers.sort_order')
+            ->orderBy('cash_registers.id')
+            ->get();
 
         if ($cashRegisters->isEmpty()) {
             return collect();

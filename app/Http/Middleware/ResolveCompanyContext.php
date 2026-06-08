@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use App\Models\Sanctum\PersonalAccessToken;
 use App\Support\ResolvedCompany;
 use Closure;
@@ -24,21 +25,7 @@ class ResolveCompanyContext
             return $next($request);
         }
 
-        $fromToken = null;
-        $accessToken = $user->currentAccessToken();
-        if ($accessToken instanceof PersonalAccessToken && $accessToken->company_id !== null && $accessToken->company_id !== '') {
-            $fromToken = (int) $accessToken->company_id;
-        } elseif (! $accessToken instanceof PersonalAccessToken) {
-            $bearer = $request->bearerToken();
-            if (is_string($bearer) && $bearer !== '') {
-                $pat = PersonalAccessToken::findToken($bearer);
-                $tokenable = $pat instanceof PersonalAccessToken ? $pat->tokenable : null;
-                if ($tokenable && $user->is($tokenable)
-                    && $pat->company_id !== null && $pat->company_id !== '') {
-                    $fromToken = (int) $pat->company_id;
-                }
-            }
-        }
+        $fromToken = $this->resolveCompanyIdFromToken($user, $request);
 
         $fromSession = null;
         if ($request->hasSession() && $request->session()->isStarted()) {
@@ -51,5 +38,40 @@ class ResolveCompanyContext
         $request->attributes->set(ResolvedCompany::ATTRIBUTE, $fromToken ?? $fromSession);
 
         return $next($request);
+    }
+
+    /**
+     * @return int|null
+     */
+    private function resolveCompanyIdFromToken(User $user, Request $request): ?int
+    {
+        $accessToken = $user->currentAccessToken();
+        if ($accessToken !== null
+            && isset($accessToken->company_id)
+            && $accessToken->company_id !== null
+            && $accessToken->company_id !== '') {
+            return (int) $accessToken->company_id;
+        }
+
+        $bearer = $request->bearerToken();
+        if (! is_string($bearer) || $bearer === '') {
+            return null;
+        }
+
+        $pat = PersonalAccessToken::findToken($bearer);
+        if (! $pat instanceof PersonalAccessToken) {
+            return null;
+        }
+
+        $tokenable = $pat->tokenable;
+        if ($tokenable === null || ! $user->is($tokenable)) {
+            return null;
+        }
+
+        if ($pat->company_id === null || $pat->company_id === '') {
+            return null;
+        }
+
+        return (int) $pat->company_id;
     }
 }

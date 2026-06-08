@@ -8,15 +8,11 @@ use App\Models\Transaction;
 use App\Models\Currency;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
+use App\Support\TransactionCategoryBindingKeys;
 use Illuminate\Support\Facades\DB;
 
 class TransfersRepository extends BaseRepository
 {
-    /**
-     * ID категорий транзакций для перемещений между кассами
-     */
-    private const TRANSFER_OUTCOME_CATEGORY_ID = 17;
-    private const TRANSFER_INCOME_CATEGORY_ID = 18;
     /**
      * Получить перемещения с пагинацией
      *
@@ -99,7 +95,7 @@ class TransfersRepository extends BaseRepository
                     ] : null,
                     'date' => $transfer->date,
                     'note' => $transfer->note,
-                    'category_id' => self::TRANSFER_OUTCOME_CATEGORY_ID,
+                    'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::CASH_TRANSFER_OUTCOME),
                     'category_name' => 'Перемещение',
                 ];
             }));
@@ -167,7 +163,7 @@ class TransfersRepository extends BaseRepository
                 'orig_amount' => $amount,
                 'currency_id' => $fromCashRegister->currency_id,
                 'cash_id' => $fromCashRegister->id,
-                'category_id' => self::TRANSFER_OUTCOME_CATEGORY_ID,
+                'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::CASH_TRANSFER_OUTCOME),
                 'project_id' => null,
                 'client_id' => null,
                 'note' => $note . ' ' . $transferNote,
@@ -180,7 +176,7 @@ class TransfersRepository extends BaseRepository
                 'orig_amount' => $amountInTargetCurrency,
                 'currency_id' => $toCashRegister->currency_id,
                 'cash_id' => $toCashRegister->id,
-                'category_id' => self::TRANSFER_INCOME_CATEGORY_ID,
+                'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::CASH_TRANSFER_INCOME),
                 'project_id' => null,
                 'client_id' => null,
                 'note' => $note . ' ' . $transferNote,

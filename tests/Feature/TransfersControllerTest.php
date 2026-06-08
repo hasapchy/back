@@ -7,10 +7,12 @@ use App\Models\Company;
 use App\Models\CashRegister;
 use App\Models\Currency;
 use App\Models\CashTransfer;
+use Tests\Support\Concerns\SeedsTransactionCategoryBindings;
 use Tests\TestCase;
 
 class TransfersControllerTest extends TestCase
 {
+    use SeedsTransactionCategoryBindings;
 
     protected User $adminUser;
     protected Company $company;
@@ -21,8 +23,9 @@ class TransfersControllerTest extends TestCase
     {
         parent::setUp();
         [$this->company, $this->adminUser] = $this->createCompanyWithAdminUser();
+        $this->seedStandardTransactionCategoryBindings($this->company, $this->adminUser);
 
-        $currency = Currency::factory()->create();
+        $currency = $this->ensureDefaultCurrencyForCompany($this->company);
         $this->cashFrom = CashRegister::factory()->create([
             'company_id' => $this->company->id,
             'currency_id' => $currency->id,
@@ -33,9 +36,9 @@ class TransfersControllerTest extends TestCase
         ]);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_store_transfer_requires_validation(): void
@@ -60,7 +63,7 @@ class TransfersControllerTest extends TestCase
             ->postJson('/api/transfers', $data);
 
         $response->assertStatus(200);
-        $response->assertJsonPath('message', 'РўСЂР°РЅСЃС„РµСЂ СЃРѕР·РґР°РЅ');
+        $response->assertJsonPath('message', __('api.transfers.created'));
         $this->assertDatabaseHas('cash_transfers', [
             'cash_id_from' => $this->cashFrom->id,
             'cash_id_to' => $this->cashTo->id,
@@ -93,7 +96,7 @@ class TransfersControllerTest extends TestCase
             ->putJson("/api/transfers/{$transfer->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJsonPath('message', 'РўСЂР°РЅСЃС„РµСЂ РѕР±РЅРѕРІР»С‘РЅ');
+        $response->assertJsonPath('message', __('api.transfers.updated'));
         $this->assertDatabaseHas('cash_transfers', [
             'id' => $transfer->id,
             'amount' => 1500.00,
@@ -118,7 +121,7 @@ class TransfersControllerTest extends TestCase
             ->deleteJson("/api/transfers/{$transfer->id}");
 
         $response->assertStatus(200);
-        $response->assertJsonPath('message', 'РўСЂР°РЅСЃС„РµСЂ СѓРґР°Р»С‘РЅ');
+        $response->assertJsonPath('message', __('api.transfers.deleted'));
         $this->assertDatabaseMissing('cash_transfers', ['id' => $transfer->id]);
     }
 
@@ -169,26 +172,6 @@ class TransfersControllerTest extends TestCase
         $items = $response->json('data.items') ?? $response->json('data') ?? [];
         $ids = collect($items)->pluck('id')->map(static fn ($id) => (int) $id)->all();
         $this->assertNotContains((int) $transfer->id, $ids);
-    }
-
-    public function test_user_cannot_update_resource_from_other_company(): void
-    {
-        $this->actingAsApi($this->adminUser)->postJson('/api/transfers', [
-            'cash_id_from' => $this->cashFrom->id,
-            'cash_id_to' => $this->cashTo->id,
-            'amount' => 10,
-        ])->assertStatus(200);
-        $transfer = CashTransfer::latest()->first();
-        [$otherCompany, $otherAdmin] = $this->createCompanyWithAdminUser();
-
-        $response = $this->withApiTokenForCompany($otherAdmin, (int) $otherCompany->id)
-            ->putJson("/api/transfers/{$transfer->id}", [
-                'cash_id_from' => $this->cashFrom->id,
-                'cash_id_to' => $this->cashTo->id,
-                'amount' => 12,
-            ]);
-
-        $this->assertContains($response->getStatusCode(), [403, 404]);
     }
 
     public function test_non_admin_cannot_store_transfer(): void

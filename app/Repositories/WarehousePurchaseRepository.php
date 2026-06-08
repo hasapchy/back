@@ -13,6 +13,7 @@ use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
 use App\Services\RoundingService;
 use App\Models\Transaction;
+use App\Support\TransactionCategoryBindingKeys;
 use App\Services\Timeline\WarehouseTimelineCache;
 use Illuminate\Support\Facades\DB;
 
@@ -129,7 +130,7 @@ class WarehousePurchaseRepository extends BaseRepository
         return DB::transaction(function () use ($data): int {
             $rounding = new RoundingService();
             $companyId = $this->getCurrentCompanyId();
-            $products = $data['products'] ?? [];
+            $products = $this->mergePurchaseProductLines($data['products'] ?? []);
             $defaultCurrency = $this->getDefaultCurrency();
             $purchaseCurrencyId = $this->resolvePurchaseCurrencyId($data, $defaultCurrency->id);
             $purchaseCashId = $this->resolvePurchaseCashId($data);
@@ -178,7 +179,7 @@ class WarehousePurchaseRepository extends BaseRepository
                 'skip_amount_rounding' => true,
                 'currency_id' => $purchaseCurrencyId,
                 'cash_id' => $purchaseCashId,
-                'category_id' => $this->resolveTransactionCategoryBinding('warehouse.purchase', 6),
+                'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::WAREHOUSE_PURCHASE),
                 'client_id' => $purchase->supplier_id,
                 'client_balance_id' => $purchase->client_balance_id,
                 'date' => $purchase->date,
@@ -230,8 +231,9 @@ class WarehousePurchaseRepository extends BaseRepository
             $purchaseCurrencyId = (int) ($purchase->currency_id ?? $defaultCurrency->id);
             $amountOrig = 0.0;
             if (isset($data['products']) && is_array($data['products'])) {
+                $products = $this->mergePurchaseProductLines($data['products']);
                 WhPurchaseProduct::query()->where('purchase_id', $purchase->id)->delete();
-                foreach ($data['products'] as $product) {
+                foreach ($products as $product) {
                     $quantity = $rounding->roundQuantityForCompany($companyId, (float) $product['quantity']);
                     $lineOrig = $this->resolveWarehouseLineOrigAmount($product, $purchaseCurrencyId, $purchase->date);
                     $amountOrig += $quantity * (float) $lineOrig['orig_unit_price'];
@@ -283,7 +285,7 @@ class WarehousePurchaseRepository extends BaseRepository
             'skip_amount_rounding' => true,
             'currency_id' => $purchaseCurrencyId,
             'cash_id' => (int) $purchase->cash_id,
-            'category_id' => $this->resolveTransactionCategoryBinding('warehouse.purchase', 6),
+            'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::WAREHOUSE_PURCHASE),
             'client_id' => (int) $purchase->supplier_id,
             'client_balance_id' => $purchase->client_balance_id,
             'date' => $purchase->date,
@@ -356,7 +358,7 @@ class WarehousePurchaseRepository extends BaseRepository
                 'orig_amount' => $amount,
                 'currency_id' => $paymentCurrencyId,
                 'cash_id' => (int) $data['cash_id'],
-                'category_id' => $this->resolveTransactionCategoryBinding('warehouse.purchase', 6),
+                'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::WAREHOUSE_PURCHASE),
                 'client_id' => $purchase->supplier_id,
                 'client_balance_id' => $purchase->client_balance_id,
                 'date' => $data['date'] ?? now(),
@@ -507,6 +509,48 @@ class WarehousePurchaseRepository extends BaseRepository
         }
 
         return $fallbackCurrencyId;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $products
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergePurchaseProductLines(array $products): array
+    {
+        $companyId = $this->getCurrentCompanyId();
+        $rounding = new RoundingService();
+        $merged = [];
+
+        foreach ($products as $product) {
+            if (! is_array($product)) {
+                continue;
+            }
+
+            $productId = (int) ($product['product_id'] ?? 0);
+            if ($productId <= 0) {
+                continue;
+            }
+
+            if (! isset($merged[$productId])) {
+                $product['quantity'] = $rounding->roundQuantityForCompany($companyId, (float) ($product['quantity'] ?? 0));
+                $merged[$productId] = $product;
+
+                continue;
+            }
+
+            $existingPrice = (float) ($merged[$productId]['price'] ?? 0);
+            $incomingPrice = (float) ($product['price'] ?? 0);
+            if (abs($existingPrice - $incomingPrice) > 1e-9) {
+                throw new \RuntimeException((string) __('warehouse_purchase.duplicate_product_lines_price_mismatch'));
+            }
+
+            $merged[$productId]['quantity'] = $rounding->roundQuantityForCompany(
+                $companyId,
+                (float) ($merged[$productId]['quantity'] ?? 0) + (float) ($product['quantity'] ?? 0)
+            );
+        }
+
+        return array_values($merged);
     }
 
 }

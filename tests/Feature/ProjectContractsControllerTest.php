@@ -12,10 +12,13 @@ use App\Models\ProjectContract;
 use App\Models\Transaction;
 use App\Models\TransactionCategory;
 use App\Models\User;
+use App\Support\TransactionCategoryBindingKeys;
+use Tests\Support\Concerns\SeedsTransactionCategoryBindings;
 use Tests\TestCase;
 
 class ProjectContractsControllerTest extends TestCase
 {
+    use SeedsTransactionCategoryBindings;
 
     protected User $adminUser;
 
@@ -62,6 +65,12 @@ class ProjectContractsControllerTest extends TestCase
             ['id' => 30],
             ['name' => 'CONTRACT', 'type' => 1, 'creator_id' => $this->adminUser->id]
         );
+        $this->seedTransactionCategoryBinding(
+            $this->company,
+            $this->adminUser,
+            TransactionCategoryBindingKeys::CONTRACT,
+            TransactionCategory::query()->find(30)
+        );
 
         $this->client = Client::factory()->create([
             'company_id' => $this->company->id,
@@ -79,9 +88,9 @@ class ProjectContractsControllerTest extends TestCase
         ]);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_store_project_contract_requires_validation_for_active(): void
@@ -235,12 +244,12 @@ class ProjectContractsControllerTest extends TestCase
 
         $response = $this->actingAsApi($this->adminUser)
             ->patchJson("/api/contracts/{$contract->id}", [
-                'note' => 'РўРѕР»СЊРєРѕ РїСЂРёРјРµС‡Р°РЅРёРµ',
+                'note' => 'Только примечание',
             ]);
 
         $response->assertStatus(200);
         $contract->refresh();
-        $this->assertSame('РўРѕР»СЊРєРѕ РїСЂРёРјРµС‡Р°РЅРёРµ', $contract->note);
+        $this->assertSame('Только примечание', $contract->note);
         $this->assertSame('KEEP-NUM', $contract->number);
     }
 
@@ -255,17 +264,17 @@ class ProjectContractsControllerTest extends TestCase
             ->deleteJson("/api/contracts/{$contract->id}");
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'РљРѕРЅС‚СЂР°РєС‚ СѓСЃРїРµС€РЅРѕ СѓРґР°Р»РµРЅ']);
+        $response->assertJson(['message' => __('Контракт успешно удален')]);
     }
 
     public function test_store_contract_preserves_fractional_amount_when_contract_rounding_disabled(): void
     {
         $this->company->update([
             'rounding_enabled' => true,
-            'rounding_decimals' => 0,
             'rounding_direction' => 'standard',
             'rounding_orders_enabled' => true,
             'rounding_contracts_enabled' => false,
+            'rounding_contracts_decimals' => 0,
         ]);
 
         $response = $this->actingAsApi($this->adminUser)

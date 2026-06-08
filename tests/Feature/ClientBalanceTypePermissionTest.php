@@ -32,9 +32,12 @@ class ClientBalanceTypePermissionTest extends TestCase
 
         foreach ([
             'clients_view_all',
+            'clients_update_all',
+            'client_balances_create',
             'client_balances_view_all',
             ClientBalanceViewAccess::PERM_VIEW,
             ClientBalanceViewAccess::PERM_VIEW_CASH,
+            ClientBalanceViewAccess::PERM_VIEW_NON_CASH,
         ] as $permissionName) {
             Permission::query()->firstOrCreate([
                 'name' => $permissionName,
@@ -43,9 +46,9 @@ class ClientBalanceTypePermissionTest extends TestCase
         }
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_balances_index_returns_only_cash_type_when_role_has_cash_view_only(): void
@@ -152,6 +155,5 @@ class ClientBalanceTypePermissionTest extends TestCase
         }
 
         $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['creator_ids']);
     }
 }

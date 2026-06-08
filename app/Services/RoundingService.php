@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\UnresolvableTransactionSourceTypeException;
 use App\Models\Company;
 
 class RoundingService
@@ -11,35 +12,12 @@ class RoundingService
     public const DIRECTION_DOWN = 'down';
     public const DIRECTION_CUSTOM = 'custom';
 
-    /**
-     * Apply company-specific rounding rule for amounts (sums).
-     * Uses company-wide settings for amounts.
-     *
-     * If rounding_enabled = false: truncates to rounding_decimals (no rounding)
-     * If rounding_enabled = true: rounds to rounding_decimals according to rounding_direction
-     *
-     * @param int|null $companyId Company ID
-     * @param float $value Value to round
-     * @return float Rounded value
-     */
-    public function roundForCompany(?int $companyId, float $value): float
-    {
-        return $this->roundWithSettings(
-            $companyId,
-            $value,
-            'rounding_decimals',
-            'rounding_enabled',
-            'rounding_direction',
-            'rounding_custom_threshold',
-        );
-    }
+    public function __construct(
+        private readonly RoundingModuleRegistry $registry = new RoundingModuleRegistry,
+    ) {}
 
     /**
      * Apply company-specific rounding rule for quantity (product quantity).
-     * Uses separate company settings for quantity.
-     *
-     * If rounding_quantity_enabled = false: truncates to rounding_quantity_decimals (no rounding)
-     * If rounding_quantity_enabled = true: rounds to rounding_quantity_decimals according to rounding_quantity_direction
      *
      * @param int|null $companyId Company ID
      * @param float $value Value to round
@@ -63,7 +41,7 @@ class RoundingService
      */
     public function shouldRoundOrderAmounts(?int $companyId): bool
     {
-        return $this->isModuleAmountRoundingEnabled($companyId, 'rounding_orders_enabled');
+        return $this->shouldRoundModule($companyId, RoundingModuleRegistry::MODULE_ORDER);
     }
 
     /**
@@ -72,7 +50,37 @@ class RoundingService
      */
     public function shouldRoundContractAmounts(?int $companyId): bool
     {
-        return $this->isModuleAmountRoundingEnabled($companyId, 'rounding_contracts_enabled');
+        return $this->shouldRoundModule($companyId, RoundingModuleRegistry::MODULE_CONTRACT);
+    }
+
+    /**
+     * @param int|null $companyId
+     * @param string $moduleKey
+     * @return bool
+     */
+    public function shouldRoundModule(?int $companyId, string $moduleKey): bool
+    {
+        $fields = $this->registry->fields($moduleKey);
+
+        return $this->isModuleAmountRoundingEnabled($companyId, $fields['enabled_field']);
+    }
+
+    /**
+     * @param int|null $companyId
+     * @param float $value
+     * @param string $moduleKey
+     * @return float
+     */
+    public function roundForModule(?int $companyId, float $value, string $moduleKey): float
+    {
+        $fields = $this->registry->fields($moduleKey);
+
+        return $this->roundModuleAmountForCompany(
+            $companyId,
+            $value,
+            $fields['enabled_field'],
+            $fields['decimals_field'],
+        );
     }
 
     /**
@@ -82,7 +90,7 @@ class RoundingService
      */
     public function roundOrderAmountForCompany(?int $companyId, float $value): float
     {
-        return $this->roundModuleAmountForCompany($companyId, $value, 'rounding_orders_enabled');
+        return $this->roundForModule($companyId, $value, RoundingModuleRegistry::MODULE_ORDER);
     }
 
     /**
@@ -92,11 +100,7 @@ class RoundingService
      */
     public function roundContractAmountForCompany(?int $companyId, float $value): float
     {
-        if ($this->shouldRoundContractAmounts($companyId)) {
-            return $this->roundForCompany($companyId, $value);
-        }
-
-        return $value;
+        return $this->roundForModule($companyId, $value, RoundingModuleRegistry::MODULE_CONTRACT);
     }
 
     /**
@@ -106,7 +110,17 @@ class RoundingService
      */
     public function roundWarehouseAmountForCompany(?int $companyId, float $value): float
     {
-        return $this->roundModuleAmountForCompany($companyId, $value, 'rounding_warehouse_enabled');
+        return $this->roundForModule($companyId, $value, RoundingModuleRegistry::MODULE_WAREHOUSE);
+    }
+
+    /**
+     * @param int|null $companyId
+     * @param float $value
+     * @return float
+     */
+    public function roundTransactionAmountForCompany(?int $companyId, float $value): float
+    {
+        return $this->roundForModule($companyId, $value, RoundingModuleRegistry::MODULE_TRANSACTION);
     }
 
     /**
@@ -116,40 +130,52 @@ class RoundingService
      * @param float $value
      * @param string|null $sourceType
      * @return float
+     *
+     * @throws UnresolvableTransactionSourceTypeException
      */
     public function roundAmountBySourceType(?int $companyId, float $value, ?string $sourceType): float
     {
-        if ($sourceType === \App\Models\ProjectContract::class || str_contains((string) $sourceType, 'ProjectContract')) {
-            return $this->roundContractAmountForCompany($companyId, $value);
-        }
-        if ($sourceType === \App\Models\Order::class || str_contains((string) $sourceType, 'Order')) {
-            return $this->roundOrderAmountForCompany($companyId, $value);
-        }
-        if (
-            $sourceType === \App\Models\WhReceipt::class
-            || $sourceType === \App\Models\WhPurchase::class
-            || str_contains((string) $sourceType, 'WhReceipt')
-            || str_contains((string) $sourceType, 'WhPurchase')
-        ) {
-            return $this->roundWarehouseAmountForCompany($companyId, $value);
-        }
+        $moduleKey = $this->registry->resolveModuleBySourceType($sourceType);
 
-        return $this->roundForCompany($companyId, $value);
+        return $this->roundForModule($companyId, $value, $moduleKey);
     }
 
     /**
      * @param int|null $companyId
      * @param float $value
      * @param string $moduleEnabledField
+     * @param string $moduleDecimalsField
      * @return float
      */
-    protected function roundModuleAmountForCompany(?int $companyId, float $value, string $moduleEnabledField): float
-    {
-        if ($this->isModuleAmountRoundingEnabled($companyId, $moduleEnabledField)) {
-            return $this->roundForCompany($companyId, $value);
+    protected function roundModuleAmountForCompany(
+        ?int $companyId,
+        float $value,
+        string $moduleEnabledField,
+        string $moduleDecimalsField,
+    ): float {
+        if (! $this->isModuleAmountRoundingEnabled($companyId, $moduleEnabledField)) {
+            return $value;
         }
 
-        return $value;
+        return $this->roundAmountWithModuleDecimals($companyId, $value, $moduleDecimalsField);
+    }
+
+    /**
+     * @param int|null $companyId
+     * @param float $value
+     * @param string $moduleDecimalsField
+     * @return float
+     */
+    protected function roundAmountWithModuleDecimals(?int $companyId, float $value, string $moduleDecimalsField): float
+    {
+        return $this->roundWithSettings(
+            $companyId,
+            $value,
+            $moduleDecimalsField,
+            'rounding_enabled',
+            'rounding_direction',
+            'rounding_custom_threshold',
+        );
     }
 
     /**
@@ -192,18 +218,18 @@ class RoundingService
         string $directionField,
         string $thresholdField,
     ): float {
-        if (!$companyId) {
+        if (! $companyId) {
             return $value;
         }
 
         /** @var Company|null $company */
         $company = Company::find($companyId);
 
-        if (!$company) {
+        if (! $company) {
             return $value;
         }
 
-        $maxDecimals = $decimalsField === 'rounding_decimals' ? 2 : 5;
+        $maxDecimals = in_array($decimalsField, ['rounding_orders_decimals', 'rounding_contracts_decimals', 'rounding_warehouse_decimals', 'rounding_transactions_decimals'], true) ? 2 : 5;
         $decimals = max(0, min($maxDecimals, (int) $company->{$decimalsField}));
         $enabled = (bool) $company->{$enabledField};
 
@@ -218,8 +244,8 @@ class RoundingService
     }
 
     /**
-     * @param  float  $value
-     * @param  int  $decimals
+     * @param float $value
+     * @param int $decimals
      * @return float
      */
     protected function truncate(float $value, int $decimals): float
@@ -229,6 +255,7 @@ class RoundingService
         }
 
         $multiplier = pow(10, $decimals);
+
         return floor(abs($value) * $multiplier) / $multiplier * ($value >= 0 ? 1 : -1);
     }
 
@@ -258,9 +285,9 @@ class RoundingService
                     $fraction = abs($multiplied) - floor(abs($multiplied));
                     if ($fraction >= $customThreshold) {
                         return ($value >= 0 ? ceil($multiplied) : floor($multiplied)) / $multiplier;
-                    } else {
-                        return round($value, $decimals);
                     }
+
+                    return round($value, $decimals);
                 }
 
             case self::DIRECTION_STANDARD:

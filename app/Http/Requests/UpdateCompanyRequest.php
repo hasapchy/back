@@ -2,12 +2,15 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesCompanyRoundingFields;
 use App\Http\Requests\Concerns\ValidatesCompanyTransactionCategoryBindings;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Validation\UiThemeRules;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateCompanyRequest extends FormRequest
 {
+    use ValidatesCompanyRoundingFields;
     use ValidatesCompanyTransactionCategoryBindings;
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
@@ -38,14 +41,10 @@ class UpdateCompanyRequest extends FormRequest
             'warehouse_number' => 'nullable|string|max:128',
             'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
             'show_deleted_transactions' => 'nullable|boolean',
-            'rounding_decimals' => 'nullable|integer|min:0|max:2',
             'display_decimals' => 'nullable|integer|min:0|max:5',
             'rounding_enabled' => 'nullable|boolean',
             'rounding_direction' => 'nullable|in:standard,up,down,custom',
             'rounding_custom_threshold' => 'nullable|numeric|min:0|max:1',
-            'rounding_orders_enabled' => 'nullable|boolean',
-            'rounding_contracts_enabled' => 'nullable|boolean',
-            'rounding_warehouse_enabled' => 'nullable|boolean',
             'rounding_quantity_decimals' => 'nullable|integer|min:0|max:5',
             'rounding_quantity_enabled' => 'nullable|boolean',
             'rounding_quantity_direction' => 'nullable|in:standard,up,down,custom',
@@ -53,7 +52,7 @@ class UpdateCompanyRequest extends FormRequest
             'skip_project_order_balance' => 'nullable|boolean',
             'work_schedule' => 'nullable|array',
             'transaction_category_bindings' => 'nullable|array',
-        ];
+        ] + UiThemeRules::rules() + $this->roundingModuleValidationRules();
     }
 
     /**
@@ -65,10 +64,6 @@ class UpdateCompanyRequest extends FormRequest
 
         foreach ([
             'show_deleted_transactions',
-            'rounding_enabled',
-            'rounding_orders_enabled',
-            'rounding_contracts_enabled',
-            'rounding_warehouse_enabled',
             'rounding_quantity_enabled',
             'skip_project_order_balance',
         ] as $field) {
@@ -77,24 +72,23 @@ class UpdateCompanyRequest extends FormRequest
             }
         }
 
-        if (isset($data['rounding_custom_threshold']) && $data['rounding_custom_threshold'] === '') {
-            $data['rounding_custom_threshold'] = null;
-        }
         if (isset($data['rounding_quantity_custom_threshold']) && $data['rounding_quantity_custom_threshold'] === '') {
             $data['rounding_quantity_custom_threshold'] = null;
         }
 
-        if (isset($data['rounding_enabled']) && ! $data['rounding_enabled']) {
-            $data['rounding_direction'] = null;
-            $data['rounding_custom_threshold'] = null;
-            $data['rounding_orders_enabled'] = false;
-            $data['rounding_contracts_enabled'] = false;
-            $data['rounding_warehouse_enabled'] = false;
-        }
+        $data = $this->normalizeRoundingFields($data);
 
         if (isset($data['rounding_quantity_enabled']) && ! $data['rounding_quantity_enabled']) {
             $data['rounding_quantity_direction'] = null;
             $data['rounding_quantity_custom_threshold'] = null;
+        }
+
+        if (array_key_exists('ui_theme', $data) && $data['ui_theme'] === '') {
+            $data['ui_theme'] = null;
+        }
+        if (isset($data['ui_theme']) && is_string($data['ui_theme'])) {
+            $decoded = json_decode($data['ui_theme'], true);
+            $data['ui_theme'] = is_array($decoded) ? $decoded : null;
         }
 
         $this->merge($data);

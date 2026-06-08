@@ -29,7 +29,6 @@ class Kernel extends ConsoleKernel
             ->dailyAt('00:10')
             ->timezone('Asia/Ashgabat');
 
-
             // Бэкап в 08:00 (UTC+5)
         $schedule
         ->command('db:backup')
@@ -45,6 +44,10 @@ class Kernel extends ConsoleKernel
             ->timezone('Asia/Tashkent')
             ->withoutOverlapping()
             ->runInBackground();
+
+        $schedule->command('cache:prune-key-registry')
+            ->dailyAt('04:00')
+            ->timezone('Asia/Ashgabat');
     }
 
     /**

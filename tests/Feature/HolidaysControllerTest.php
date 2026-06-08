@@ -33,9 +33,9 @@ class HolidaysControllerTest extends TestCase
      * @param  User  $user
      * @return $this
      */
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     /**

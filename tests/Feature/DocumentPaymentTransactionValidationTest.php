@@ -88,50 +88,54 @@ class DocumentPaymentTransactionValidationTest extends TestCase
 
     public function test_store_wh_receipt_goods_payment_requires_document_balance(): void
     {
-        $receipt = $this->createWhReceipt();
+        $receipt = $this->createWhReceiptWithProductLine();
 
         $this->postPayment([
+            'type' => 0,
             'source_type' => 'App\\Models\\WhReceipt',
             'source_id' => $receipt->id,
             'client_id' => $this->client->id,
             'client_balance_id' => $this->createAlternateClientBalance()->id,
-            'category_id' => 6,
+            'category_id' => $this->warehouseGoodsPaymentCategory->id,
             'is_debt' => false,
         ])->assertStatus(422)->assertJsonValidationErrors(['client_balance_id']);
 
         $this->postPayment([
+            'type' => 0,
             'source_type' => 'App\\Models\\WhReceipt',
             'source_id' => $receipt->id,
             'client_id' => $this->client->id,
             'client_balance_id' => $this->clientBalance->id,
-            'category_id' => 6,
+            'category_id' => $this->warehouseGoodsPaymentCategory->id,
             'is_debt' => false,
         ])->assertStatus(200);
     }
 
     public function test_store_wh_receipt_logistics_payment_allows_other_supplier_balance(): void
     {
-        $receipt = $this->createWhReceipt();
+        $receipt = $this->createWhReceiptWithProductLine();
         $alternate = $this->createAlternateClientBalance();
 
         $this->postPayment([
+            'type' => 0,
             'source_type' => 'App\\Models\\WhReceipt',
             'source_id' => $receipt->id,
             'client_id' => $this->client->id,
             'client_balance_id' => $alternate->id,
-            'category_id' => 16,
+            'category_id' => $this->warehouseDeliveryExpenseCategory->id,
             'is_debt' => false,
         ])->assertStatus(200);
     }
 
     public function test_store_wh_receipt_delivery_expense_without_client_balance(): void
     {
-        $receipt = $this->createWhReceipt();
+        $receipt = $this->createWhReceiptWithProductLine();
 
         $this->postPayment([
+            'type' => 0,
             'source_type' => 'App\\Models\\WhReceipt',
             'source_id' => $receipt->id,
-            'category_id' => 16,
+            'category_id' => $this->warehouseDeliveryExpenseCategory->id,
             'is_debt' => false,
         ])->assertStatus(200);
     }
@@ -141,11 +145,12 @@ class DocumentPaymentTransactionValidationTest extends TestCase
         $receipt = $this->createWhReceipt();
 
         $this->postPayment([
+            'type' => 0,
             'source_type' => 'App\\Models\\WhReceipt',
             'source_id' => $receipt->id,
             'client_id' => $this->client->id,
             'client_balance_id' => $this->clientBalance->id,
-            'category_id' => 16,
+            'category_id' => $this->warehouseDeliveryExpenseCategory->id,
             'is_debt' => true,
         ])->assertStatus(200);
     }

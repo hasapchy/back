@@ -14,6 +14,8 @@ use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
 use App\Services\InAppNotifications\InAppNotificationDispatcher;
 use App\Services\TransactionDeleteConstraints;
+use App\Services\TransactionCategoryBindingResolver;
+use App\Support\TransactionCategoryBindingKeys;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -224,7 +226,8 @@ class TransactionsController extends BaseController
             $sourceType,
             $sourceId,
             $validatedData['client_id'] ?? null,
-            $validatedData['category_id']
+            $validatedData['category_id'],
+            (int) $this->getCurrentCompanyId()
         );
 
         try {
@@ -298,8 +301,11 @@ class TransactionsController extends BaseController
 
         $transaction_exist = Transaction::findOrFail($id);
 
-        $isAdjustmentCategory = in_array($transaction_exist->category_id, [21, 22]) ||
-            (isset($validatedData['category_id']) && in_array($validatedData['category_id'], [21, 22]));
+        $companyId = (int) $this->getCurrentCompanyId();
+        $categoryBindingResolver = app(TransactionCategoryBindingResolver::class);
+
+        $isAdjustmentCategory = $categoryBindingResolver->isAdjustmentCategory($companyId, (int) $transaction_exist->category_id)
+            || (isset($validatedData['category_id']) && $categoryBindingResolver->isAdjustmentCategory($companyId, (int) $validatedData['category_id']));
 
         if ($isAdjustmentCategory) {
             if (! $this->requireAuthenticatedUser()->can('settings_client_balance_adjustment')) {
@@ -341,7 +347,8 @@ class TransactionsController extends BaseController
             $updateSourceType,
             $updateSourceId,
             $validatedData['client_id'] ?? null,
-            $validatedData['category_id']
+            $validatedData['category_id'],
+            (int) $this->getCurrentCompanyId()
         );
 
         $updateData = [
@@ -474,13 +481,16 @@ class TransactionsController extends BaseController
     /**
      * @return array{0: int|null, 1: int}
      */
-    private function resolveClientAndCategoryFromSource(?string $sourceType, $sourceId, ?int $clientId, int $categoryId): array
+    private function resolveClientAndCategoryFromSource(?string $sourceType, $sourceId, ?int $clientId, int $categoryId, int $companyId): array
     {
         if ($sourceType !== ProjectContract::class || ! $sourceId) {
             return [$clientId, $categoryId];
         }
         $contract = ProjectContract::with('project')->find($sourceId);
 
-        return [$contract?->project?->client_id ?? $clientId, 30];
+        return [
+            $contract?->project?->client_id ?? $clientId,
+            app(TransactionCategoryBindingResolver::class)->require($companyId, TransactionCategoryBindingKeys::CONTRACT),
+        ];
     }
 }

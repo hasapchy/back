@@ -203,7 +203,6 @@ final class DocumentParentBalanceResolver
         $goodsCategoryId = $this->bindingResolver->resolve(
             $companyId,
             TransactionCategoryBindingKeys::WAREHOUSE_RECEIPT,
-            6,
         );
 
         return $goodsCategoryId !== null && (int) $categoryId === (int) $goodsCategoryId;

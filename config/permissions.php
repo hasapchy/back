@@ -325,7 +325,6 @@ return [
     'custom_permissions' => [
         'settings_edit_any_date',
         'settings_project_budget_view',
-        'settings_project_files_view',
         'settings_project_balance_view',
         'settings_project_contracts_view',
         'settings_currencies_view',
@@ -419,7 +418,6 @@ return [
         'projects' => [
             'settings_project_budget_view',
             'settings_project_balance_view',
-            'settings_project_files_view',
             'settings_project_contracts_view',
         ],
         'finance' => [

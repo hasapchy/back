@@ -83,6 +83,29 @@ class ChatParticipantRepository
     {
         return ChatParticipant::query()->where('chat_id', $chatId)->delete();
     }
+
+    /**
+     * @param  array<int, int>  $userIds
+     * @return array<int, int>
+     */
+    public function deleteExcept(int $chatId, array $userIds): array
+    {
+        $userIds = array_values(array_unique(array_map('intval', $userIds)));
+
+        $query = ChatParticipant::query()->where('chat_id', $chatId);
+        if ($userIds !== []) {
+            $query->whereNotIn('user_id', $userIds);
+        }
+
+        $removedUserIds = (clone $query)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->toArray();
+
+        $query->delete();
+
+        return $removedUserIds;
+    }
 }
 
 

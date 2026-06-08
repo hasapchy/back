@@ -18,21 +18,22 @@ class TransactionSourceService
             return;
         }
 
-        if (! in_array($transaction->category_id, Transaction::SALARY_CATEGORY_IDS)) {
-            return;
-        }
-
         if (! $transaction->client_id || ! $transaction->cash_id) {
-            return;
-        }
-
-        $client = Client::find($transaction->client_id);
-        if (! $client || ! $client->employee_id) {
             return;
         }
 
         $cashRegister = $transaction->cashRegister ?? CashRegister::find($transaction->cash_id);
         if (! $cashRegister || ! $cashRegister->company_id) {
+            return;
+        }
+
+        $companyId = (int) $cashRegister->company_id;
+        if (! app(TransactionCategoryBindingResolver::class)->isEmployeeCategory($companyId, (int) $transaction->category_id)) {
+            return;
+        }
+
+        $client = Client::find($transaction->client_id);
+        if (! $client || ! $client->employee_id) {
             return;
         }
 

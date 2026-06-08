@@ -56,7 +56,7 @@ return [
 
     'reference_top_level_keys' => [
         'warehouses' => ['id', 'name', 'users'],
-        'cash_registers' => ['balance', 'color', 'created_at', 'creator', 'creator_id', 'currency', 'currency_id', 'icon', 'id', 'is_cash', 'is_working_minus', 'name', 'updated_at', 'users'],
+        'cash_registers' => ['balance', 'color', 'created_at', 'creator', 'creator_id', 'currency', 'currency_id', 'icon', 'icon_size', 'id', 'is_cash', 'is_working_minus', 'name', 'sort_order', 'updated_at', 'users'],
         'categories' => ['creator', 'creator_id', 'id', 'name', 'parent_id', 'parent_name', 'users'],
         'order_statuses' => ['category', 'category_id', 'created_at', 'id', 'is_active', 'kanban_outcome', 'name', 'updated_at'],
         'project_statuses' => ['color', 'created_at', 'creator_id', 'id', 'is_visible', 'kanban_outcome', 'name', 'updated_at', 'user'],
@@ -79,7 +79,7 @@ return [
             'comment', 'company_id', 'created_at', 'date_from', 'date_to', 'id', 'leave_type', 'leave_type_id', 'updated_at', 'user', 'user_id',
         ],
         'projects' => [
-            'budget', 'client', 'client_id', 'created_at', 'creator', 'creator_id', 'currency', 'currency_id', 'date', 'description', 'files', 'id', 'name', 'status', 'status_id', 'updated_at', 'users',
+            'budget', 'client', 'client_id', 'created_at', 'creator', 'creator_id', 'currency', 'currency_id', 'date', 'description', 'id', 'name', 'status', 'status_id', 'updated_at', 'users',
         ],
         'tasks' => [
             'checklist', 'comments', 'complexity', 'complexity_icons', 'complexity_label', 'created_at', 'creator', 'deadline', 'description', 'executor', 'files', 'id', 'priority', 'priority_icons', 'priority_label', 'project', 'status', 'status_id', 'supervisor', 'title', 'updated_at',

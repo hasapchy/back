@@ -40,7 +40,6 @@ class ProjectReferenceResource extends JsonResource
             'currency_id' => data_get($this->resource, 'currency_id'),
             'date' => $this->formatDateTimeValue(data_get($this->resource, 'date')),
             'description' => data_get($this->resource, 'description'),
-            'files' => [],
             'id' => data_get($this->resource, 'id'),
             'name' => data_get($this->resource, 'name'),
             'status' => $status ? [

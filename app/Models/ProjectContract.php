@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Comment;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Models\Activity;
 use App\Contracts\SupportsTimeline;
 
 /**
@@ -113,6 +114,22 @@ class ProjectContract extends Model implements SupportsTimeline
             ->dontSubmitEmptyLogs()
             ->logOnlyDirty()
             ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));
+    }
+
+    /**
+     * @param Activity $activity
+     * @param string $eventName
+     * @return void
+     */
+    public function tapActivity(Activity $activity, string $eventName): void
+    {
+        if ($eventName !== 'updated' || ! $this->wasChanged('returned')) {
+            return;
+        }
+
+        $activity->description = $this->returned
+            ? 'activity_log.project_contract.returned_signed'
+            : 'activity_log.project_contract.returned_unsigned';
     }
 
     /**

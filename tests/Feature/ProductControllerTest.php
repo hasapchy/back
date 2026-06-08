@@ -22,6 +22,8 @@ class ProductControllerTest extends TestCase
     protected Company $company;
     protected Category $category;
 
+    protected Unit $unit;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -39,11 +41,15 @@ class ProductControllerTest extends TestCase
             'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
         ]);
+        $this->unit = Unit::query()->firstOrCreate(
+            ['id' => 6],
+            ['name' => 'PIECE', 'short_name' => 'шт']
+        );
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_store_product_requires_validation(): void
@@ -77,6 +83,7 @@ class ProductControllerTest extends TestCase
             'name' => 'Test Product',
             'sku' => 'TEST-001',
             'category_id' => $this->category->id,
+            'unit_id' => $this->unit->id,
             'description' => 'Test description',
         ];
 
@@ -100,6 +107,7 @@ class ProductControllerTest extends TestCase
             'name' => 'Test Product',
             'sku' => 'TEST-002',
             'category_id' => $this->category->id,
+            'unit_id' => $this->unit->id,
             'image' => $file,
         ];
 

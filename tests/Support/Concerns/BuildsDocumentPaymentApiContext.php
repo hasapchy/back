@@ -23,6 +23,8 @@ use Illuminate\Testing\TestResponse;
 
 trait BuildsDocumentPaymentApiContext
 {
+    use SeedsWarehouseTransactionCategoryBindings;
+
     protected User $adminUser;
 
     protected Company $company;
@@ -60,6 +62,7 @@ trait BuildsDocumentPaymentApiContext
             'company_id' => $this->company->id,
             'currency_id' => $this->currency->id,
             'is_cash' => true,
+            'balance' => 100000,
         ]);
         $this->category = TransactionCategory::factory()->create([
             'creator_id' => $this->adminUser->id,
@@ -69,6 +72,8 @@ trait BuildsDocumentPaymentApiContext
             'creator_id' => $this->adminUser->id,
             'type' => 0,
         ]);
+        $this->seedWarehouseGoodsPaymentBindings($this->company, $this->adminUser, $this->outcomeCategory);
+        $this->seedWarehouseDeliveryExpenseBinding($this->company, $this->adminUser);
         $this->warehouse = Warehouse::factory()->create([
             'company_id' => $this->company->id,
         ]);
@@ -233,6 +238,7 @@ trait BuildsDocumentPaymentApiContext
                 'source_type' => WhReceipt::class,
                 'source_id' => $receipt->id,
                 'client_balance_id' => $receipt->client_balance_id ?? $this->clientBalance->id,
+                'category_id' => $this->warehouseGoodsPaymentCategory->id,
             ]),
         );
     }

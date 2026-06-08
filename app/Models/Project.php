@@ -19,7 +19,6 @@ use App\Contracts\SupportsTimeline;
  * @property string $name Название проекта
  * @property int $creator_id ID создателя проекта
  * @property int $client_id ID клиента
- * @property array|null $files Массив файлов проекта
  * @property float $budget Бюджет проекта
  * @property int|null $currency_id ID валюты
  * @property \Carbon\Carbon|null $date Дата проекта
@@ -45,10 +44,9 @@ class Project extends Model implements SupportsTimeline
     use BelongsToCompany;
     use HasFactory, HasManyToManyUsers, LogsActivity;
 
-    protected $fillable = ['name', 'creator_id', 'client_id', 'files', 'budget', 'currency_id', 'date', 'description', 'status_id', 'company_id'];
+    protected $fillable = ['name', 'creator_id', 'client_id', 'budget', 'currency_id', 'date', 'description', 'status_id', 'company_id'];
 
     protected $casts = [
-        'files' => 'array',
         'date' => 'datetime',
         'budget' => 'decimal:5',
     ];
@@ -70,7 +68,7 @@ class Project extends Model implements SupportsTimeline
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'budget', 'currency_id', 'date', 'client_id', 'description', 'status_id', 'files'])
+            ->logOnly(['name', 'budget', 'currency_id', 'date', 'client_id', 'description', 'status_id'])
             ->useLogName('project')
             ->dontSubmitEmptyLogs()
             ->logOnlyDirty()
@@ -230,6 +228,14 @@ class Project extends Model implements SupportsTimeline
     public function contracts()
     {
         return $this->hasMany(ProjectContract::class);
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function chat()
+    {
+        return $this->hasOne(Chat::class);
     }
 
     /**

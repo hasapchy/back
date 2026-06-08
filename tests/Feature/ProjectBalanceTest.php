@@ -72,9 +72,9 @@ class ProjectBalanceTest extends TestCase
         ]);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_contract_debt_transaction_excluded_from_project_balance(): void

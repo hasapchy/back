@@ -43,7 +43,7 @@ return [
 
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => [],
+    'exposed_headers' => ['X-Cache'],
 
     'max_age' => 0,
 

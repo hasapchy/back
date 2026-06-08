@@ -17,10 +17,13 @@ use App\Models\Transaction;
 use App\Models\TransactionCategory;
 use App\Models\OrderStatus;
 use App\Models\OrderStatusCategory;
+use App\Support\TransactionCategoryBindingKeys;
+use Tests\Support\Concerns\SeedsTransactionCategoryBindings;
 use Tests\TestCase;
 
 class OrderControllerTest extends TestCase
 {
+    use SeedsTransactionCategoryBindings;
 
     protected User $adminUser;
     protected Company $company;
@@ -44,7 +47,7 @@ class OrderControllerTest extends TestCase
             'is_active' => true,
         ]);
         $this->adminUser->companies()->attach($this->company->id);
-        $this->ensureOrderDebtTransactionCategoryExists();
+        $this->seedStandardTransactionCategoryBindings($this->company, $this->adminUser);
         $this->client = \App\Models\Client::factory()->create([
             'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
@@ -72,22 +75,9 @@ class OrderControllerTest extends TestCase
         $this->product->categories()->attach($this->category->id);
     }
 
-    private function ensureOrderDebtTransactionCategoryExists(): void
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        TransactionCategory::query()->updateOrCreate([
-            'id' => 1,
-        ], [
-            'name' => 'Order debt',
-            'type' => 1,
-            'creator_id' => null,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-    }
-
-    protected function actingAsApi(User $user)
-    {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_store_order_requires_validation(): void
@@ -120,7 +110,7 @@ class OrderControllerTest extends TestCase
             ->postJson('/api/orders', $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Р—Р°РєР°Р· СѓСЃРїРµС€РЅРѕ СЃРѕР·РґР°РЅ']);
+        $response->assertJson(['message' => 'Заказ успешно создан']);
     }
 
     public function test_store_order_rejects_invalid_nested_products_payload(): void
@@ -166,7 +156,7 @@ class OrderControllerTest extends TestCase
         $response->assertJsonValidationErrors(['products.0.quantity']);
     }
 
-    public function test_store_order_rejects_empty_products_array(): void
+    public function test_store_order_allows_empty_products_array(): void
     {
         $response = $this->actingAsApi($this->adminUser)
             ->postJson('/api/orders', [
@@ -178,8 +168,7 @@ class OrderControllerTest extends TestCase
                 'products' => [],
             ]);
 
-        $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['products']);
+        $response->assertStatus(200);
     }
 
     public function test_update_order_success(): void
@@ -206,7 +195,7 @@ class OrderControllerTest extends TestCase
             ->putJson("/api/orders/{$order->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Р—Р°РєР°Р· СЃРѕС…СЂР°РЅС‘РЅ']);
+        $response->assertJson(['message' => 'Заказ сохранён']);
     }
 
     public function test_destroy_order_success(): void
@@ -224,7 +213,7 @@ class OrderControllerTest extends TestCase
             ->deleteJson("/api/orders/{$order->id}");
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'Р—Р°РєР°Р· СѓСЃРїРµС€РЅРѕ СѓРґР°Р»С‘РЅ']);
+        $response->assertJson(['message' => 'Заказ успешно удалён']);
     }
 
     public function test_destroy_order_is_idempotent_and_returns_not_found_on_second_delete(): void
@@ -296,13 +285,13 @@ class OrderControllerTest extends TestCase
             'creator_id' => $this->adminUser->id,
         ]);
         $statusCategoryB = OrderStatusCategory::factory()->create([
-            'name' => 'Р—Р°РєСЂС‹С‚Рѕ',
+            'name' => 'Закрыто',
             'color' => '#00AA55',
             'creator_id' => $this->adminUser->id,
         ]);
 
         $statusA = OrderStatus::factory()->create([
-            'name' => 'РќРѕРІС‹Р№',
+            'name' => 'Новый',
             'category_id' => $statusCategoryA->id,
         ]);
         $statusB = OrderStatus::factory()->create([
@@ -352,7 +341,7 @@ class OrderControllerTest extends TestCase
         $this->assertNotNull($statusAItem);
         $this->assertNotNull($statusBItem);
 
-        $this->assertSame('РќРѕРІС‹Р№', $statusAItem['name']);
+        $this->assertSame('Новый', $statusAItem['name']);
         $this->assertSame('#FF8800', $statusAItem['color']);
         $this->assertSame(2, (int) $statusAItem['count']);
 
@@ -473,6 +462,54 @@ class OrderControllerTest extends TestCase
         $this->assertTrue((bool) $debtTransaction->is_deleted);
         $clientBalance->refresh();
         $this->assertEqualsWithDelta(0.0, (float) $clientBalance->balance, 0.0001);
+    }
+
+    public function test_order_paid_amount_persisted_in_database_after_payment(): void
+    {
+        $storeResponse = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/orders', [
+                'client_id' => $this->client->id,
+                'warehouse_id' => $this->warehouse->id,
+                'category_id' => $this->category->id,
+                'cash_id' => $this->cashRegister->id,
+                'currency_id' => $this->currency->id,
+                'products' => [
+                    [
+                        'product_id' => $this->product->id,
+                        'quantity' => 1,
+                        'price' => 200,
+                    ],
+                ],
+            ]);
+        $storeResponse->assertStatus(200);
+        $orderId = (int) $storeResponse->json('data.id');
+
+        $this->assertEqualsWithDelta(0.0, (float) Order::query()->findOrFail($orderId)->paid_amount, 1e-9);
+
+        Transaction::query()->create([
+            'type' => 1,
+            'creator_id' => $this->adminUser->id,
+            'orig_amount' => 80,
+            'amount' => 80,
+            'def_amount' => 80,
+            'currency_id' => $this->currency->id,
+            'cash_id' => $this->cashRegister->id,
+            'category_id' => $this->transactionCategoryBindingsByKey[TransactionCategoryBindingKeys::ORDER]->id,
+            'client_id' => $this->client->id,
+            'exchange_rate' => 1,
+            'date' => now(),
+            'is_debt' => false,
+            'is_deleted' => false,
+            'source_type' => Order::class,
+            'source_id' => $orderId,
+        ]);
+
+        $this->assertEqualsWithDelta(80.0, (float) Order::query()->findOrFail($orderId)->paid_amount, 1e-9);
+
+        $showResponse = $this->actingAsApi($this->adminUser)->getJson("/api/orders/{$orderId}");
+        $showResponse->assertStatus(200);
+        $showResponse->assertJsonPath('data.payment_status', 'partially_paid');
+        $this->assertEqualsWithDelta(80.0, (float) $showResponse->json('data.paid_amount'), 1e-9);
     }
 }
 

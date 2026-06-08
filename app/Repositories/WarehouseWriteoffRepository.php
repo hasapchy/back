@@ -17,6 +17,7 @@ use App\Services\CacheService;
 use App\Services\InventoryLockService;
 use App\Services\RoundingService;
 use App\Services\Timeline\WarehouseTimelineCache;
+use App\Support\TransactionCategoryBindingKeys;
 use Illuminate\Support\Facades\DB;
 
 class WarehouseWriteoffRepository extends BaseRepository
@@ -479,7 +480,7 @@ class WarehouseWriteoffRepository extends BaseRepository
             'orig_amount' => $amount,
             'currency_id' => (int) $cashRegister->currency_id,
             'cash_id' => (int) $receipt->cash_id,
-            'category_id' => 4,
+            'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::WAREHOUSE_WRITEOFF_SUPPLIER_RETURN),
             'client_id' => (int) $receipt->supplier_id,
             'client_balance_id' => $receipt->client_balance_id ? (int) $receipt->client_balance_id : null,
             'project_id' => null,

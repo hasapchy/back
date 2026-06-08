@@ -41,9 +41,9 @@ class CommentControllerTest extends TestCase
         $this->adminUser->companies()->attach($this->company->id);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     /**
@@ -91,7 +91,7 @@ class CommentControllerTest extends TestCase
             ->postJson('/api/comments', $data);
 
         $response->assertStatus(200);
-        $response->assertJsonPath('data.message', 'РљРѕРјРјРµРЅС‚Р°СЂРёР№ РґРѕР±Р°РІР»РµРЅ');
+        $response->assertJsonPath('data.message', 'Комментарий добавлен');
     }
 
     public function test_update_comment_requires_validation(): void
@@ -241,7 +241,7 @@ class CommentControllerTest extends TestCase
         $status = LeadStatus::query()->create([
             'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
-            'name' => 'РќРѕРІС‹Р№',
+            'name' => 'Новый',
             'color' => '#6c757d',
             'is_active' => true,
             'sort' => 0,

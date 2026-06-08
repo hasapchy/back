@@ -33,18 +33,34 @@ class Inventory extends Model
         'category_ids' => 'array',
     ];
 
+    /**
+     * @return string
+     */
+    public function getDescriptionForEvent(string $eventName): string
+    {
+        return match ($eventName) {
+            'created', 'updated', 'deleted' => "activity_log.inventory.{$eventName}",
+            default => 'activity_log.inventory.default',
+        };
+    }
+
+    /**
+     * @return LogOptions
+     */
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
             ->useLogName('inventory')
             ->logOnly([
                 'status',
-                'started_at',
                 'finished_at',
                 'finalized_by',
-                'items_count',
+                'wh_receipt_id',
+                'wh_write_off_id',
             ])
-            ->logOnlyDirty();
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));
     }
 
     /**

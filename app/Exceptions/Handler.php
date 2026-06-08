@@ -5,6 +5,7 @@ namespace App\Exceptions;
 use App\Support\AuthRequestLogContext;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Session\TokenMismatchException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -32,7 +33,22 @@ class Handler extends ExceptionHandler
         if ($e instanceof AuthenticationException && $request->is('api/*')) {
             AuthRequestLogContext::logAuth('warning', 'auth.unauthenticated', array_merge(
                 AuthRequestLogContext::fromRequest($request),
-                ['path' => $request->path()]
+                AuthRequestLogContext::forUser($request->user()),
+                [
+                    'path' => $request->path(),
+                    'status' => 401,
+                ]
+            ));
+        }
+
+        if ($e instanceof TokenMismatchException && $request->is('api/*')) {
+            AuthRequestLogContext::logAuth('warning', 'auth.csrf.mismatch', array_merge(
+                AuthRequestLogContext::fromRequest($request),
+                AuthRequestLogContext::forUser($request->user()),
+                [
+                    'path' => $request->path(),
+                    'status' => 419,
+                ]
             ));
         }
 

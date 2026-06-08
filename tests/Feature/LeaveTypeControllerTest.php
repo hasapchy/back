@@ -28,7 +28,7 @@ class LeaveTypeControllerTest extends TestCase
         ]);
         $this->adminUser->companies()->attach($this->company->id);
 
-        // РЎРѕР·РґР°РµРј РЅРµРѕР±С…РѕРґРёРјС‹Рµ РїСЂР°РІР°
+        // Создаём необходимые права
         Permission::firstOrCreate(['name' => 'leave_types_view_all', 'guard_name' => 'api']);
         Permission::firstOrCreate(['name' => 'leave_types_create_all', 'guard_name' => 'api']);
         Permission::firstOrCreate(['name' => 'leave_types_update_all', 'guard_name' => 'api']);
@@ -42,9 +42,9 @@ class LeaveTypeControllerTest extends TestCase
         ]);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, null);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_index_returns_paginated_leave_types(): void
@@ -56,13 +56,18 @@ class LeaveTypeControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
-            'items' => [
-                '*' => ['id', 'name', 'color', 'created_at', 'updated_at']
+            'data' => [
+                'items' => [
+                    '*' => ['id', 'name', 'color', 'created_at', 'updated_at'],
+                ],
+                'meta' => [
+                    'current_page',
+                    'next_page',
+                    'last_page',
+                    'per_page',
+                    'total',
+                ],
             ],
-            'current_page',
-            'next_page',
-            'last_page',
-            'total'
         ]);
     }
 
@@ -75,8 +80,8 @@ class LeaveTypeControllerTest extends TestCase
             ->getJson('/api/leave_types/all');
 
         $response->assertStatus(200);
-        // РџСЂРѕРІРµСЂСЏРµРј, С‡С‚Рѕ РґРѕР±Р°РІР»РµРЅРѕ РјРёРЅРёРјСѓРј 3 Р·Р°РїРёСЃРё
-        $response->assertJsonCount($countBefore + 3);
+        $items = $response->json('data') ?? [];
+        $this->assertGreaterThanOrEqual($countBefore + 3, count($items));
     }
 
     public function test_store_requires_name_validation(): void
@@ -91,7 +96,7 @@ class LeaveTypeControllerTest extends TestCase
     public function test_store_creates_leave_type_with_valid_data(): void
     {
         $leaveTypeData = [
-            'name' => 'Р•Р¶РµРіРѕРґРЅС‹Р№ РѕС‚РїСѓСЃРє',
+            'name' => 'Ежегодный отпуск',
             'color' => '#3B82F6',
         ];
 
@@ -101,7 +106,7 @@ class LeaveTypeControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonPath('name', $response->json('name'));
         $this->assertDatabaseHas('leave_types', [
-            'name' => 'Р•Р¶РµРіРѕРґРЅС‹Р№ РѕС‚РїСѓСЃРє',
+            'name' => 'Ежегодный отпуск',
             'color' => '#3B82F6',
         ]);
     }
@@ -109,7 +114,7 @@ class LeaveTypeControllerTest extends TestCase
     public function test_store_creates_leave_type_without_color(): void
     {
         $leaveTypeData = [
-            'name' => 'Р•Р¶РµРіРѕРґРЅС‹Р№ РѕС‚РїСѓСЃРє',
+            'name' => 'Ежегодный отпуск',
         ];
 
         $response = $this->actingAsApi($this->adminUser)
@@ -117,7 +122,7 @@ class LeaveTypeControllerTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('leave_types', [
-            'name' => 'Р•Р¶РµРіРѕРґРЅС‹Р№ РѕС‚РїСѓСЃРє',
+            'name' => 'Ежегодный отпуск',
             'color' => null,
         ]);
     }
@@ -136,12 +141,12 @@ class LeaveTypeControllerTest extends TestCase
     public function test_update_modifies_leave_type_with_valid_data(): void
     {
         $leaveType = LeaveType::factory()->create([
-            'name' => 'РЎС‚Р°СЂРѕРµ РЅР°Р·РІР°РЅРёРµ',
+            'name' => 'Старое название',
             'color' => '#3B82F6',
         ]);
 
         $updateData = [
-            'name' => 'РќРѕРІРѕРµ РЅР°Р·РІР°РЅРёРµ',
+            'name' => 'Новое название',
             'color' => '#10B981',
         ];
 
@@ -151,7 +156,7 @@ class LeaveTypeControllerTest extends TestCase
         $response->assertStatus(200);
         $this->assertDatabaseHas('leave_types', [
             'id' => $leaveType->id,
-            'name' => 'РќРѕРІРѕРµ РЅР°Р·РІР°РЅРёРµ',
+            'name' => 'Новое название',
             'color' => '#10B981',
         ]);
     }
@@ -159,7 +164,7 @@ class LeaveTypeControllerTest extends TestCase
     public function test_update_returns_error_for_nonexistent_leave_type(): void
     {
         $updateData = [
-            'name' => 'РќРѕРІРѕРµ РЅР°Р·РІР°РЅРёРµ',
+            'name' => 'Новое название',
             'color' => '#3B82F6',
         ];
 

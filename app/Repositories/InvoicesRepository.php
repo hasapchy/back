@@ -367,13 +367,13 @@ class InvoicesRepository extends BaseRepository
                 $products[] = [
                     'product_id' => $orderProduct->product_id,
                     'order_id' => $order->id,
-                    'product_name' => $orderProduct->product->name ?? 'Товар',
-                    'product_description' => $orderProduct->product->description ?? null,
+                    'product_name' => $orderProduct->product?->name ?? 'Товар',
+                    'product_description' => $orderProduct->product?->description ?? null,
                     'quantity' => $orderProduct->quantity,
                     'price' => $orderProduct->price,
                     'total_price' => $adjustedTotalPrice,
-                    'unit_id' => $orderProduct->product->unit_id ?? null,
-                    'unit_short_name' => $orderProduct->product->unit?->short_name,
+                    'unit_id' => $orderProduct->product?->unit_id ?? null,
+                    'unit_short_name' => $orderProduct->product?->unit?->short_name,
                 ];
             }
 

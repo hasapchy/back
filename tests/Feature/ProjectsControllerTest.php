@@ -36,9 +36,9 @@ class ProjectsControllerTest extends TestCase
         ]);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_store_project_requires_validation(): void
@@ -65,7 +65,7 @@ class ProjectsControllerTest extends TestCase
             ->postJson('/api/projects', $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'РџСЂРѕРµРєС‚ СЃРѕР·РґР°РЅ']);
+        $response->assertJson(['message' => __('api.projects.created')]);
     }
 
     public function test_update_project_success(): void
@@ -86,7 +86,7 @@ class ProjectsControllerTest extends TestCase
             ->putJson("/api/projects/{$project->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'РџСЂРѕРµРєС‚ РѕР±РЅРѕРІР»РµРЅ']);
+        $response->assertJson(['message' => __('api.projects.updated')]);
     }
 
     public function test_destroy_project_success(): void
@@ -101,7 +101,7 @@ class ProjectsControllerTest extends TestCase
             ->deleteJson("/api/projects/{$project->id}");
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'РџСЂРѕРµРєС‚ СѓРґР°Р»РµРЅ']);
+        $response->assertJson(['message' => __('api.projects.deleted')]);
     }
 
     public function test_get_projects_meta_contains_status_counts_with_name_color_and_count(): void
@@ -112,7 +112,7 @@ class ProjectsControllerTest extends TestCase
             'creator_id' => $this->adminUser->id,
         ]);
         $statusClosed = ProjectStatus::factory()->create([
-            'name' => 'Р—Р°РІРµСЂС€РµРЅ',
+            'name' => 'Завершен',
             'color' => '#939699',
             'creator_id' => $this->adminUser->id,
         ]);
@@ -154,7 +154,7 @@ class ProjectsControllerTest extends TestCase
         $this->assertSame('#207AC7', $activeItem['color']);
         $this->assertSame(2, (int) $activeItem['count']);
 
-        $this->assertSame('Р—Р°РІРµСЂС€РµРЅ', $closedItem['name']);
+        $this->assertSame('Завершен', $closedItem['name']);
         $this->assertSame('#939699', $closedItem['color']);
         $this->assertSame(1, (int) $closedItem['count']);
     }

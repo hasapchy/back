@@ -4,6 +4,7 @@ namespace App\Policies\Concerns;
 
 use App\Models\User;
 use App\Services\PermissionCheckService;
+use App\Support\ResolvedCompany;
 use Illuminate\Auth\Access\Response;
 
 trait AuthorizesResourcePermissions
@@ -17,6 +18,10 @@ trait AuthorizesResourcePermissions
         mixed $record,
         string $denyMessage
     ): Response {
+        if ($this->recordBelongsToAnotherCompany($record)) {
+            return Response::deny($denyMessage);
+        }
+
         if ($user->is_admin) {
             return Response::allow();
         }
@@ -39,6 +44,10 @@ trait AuthorizesResourcePermissions
         string $action,
         mixed $record = null
     ): bool {
+        if ($this->recordBelongsToAnotherCompany($record)) {
+            return false;
+        }
+
         if ($user->is_admin) {
             return true;
         }
@@ -52,5 +61,23 @@ trait AuthorizesResourcePermissions
             $record,
             $permissions
         );
+    }
+
+    /**
+     * @param mixed $record
+     * @return bool
+     */
+    private function recordBelongsToAnotherCompany(mixed $record): bool
+    {
+        if (! is_object($record) || ! isset($record->company_id) || $record->company_id === null) {
+            return false;
+        }
+
+        $currentCompanyId = ResolvedCompany::fromRequest(request());
+        if ($currentCompanyId === null) {
+            return true;
+        }
+
+        return (int) $record->company_id !== (int) $currentCompanyId;
     }
 }

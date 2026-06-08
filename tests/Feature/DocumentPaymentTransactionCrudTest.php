@@ -205,7 +205,7 @@ class DocumentPaymentTransactionCrudTest extends TestCase
 
         $response = $this->postPayment([
             'type' => 0,
-            'category_id' => 6,
+            'category_id' => $this->warehouseGoodsPaymentCategory->id,
             'orig_amount' => 600,
             'source_type' => 'App\\Models\\WhPurchase',
             'source_id' => $purchase->id,
@@ -256,7 +256,7 @@ class DocumentPaymentTransactionCrudTest extends TestCase
             'source_id' => $receipt->id,
             'is_debt' => false,
             'type' => 0,
-            'category_id' => $this->outcomeCategory->id,
+            'category_id' => $this->warehouseDeliveryExpenseCategory->id,
         ])->assertStatus(200);
     }
 

@@ -18,10 +18,12 @@ use App\Models\WhPurchase;
 use App\Models\WhReceipt;
 use App\Repositories\WarehouseReceiptRepository;
 use App\Services\CacheService;
+use Tests\Support\Concerns\SeedsWarehouseTransactionCategoryBindings;
 use Tests\TestCase;
 
 class WarehouseReceiptControllerTest extends TestCase
 {
+    use SeedsWarehouseTransactionCategoryBindings;
 
     protected User $adminUser;
     protected Company $company;
@@ -70,12 +72,16 @@ class WarehouseReceiptControllerTest extends TestCase
         $this->cashRegister = CashRegister::factory()->create([
             'company_id' => $this->company->id,
             'currency_id' => $currency->id,
+            'balance' => 100000,
+            'is_working_minus' => true,
         ]);
+
+        $this->seedWarehouseGoodsPaymentBindings($this->company, $this->adminUser);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_store_warehouse_receipt_requires_validation(): void
@@ -383,7 +389,7 @@ class WarehouseReceiptControllerTest extends TestCase
         $txs = Transaction::query()
             ->where('source_type', WhReceipt::class)
             ->where('source_id', (int) $receiptId)
-            ->where('category_id', 6)
+            ->where('category_id', $this->warehouseGoodsPaymentCategory->id)
             ->where('is_deleted', false)
             ->orderBy('id')
             ->get();
@@ -401,7 +407,7 @@ class WarehouseReceiptControllerTest extends TestCase
             'def_amount' => 60,
             'currency_id' => (int) $defaultCurrency->id,
             'cash_id' => $this->cashRegister->id,
-            'category_id' => 6,
+            'category_id' => $this->warehouseGoodsPaymentCategory->id,
             'client_id' => $this->client->id,
             'exchange_rate' => 1,
             'date' => now(),
@@ -442,6 +448,7 @@ class WarehouseReceiptControllerTest extends TestCase
         $showResponse = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_receipts/{$receiptId}");
         $showResponse->assertStatus(200);
         $showResponse->assertJsonPath('data.payment_status', 'unpaid');
+        $this->assertEqualsWithDelta(0.0, (float) WhReceipt::query()->findOrFail($receiptId)->paid_amount, 1e-9);
 
         $currencyId = (int) $this->cashRegister->currency_id;
         Transaction::query()->create([
@@ -452,7 +459,7 @@ class WarehouseReceiptControllerTest extends TestCase
             'def_amount' => 400,
             'currency_id' => $currencyId,
             'cash_id' => $this->cashRegister->id,
-            'category_id' => 6,
+            'category_id' => $this->warehouseGoodsPaymentCategory->id,
             'client_id' => $this->client->id,
             'exchange_rate' => 1,
             'date' => now(),
@@ -466,6 +473,8 @@ class WarehouseReceiptControllerTest extends TestCase
         $partialResponse = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_receipts/{$receiptId}");
         $partialResponse->assertStatus(200);
         $partialResponse->assertJsonPath('data.payment_status', 'partially_paid');
+        $this->assertEqualsWithDelta(400.0, (float) WhReceipt::query()->findOrFail($receiptId)->paid_amount, 1e-9);
+        $this->assertEqualsWithDelta(400.0, (float) $partialResponse->json('data.paid_amount'), 1e-9);
 
         $partiallyPaidIndex = $this->actingAsApi($this->adminUser)->getJson('/api/warehouse_receipts?payment_status=partially_paid');
         $partiallyPaidIndex->assertStatus(200);
@@ -510,6 +519,34 @@ class WarehouseReceiptControllerTest extends TestCase
         $showResponse = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_receipts/{$receipt->id}");
         $showResponse->assertStatus(200);
         $showResponse->assertJsonPath('data.payment_status', null);
+        $this->assertEqualsWithDelta(0.0, (float) WhReceipt::query()->findOrFail($receipt->id)->paid_amount, 1e-9);
+
+        Transaction::query()->create([
+            'type' => 0,
+            'creator_id' => $this->adminUser->id,
+            'orig_amount' => 500,
+            'amount' => 500,
+            'def_amount' => 500,
+            'currency_id' => $this->cashRegister->currency_id,
+            'cash_id' => $this->cashRegister->id,
+            'category_id' => $this->warehouseGoodsPaymentCategory->id,
+            'client_id' => $this->client->id,
+            'exchange_rate' => 1,
+            'date' => now(),
+            'is_debt' => false,
+            'is_deleted' => false,
+            'source_type' => WhPurchase::class,
+            'source_id' => $purchase->id,
+        ]);
+        CacheService::invalidateWarehouseReceiptsCache();
+        CacheService::invalidateWarehousePurchasesCache();
+
+        $this->assertEqualsWithDelta(500.0, (float) WhPurchase::query()->findOrFail($purchase->id)->paid_amount, 1e-9);
+
+        $receiptAfterPurchasePayment = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_receipts/{$receipt->id}");
+        $receiptAfterPurchasePayment->assertStatus(200);
+        $receiptAfterPurchasePayment->assertJsonPath('data.payment_status', null);
+        $this->assertEqualsWithDelta(0.0, (float) WhReceipt::query()->findOrFail($receipt->id)->paid_amount, 1e-9);
     }
 }
 

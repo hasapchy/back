@@ -83,7 +83,7 @@ class OrderProduct extends Model
      */
     public function shouldLogEvent(string $eventName): bool
     {
-        return in_array($eventName, ['created', 'deleted'], true);
+        return false;
     }
 
     /**

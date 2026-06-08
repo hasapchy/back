@@ -327,7 +327,7 @@ class RecalculateOrderRoundingCommand extends Command
             'rounding' => [
                 'enabled' => (bool) ($company?->rounding_enabled),
                 'orders_enabled' => (bool) ($company?->rounding_orders_enabled),
-                'decimals' => (int) ($company?->rounding_decimals ?? 0),
+                'decimals' => (int) ($company?->rounding_orders_decimals ?? 0),
                 'direction' => $company?->rounding_direction,
                 'display_decimals' => (int) ($company?->display_decimals ?? 0),
             ],

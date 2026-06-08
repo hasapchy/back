@@ -12,10 +12,14 @@ use App\Models\ProjectContract;
 use App\Models\TransactionCategory;
 use App\Models\User;
 use App\Services\ProjectBudgetService;
+use App\Support\TransactionCategoryBindingKeys;
+use Tests\Support\Concerns\SeedsTransactionCategoryBindings;
 use Tests\TestCase;
 
 class ProjectBudgetSyncTest extends TestCase
 {
+    use SeedsTransactionCategoryBindings;
+
     protected User $adminUser;
 
     protected Company $company;
@@ -61,6 +65,12 @@ class ProjectBudgetSyncTest extends TestCase
             ['id' => 30],
             ['name' => 'CONTRACT', 'type' => 1, 'creator_id' => $this->adminUser->id]
         );
+        $this->seedTransactionCategoryBinding(
+            $this->company,
+            $this->adminUser,
+            TransactionCategoryBindingKeys::CONTRACT,
+            TransactionCategory::query()->find(30)
+        );
 
         $this->client = Client::factory()->create([
             'company_id' => $this->company->id,
@@ -82,9 +92,9 @@ class ProjectBudgetSyncTest extends TestCase
         ]);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_active_contracts_in_project_currency_sum_to_budget(): void

@@ -7,16 +7,13 @@ use App\Http\Requests\UpdateProjectRequest;
 use App\Http\Resources\ProjectReferenceResource;
 use App\Http\Resources\ProjectResource;
 use App\Models\Project;
+use App\Http\Resources\Chat\ChatResource;
 use App\Repositories\ProjectsRepository;
 use App\Services\CacheService;
+use App\Services\Chat\ChatService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use ZipArchive;
 
 /**
  * Контроллер для управления проектами
@@ -33,6 +30,7 @@ class ProjectsController extends BaseController
 
     public function __construct(
         ProjectsRepository $itemsRepository,
+        protected ChatService $chatService,
     ) {
         $this->itemsRepository = $itemsRepository;
     }
@@ -220,159 +218,6 @@ class ProjectsController extends BaseController
     }
 
     /**
-     * Загрузить файлы проекта
-     *
-     * @param  int  $id  ID проекта
-     * @return JsonResponse
-     */
-    public function uploadFiles(Request $request, $id)
-    {
-        $request->validate([
-            'files.*' => 'required|file|max:10240|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,gif,bmp,svg,zip,rar,7z,txt,md',
-        ], [
-            'files.*.max' => 'Файл не должен превышать 10MB',
-            'files.*.mimes' => 'Неподдерживаемый тип файла',
-        ]);
-
-        $files = $request->file('files');
-
-        if (is_null($files)) {
-            $files = [];
-        } elseif ($files instanceof UploadedFile) {
-            $files = [$files];
-        }
-
-        if (count($files) == 0) {
-            return $this->errorResponse(__('api.common.no_files_uploaded'), 400);
-        }
-
-        if (count($files) > 8) {
-            return $this->errorResponse(__('api.tasks.max_files_per_upload'), 400);
-        }
-
-        try {
-            $project = Project::findOrFail($id);
-
-            $this->authorize('update', $project);
-
-            $storedFiles = $project->files ?? [];
-            if (count($storedFiles) + count($files) > 100) {
-                return $this->errorResponse(__('api.projects.max_files_total'), 400);
-            }
-
-            foreach ($files as $file) {
-                $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
-                $path = $file->storeAs('projects/'.$project->id, $filename, 'public');
-
-                $storedFiles[] = [
-                    'name' => $file->getClientOriginalName(),
-                    'path' => $path,
-                    'size' => $file->getSize(),
-                    'mime_type' => $file->getMimeType(),
-                    'uploaded_at' => now()->toDateTimeString(),
-                ];
-            }
-
-            $project->update(['files' => $storedFiles]);
-
-            return $this->successResponse($storedFiles, __('api.common.files_uploaded_success'));
-        } catch (AuthorizationException $e) {
-            throw $e;
-        } catch (\Exception $e) {
-            return $this->errorResponse(__('Ошибка при загрузке файлов: Internal server error'), 500);
-        }
-    }
-
-    /**
-     * Скачать выбранные файлы проекта в архиве
-     *
-     * @param  int  $id  ID проекта
-     * @return BinaryFileResponse|JsonResponse
-     */
-    public function downloadFiles(Request $request, $id)
-    {
-        $project = Project::findOrFail($id);
-
-        $this->authorize('view', $project);
-
-        $files = collect($project->files ?? [])
-            ->whereIn('path', $request->input('paths', []))
-            ->filter(fn ($file) => Storage::disk('public')->exists($file['path']));
-
-        if ($files->isEmpty()) {
-            return $this->errorResponse(__('api.projects.files_not_found'), 404);
-        }
-
-        $zipPath = storage_path('app/temp/project_'.$project->id.'_'.time().'.zip');
-        $zip = new ZipArchive;
-
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            return $this->errorResponse(__('api.projects.archive_create_failed'), 500);
-        }
-
-        foreach ($files as $file) {
-            $safeName = basename(str_replace(["\0", '..', '/', '\\'], '', $file['name'] ?? 'file'));
-            $safeName = $safeName ?: 'file';
-            $zip->addFile(storage_path('app/public/'.$file['path']), $safeName);
-        }
-
-        $zip->close();
-
-        return response()->download($zipPath)->deleteFileAfterSend(true);
-    }
-
-    /**
-     * Удалить файл проекта
-     *
-     * @param  int  $id  ID проекта
-     * @return JsonResponse
-     */
-    public function deleteFile(Request $request, $id)
-    {
-        try {
-            $this->getAuthenticatedUserIdOrFail();
-
-            $project = Project::findOrFail($id);
-
-            $this->authorize('update', $project);
-
-            $filePath = $request->input('path');
-            if (! $filePath || str_contains($filePath, '..') || ! str_starts_with($filePath, 'projects/'.$id.'/')) {
-                return $this->errorResponse(__('api.tasks.invalid_file_path'), 400);
-            }
-
-            $files = $project->files ?? [];
-            $updatedFiles = [];
-            $deletedFile = null;
-
-            foreach ($files as $file) {
-                if ($file['path'] === $filePath) {
-                    $deletedFile = $file;
-                    if (Storage::disk('public')->exists($filePath)) {
-                        Storage::disk('public')->delete($filePath);
-                    }
-
-                    continue;
-                }
-                $updatedFiles[] = $file;
-            }
-
-            if (! $deletedFile) {
-                return $this->errorResponse(__('api.projects.file_not_found'), 404);
-            }
-
-            $project->files = $updatedFiles;
-            $project->save();
-
-            return $this->successResponse($updatedFiles, __('api.projects.file_deleted'));
-        } catch (AuthorizationException $e) {
-            throw $e;
-        } catch (\Exception $e) {
-            return $this->errorResponse(__('api.projects.internal_server_error'), 500);
-        }
-    }
-
-    /**
      * Получить историю баланса проекта
      *
      * @param  int  $id  ID проекта
@@ -449,6 +294,31 @@ class ProjectsController extends BaseController
         } catch (\Throwable $e) {
             return $this->errorResponse(__('api.projects.balance_details_failed_prefix').$e->getMessage(), 500);
         }
+    }
+
+    /**
+     * Открыть или создать чат проекта
+     *
+     * @param  int  $id
+     * @return JsonResponse
+     */
+    public function ensureChat(int $id): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = (int) $this->getCurrentCompanyId();
+        if (! $companyId) {
+            return $this->errorResponse(__('api.common.company_context_required'), 422);
+        }
+
+        $project = Project::query()->findOrFail($id);
+
+        if ((int) $project->company_id !== $companyId) {
+            return $this->errorResponse(__('api.common.forbidden'), 403);
+        }
+
+        $chat = $this->chatService->ensureProjectChat($companyId, $project, $user);
+
+        return (new ChatResource($chat))->response()->setStatusCode(200);
     }
 
     /**

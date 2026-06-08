@@ -8,6 +8,7 @@ use App\Models\Warehouse;
 use App\Models\WarehouseStock;
 use App\Repositories\WarehouseReceiptRepository;
 use App\Repositories\WarehouseWriteoffRepository;
+use App\Services\Timeline\InventoryTimelineSummaryLogger;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -66,6 +67,8 @@ class InventoryService
             $locked = Inventory::query()->lockForUpdate()->findOrFail($inventory->id);
             $this->guardEditableInventory($locked);
 
+            $summary = ['counted' => 0, 'with_discrepancy' => 0];
+
             foreach ($items as $itemData) {
                 $item = InventoryItem::query()
                     ->where('inventory_id', $locked->id)
@@ -80,7 +83,18 @@ class InventoryService
                 $item->difference_quantity = $difference;
                 $item->difference_type = $difference > 0 ? 'overage' : ($difference < 0 ? 'shortage' : 'match');
                 $item->save();
+
+                $summary['counted']++;
+                if (abs($difference) > 1e-6) {
+                    $summary['with_discrepancy']++;
+                }
             }
+
+            app(InventoryTimelineSummaryLogger::class)->logItemsCounted(
+                $locked,
+                $summary,
+                (int) (auth('api')->id() ?? 0) ?: null
+            );
         });
     }
 

@@ -38,9 +38,9 @@ class WarehouseWriteoffControllerTest extends TestCase
         ]);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_store_warehouse_writeoff_requires_validation(): void
@@ -76,7 +76,7 @@ class WarehouseWriteoffControllerTest extends TestCase
             ->postJson('/api/warehouse_writeoffs', $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'РЎРїРёСЃР°РЅРёРµ СЃРѕР·РґР°РЅРѕ']);
+        $response->assertJson(['message' => __('api.writeoff.created')]);
     }
 
     public function test_update_warehouse_writeoff_success(): void
@@ -101,7 +101,7 @@ class WarehouseWriteoffControllerTest extends TestCase
             ->putJson("/api/warehouse_writeoffs/{$writeoff->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'РЎРїРёСЃР°РЅРёРµ РѕР±РЅРѕРІР»РµРЅРѕ']);
+        $response->assertJson(['message' => __('api.writeoff.updated')]);
     }
 
     public function test_destroy_warehouse_writeoff_success(): void
@@ -114,7 +114,7 @@ class WarehouseWriteoffControllerTest extends TestCase
             ->deleteJson("/api/warehouse_writeoffs/{$writeoff->id}");
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'РЎРїРёСЃР°РЅРёРµ СѓРґР°Р»РµРЅРѕ']);
+        $response->assertJson(['message' => __('api.writeoff.deleted')]);
     }
 
     public function test_index_filters_by_reason_and_exclude_reason(): void

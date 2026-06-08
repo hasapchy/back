@@ -34,7 +34,6 @@ class ProjectFactory extends Factory
             'date' => fake()->dateTimeBetween('-1 year', 'now'),
             'description' => fake()->optional()->paragraph(),
             'status_id' => ProjectStatus::factory(),
-            'files' => fake()->optional(0.2)->passthrough(fake()->randomElements(['file1.pdf', 'file2.jpg', 'file3.docx'], fake()->numberBetween(1, 3))),
         ];
     }
 }

@@ -53,7 +53,7 @@ class InvoiceResource extends JsonResource
                         'price' => (float) $p->price,
                         'total_price' => (float) $p->total_price,
                         'unit_id' => $p->unit_id,
-                        'unit' => $p->relationLoaded('unit') && $p->unit ? [
+                        'unit' => $p->unit ? [
                             'id' => $p->unit->id,
                             'name' => $p->unit->name,
                             'short_name' => $p->unit->short_name,

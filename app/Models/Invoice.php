@@ -4,8 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * Модель счета
@@ -41,25 +42,15 @@ class Invoice extends Model
         'status',
     ];
 
-    protected static $logAttributes = [
-        'client_id',
-        'creator_id',
-        'invoice_date',
-        'note',
-        'total_amount',
-        'invoice_number',
-        'status',
+    protected $casts = [
+        'invoice_date' => 'datetime',
+        'order_date' => 'date',
+        'total_amount' => 'decimal:2',
+        'discount' => 'decimal:2',
+        'final_amount' => 'decimal:2',
     ];
 
-    protected static $logName = 'invoice';
-    protected static $logFillable = true;
-    protected static $logOnlyDirty = true;
-    protected static $submitEmptyLogs = false;
-
     /**
-     * Получить описание для события активности
-     *
-     * @param string $eventName Название события
      * @return string
      */
     public function getDescriptionForEvent(string $eventName): string
@@ -71,27 +62,33 @@ class Invoice extends Model
     }
 
     /**
-     * Получить опции логирования активности
-     *
      * @return LogOptions
      */
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(static::$logAttributes)
             ->useLogName('invoice')
-            ->dontSubmitEmptyLogs()
+            ->logOnly([
+                'client_id',
+                'creator_id',
+                'invoice_date',
+                'note',
+                'total_amount',
+                'invoice_number',
+                'status',
+            ])
             ->logOnlyDirty()
-            ->setDescriptionForEvent(fn(string $eventName) => $this->getDescriptionForEvent($eventName));
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));
     }
 
-    protected $casts = [
-        'invoice_date' => 'datetime',
-        'order_date' => 'date',
-        'total_amount' => 'decimal:2',
-        'discount' => 'decimal:2',
-        'final_amount' => 'decimal:2',
-    ];
+    /**
+     * @return MorphMany
+     */
+    public function activities(): MorphMany
+    {
+        return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
+    }
 
     /**
      * Связь с клиентом
@@ -129,16 +126,6 @@ class Invoice extends Model
     public function products()
     {
         return $this->hasMany(InvoiceProduct::class, 'invoice_id');
-    }
-
-    /**
-     * Связь с активностями (morphMany)
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
-     */
-    public function activities()
-    {
-        return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
     }
 
     /**

@@ -15,7 +15,7 @@ use App\Services\Timeline\TimelineCache;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
+use App\Support\TransactionCategoryBindingKeys;
 
 /**
  * Репозиторий для работы с контрактами проектов
@@ -911,7 +911,7 @@ class ProjectContractsRepository extends BaseRepository
             'type' => 1,
             'is_debt' => true,
             'cash_id' => $contract->cash_id,
-            'category_id' => $this->resolveTransactionCategoryBinding('contract', 30),
+            'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::CONTRACT),
             'date' => now(),
             'note' => $contract->note,
             'creator_id' => $userId ?? auth('api')->id(),

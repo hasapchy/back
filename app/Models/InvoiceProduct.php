@@ -4,9 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Models\Activity;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * Модель продукта счета
@@ -45,40 +45,41 @@ class InvoiceProduct extends Model
         'unit_id',
     ];
 
-    protected static $logAttributes = [
-        'product_name',
-        'quantity',
-        'price',
-        'total_price',
-    ];
-
-    protected static $logName = 'invoice_product';
-    protected static $logFillable = true;
-    protected static $logOnlyDirty = true;
-    protected static $submitEmptyLogs = false;
-
+    /**
+     * @return string
+     */
     public function getDescriptionForEvent(string $eventName): string
     {
         return match ($eventName) {
-            'created' => 'activity_log.invoice_product.created',
-            'updated' => 'activity_log.invoice_product.updated',
-            'deleted' => 'activity_log.invoice_product.deleted',
+            'created', 'updated', 'deleted' => "activity_log.invoice_product.{$eventName}",
             default => 'activity_log.invoice_product.default',
         };
     }
 
+    /**
+     * @return LogOptions
+     */
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(static::$logAttributes)
-            ->useLogName(static::$logName)
+            ->useLogName('invoice_product')
+            ->logOnly([
+                'product_name',
+                'quantity',
+                'price',
+                'total_price',
+            ])
             ->logOnlyDirty()
-            ->submitEmptyLogs()
+            ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));
     }
 
-    // Привязываем записи активности к самому счету для отображения в таймлайне счета
-    public function tapActivity(Activity $activity, string $eventName)
+    /**
+     * @param Activity $activity
+     * @param string $eventName
+     * @return void
+     */
+    public function tapActivity(Activity $activity, string $eventName): void
     {
         if ($this->invoice_id) {
             $activity->subject_id = $this->invoice_id;

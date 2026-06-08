@@ -55,6 +55,7 @@ class Kernel extends HttpKernel
             EnsureFrontendRequestsAreStateful::class,
             \App\Http\Middleware\TouchUserAuthSession::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\AppendLaravelCacheHeader::class,
         ],
     ];
 

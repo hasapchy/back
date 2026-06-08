@@ -15,12 +15,14 @@ use App\Models\WhReceipt;
 use App\Services\CacheService;
 use App\Services\CashRegisterDeletionGuard;
 use App\Services\CurrencyConverter;
+use App\Services\RoundingModuleRegistry;
 use App\Services\RoundingService;
 use App\Services\TransactionSourceService;
 use App\Services\ReceiptExpenseAllocationService;
 use App\Services\Timeline\TimelineCache;
 use App\Services\ClientBalanceService;
 use App\Services\WarehouseDocumentPaymentStatusService;
+use App\Support\TransactionCategoryBindingKeys;
 use App\Support\TransactionCategoryTypeGuard;
 use Illuminate\Support\Facades\DB;
 
@@ -520,8 +522,8 @@ class TransactionsRepository extends BaseRepository
 
             if (isset($data['is_adjustment']) && $data['is_adjustment']) {
                 $adjustmentCategoryId = $data['type'] == 1
-                    ? $this->resolveTransactionCategoryBinding('adjustment.income', 22)
-                    : $this->resolveTransactionCategoryBinding('adjustment.outcome', 21);
+                    ? $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::ADJUSTMENT_INCOME)
+                    : $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::ADJUSTMENT_OUTCOME);
                 $transaction->category_id = $adjustmentCategoryId;
             } else {
                 $transaction->category_id = $data['category_id'];
@@ -588,7 +590,7 @@ class TransactionsRepository extends BaseRepository
 
                         if ($balanceId) {
                             $transaction->client_balance_id = $balanceId;
-                            $transaction->save();
+                            $transaction->saveQuietly();
                         }
 
                         CacheService::invalidateClientsCache();
@@ -601,7 +603,7 @@ class TransactionsRepository extends BaseRepository
             if (! $transaction->source_type && ! $transaction->source_id) {
                 TransactionSourceService::setSalarySource($transaction);
                 if ($transaction->source_type || $transaction->source_id) {
-                    $transaction->save();
+                    $transaction->saveQuietly();
                 }
             }
 
@@ -630,6 +632,7 @@ class TransactionsRepository extends BaseRepository
                 CacheService::invalidateOrdersCache();
             }
             $this->invalidateWarehouseSourceCaches($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
+            $this->syncWarehouseDocumentPaidAmountFromTransaction($transaction);
             $this->syncLinkedPurchaseCompletionAfterPaymentChange($transaction);
 
             TimelineCache::forget('transaction', (int) $transaction->id);
@@ -673,6 +676,9 @@ class TransactionsRepository extends BaseRepository
             TransactionCategoryTypeGuard::assertMatch((int) $transaction->type, (int) $data['category_id']);
         }
 
+        $oldSourceType = $transaction->source_type;
+        $oldSourceId = $transaction->source_id;
+
         $transaction->client_id = $data['client_id'] ?? $transaction->client_id;
         $transaction->category_id = $data['category_id'] ?? $transaction->category_id;
         if (array_key_exists('project_id', $data)) {
@@ -703,7 +709,7 @@ class TransactionsRepository extends BaseRepository
             if (! $transaction->source_type && ! $transaction->source_id) {
                 TransactionSourceService::setSalarySource($transaction);
                 if ($transaction->source_type || $transaction->source_id) {
-                    $transaction->save();
+                    $transaction->saveQuietly();
                 }
             }
 
@@ -726,6 +732,7 @@ class TransactionsRepository extends BaseRepository
             CacheService::invalidateOrdersCache();
         }
         $this->invalidateWarehouseSourceCaches($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
+        $this->syncWarehouseDocumentPaidAmountFromTransaction($transaction, $oldSourceType, $oldSourceId ? (int) $oldSourceId : null);
         $this->syncLinkedPurchaseCompletionAfterPaymentChange($transaction);
 
         TimelineCache::forget('transaction', (int) $id);
@@ -764,6 +771,7 @@ class TransactionsRepository extends BaseRepository
             $oldClientId = $transaction->client_id;
             $oldClientBalanceId = $transaction->client_balance_id;
             $oldSourceType = $transaction->source_type;
+            $oldSourceId = $transaction->source_id;
             $oldType = $transaction->type;
             $oldProjectId = $transaction->project_id;
             $oldExchangeRate = $transaction->exchange_rate;
@@ -931,7 +939,7 @@ class TransactionsRepository extends BaseRepository
             if (! $transaction->source_type && ! $transaction->source_id) {
                 TransactionSourceService::setSalarySource($transaction);
                 if ($transaction->source_type || $transaction->source_id) {
-                    $transaction->save();
+                    $transaction->saveQuietly();
                 }
             }
 
@@ -1024,7 +1032,7 @@ class TransactionsRepository extends BaseRepository
 
                         if ($balanceId) {
                             $transaction->client_balance_id = (int) $balanceId;
-                            $transaction->save();
+                            $transaction->saveQuietly();
                         }
                     }
                 }
@@ -1061,6 +1069,7 @@ class TransactionsRepository extends BaseRepository
                 CacheService::invalidateOrdersCache();
             }
             $this->invalidateWarehouseSourceCaches($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
+            $this->syncWarehouseDocumentPaidAmountFromTransaction($transaction, $oldSourceType, $oldSourceId ? (int) $oldSourceId : null);
             $this->syncLinkedPurchaseCompletionAfterPaymentChange($transaction);
 
             TimelineCache::forget('transaction', (int) $id);
@@ -1220,6 +1229,7 @@ class TransactionsRepository extends BaseRepository
                 }
             }
             $this->invalidateWarehouseSourceCaches($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
+            $this->syncWarehouseDocumentPaidAmountFromTransaction($transaction);
             $this->syncLinkedPurchaseCompletionAfterPaymentChange($transaction);
 
             TimelineCache::forget('transaction', $id);
@@ -1560,7 +1570,11 @@ class TransactionsRepository extends BaseRepository
 
         $roundingService = new RoundingService;
 
-        return $roundingService->roundForCompany($companyId, (float) $amount);
+        return $roundingService->roundForModule(
+            $companyId,
+            (float) $amount,
+            RoundingModuleRegistry::MODULE_TRANSACTION
+        );
     }
 
     /**
@@ -1604,7 +1618,11 @@ class TransactionsRepository extends BaseRepository
             $cashCurrency
         );
 
-        return $roundingService->roundForCompany($companyId, $converted);
+        return $roundingService->roundForModule(
+            $companyId,
+            $converted,
+            RoundingModuleRegistry::MODULE_TRANSACTION
+        );
     }
 
     private function companySkipsProjectOrderBalance(?int $companyId): bool
@@ -1865,12 +1883,13 @@ class TransactionsRepository extends BaseRepository
         if ((bool) ($data['is_debt'] ?? false)) {
             return;
         }
-        $purchasePaymentCategoryId = $this->resolveTransactionCategoryBinding('warehouse.purchase', 6);
-        $receiptPaymentCategoryId = $this->resolveTransactionCategoryBinding('warehouse.receipt', 6);
 
-        if (! in_array((int) ($data['category_id'] ?? 0), [$purchasePaymentCategoryId, $receiptPaymentCategoryId], true)) {
+        $companyId = (int) $this->getCurrentCompanyId();
+        $categoryId = (int) ($data['category_id'] ?? 0);
+        if (! app(WarehouseDocumentPaymentStatusService::class)->isWarehouseGoodsPaymentCategory($companyId, $categoryId)) {
             return;
         }
+
         $sourceType = (string) ($data['source_type'] ?? '');
         $sourceId = (int) ($data['source_id'] ?? 0);
         if ($sourceId <= 0) {
@@ -1922,10 +1941,15 @@ class TransactionsRepository extends BaseRepository
         if ($transaction->is_debt || $transaction->is_deleted) {
             return;
         }
-        $purchasePaymentCategoryId = $this->resolveTransactionCategoryBinding('warehouse.purchase', WarehouseDocumentPaymentStatusService::GOODS_PAYMENT_CATEGORY_ID);
-        if ((int) ($transaction->category_id ?? 0) !== (int) $purchasePaymentCategoryId) {
+
+        $companyId = (int) $this->getCurrentCompanyId();
+        $categoryId = (int) ($transaction->category_id ?? 0);
+        $purchaseCategoryId = app(WarehouseDocumentPaymentStatusService::class)
+            ->resolveGoodsPaymentCategoryId($companyId, TransactionCategoryBindingKeys::WAREHOUSE_PURCHASE);
+        if ($categoryId !== $purchaseCategoryId) {
             return;
         }
+
         $sourceType = (string) ($transaction->source_type ?? '');
         if (! str_contains($sourceType, 'WhPurchase')) {
             return;
@@ -1936,6 +1960,40 @@ class TransactionsRepository extends BaseRepository
         }
 
         app(WarehousePurchaseRepository::class)->syncPurchaseCompletionState($purchaseId);
+    }
+
+    /**
+     * @return void
+     */
+    private function syncWarehouseDocumentPaidAmountFromTransaction(
+        Transaction $transaction,
+        ?string $oldSourceType = null,
+        ?int $oldSourceId = null
+    ): void {
+        $service = app(WarehouseDocumentPaymentStatusService::class);
+
+        if ($oldSourceType !== null && $oldSourceId !== null && $oldSourceId > 0
+            && ((string) $oldSourceType !== (string) ($transaction->source_type ?? '') || $oldSourceId !== (int) ($transaction->source_id ?? 0))) {
+            if (str_contains($oldSourceType, 'WhPurchase')) {
+                $service->syncPurchasePaidAmount($oldSourceId);
+            }
+            if (str_contains($oldSourceType, 'WhReceipt')) {
+                $service->syncReceiptPaidAmount($oldSourceId);
+            }
+        }
+
+        $sourceType = (string) ($transaction->source_type ?? '');
+        $sourceId = (int) ($transaction->source_id ?? 0);
+        if ($sourceId <= 0) {
+            return;
+        }
+
+        if (str_contains($sourceType, 'WhPurchase')) {
+            $service->syncPurchasePaidAmount($sourceId);
+        }
+        if (str_contains($sourceType, 'WhReceipt')) {
+            $service->syncReceiptPaidAmount($sourceId);
+        }
     }
 
 }

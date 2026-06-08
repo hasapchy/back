@@ -48,7 +48,7 @@ class ReferencePayloadBudgetTest extends TestCase
     private function assertResponseDataWithinBudget(TestResponse $response, string $budgetKey, string $uri): void
     {
         $limit = ReferencePayloadBudget::limitFor($budgetKey);
-        $this->assertNotNull($limit, 'РќРµ Р·Р°РґР°РЅ payload_budget_bytes.'.$budgetKey);
+        $this->assertNotNull($limit, 'Не задан payload_budget_bytes.'.$budgetKey);
 
         $response->assertStatus(200);
         $json = $response->json();

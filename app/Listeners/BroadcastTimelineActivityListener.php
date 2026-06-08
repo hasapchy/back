@@ -25,7 +25,7 @@ class BroadcastTimelineActivityListener implements ShouldQueue
         $activity = $event->activity;
         $subject = $activity->subject;
 
-        if (in_array($activity->log_name, ['order_product', 'order_temp_product'], true) && $activity->event === 'updated') {
+        if (in_array($activity->log_name, ['order_product', 'order_temp_product', 'inventory_item'], true)) {
             return;
         }
 

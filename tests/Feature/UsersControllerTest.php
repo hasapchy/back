@@ -25,7 +25,7 @@ class UsersControllerTest extends TestCase
         try {
             DB::connection()->getPdo();
         } catch (\Throwable $e) {
-            $this->fail('РќРµС‚ РїРѕРґРєР»СЋС‡РµРЅРёСЏ Рє С‚РµСЃС‚РѕРІРѕР№ Р‘Р”: ' . $e->getMessage());
+            $this->fail('Нет подключения к тестовой БД: ' . $e->getMessage());
         }
 
 
@@ -37,12 +37,6 @@ class UsersControllerTest extends TestCase
         ]);
         $this->adminUser->companies()->attach($this->company->id);
     }
-
-    protected function actingAsApi(User $user)
-    {
-        return $this->withApiTokenForCompany($user, null);
-    }
-
     public function test_store_user_requires_validation(): void
     {
         $response = $this->actingAsApi($this->adminUser)
@@ -467,7 +461,7 @@ class UsersControllerTest extends TestCase
             ->deleteJson("/api/users/{$user->id}");
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'User deleted']);
+        $response->assertJson(['message' => __('api.users.deleted')]);
         $this->assertDatabaseMissing('users', ['id' => $user->id]);
     }
 

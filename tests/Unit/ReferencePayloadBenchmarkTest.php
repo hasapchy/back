@@ -37,7 +37,7 @@ class ReferencePayloadBenchmarkTest extends TestCase
     /**
      * @return void
      */
-    public function test_projects_row_shows_payload_savings_vs_full_files_and_description(): void
+    public function test_projects_row_shows_payload_savings_vs_full_description(): void
     {
         $rows = ReferencePayloadBenchmark::runProjects([5]);
         $this->assertCount(1, $rows);

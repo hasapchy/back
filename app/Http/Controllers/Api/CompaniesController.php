@@ -11,6 +11,7 @@ use App\Models\TransactionCategoryBinding;
 use App\Models\TransactionCategory;
 use App\Repositories\RolesRepository;
 use App\Services\SalaryAccrualService;
+use App\Services\TransactionCategoryBindingDefaultsService;
 use App\Support\TransactionCategoryBindingKeys;
 use App\Support\TransactionCategoryTypeGuard;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -39,10 +40,13 @@ class CompaniesController extends BaseController
         $companies = Company::select([
             'id', 'name', 'full_name', 'logo',
             'address', 'phone', 'registration_number', 'email', 'warehouse_number',
-            'show_deleted_transactions', 'rounding_decimals', 'display_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold',
-            'rounding_orders_enabled', 'rounding_contracts_enabled', 'rounding_warehouse_enabled',
+            'show_deleted_transactions', 'display_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold',
+            'rounding_orders_enabled', 'rounding_orders_decimals',
+            'rounding_contracts_enabled', 'rounding_contracts_decimals',
+            'rounding_warehouse_enabled', 'rounding_warehouse_decimals',
+            'rounding_transactions_enabled', 'rounding_transactions_decimals',
             'rounding_quantity_decimals', 'rounding_quantity_enabled', 'rounding_quantity_direction', 'rounding_quantity_custom_threshold',
-            'skip_project_order_balance', 'work_schedule', 'created_at', 'updated_at',
+            'skip_project_order_balance', 'work_schedule', 'ui_theme', 'created_at', 'updated_at',
         ])
             ->with(['transactionCategoryBindings:company_id,binding_key,transaction_category_id'])
             ->orderBy('name')
@@ -74,6 +78,7 @@ class CompaniesController extends BaseController
 
         $company = Company::create($data);
         $this->syncTransactionCategoryBindings($company, $request->input('transaction_category_bindings'));
+        app(TransactionCategoryBindingDefaultsService::class)->seedMissingForCompany((int) $company->id);
         $company->load(['transactionCategoryBindings:company_id,binding_key,transaction_category_id']);
 
         $rolesRepository = app(RolesRepository::class);
@@ -103,6 +108,7 @@ class CompaniesController extends BaseController
 
         $company->update($data);
         $this->syncTransactionCategoryBindings($company, $request->input('transaction_category_bindings'));
+        app(TransactionCategoryBindingDefaultsService::class)->seedMissingForCompany((int) $company->id);
 
         $company = $company->fresh();
         $company->load(['transactionCategoryBindings:company_id,binding_key,transaction_category_id']);
@@ -436,13 +442,13 @@ class CompaniesController extends BaseController
             fn ($categoryId) => in_array((int) $categoryId, $existingCategoryIds, true)
         );
 
-        TransactionCategoryBinding::query()
-            ->where('company_id', $company->id)
-            ->delete();
-
         if ($normalized === []) {
             return;
         }
+
+        TransactionCategoryBinding::query()
+            ->where('company_id', $company->id)
+            ->delete();
 
         $rows = [];
         $now = now();

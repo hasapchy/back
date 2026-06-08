@@ -62,7 +62,7 @@ class AuthLoginTest extends TestCase
         ]);
 
         $response->assertUnauthorized();
-        $response->assertJsonPath('error', 'РќРµРІРµСЂРЅС‹Р№ Р»РѕРіРёРЅ РёР»Рё РїР°СЂРѕР»СЊ');
+        $response->assertJsonPath('error', __('api.auth.invalid_credentials'));
     }
 
     public function test_login_fails_for_unknown_email(): void
@@ -73,7 +73,7 @@ class AuthLoginTest extends TestCase
         ]);
 
         $response->assertUnauthorized();
-        $response->assertJsonPath('error', 'РќРµРІРµСЂРЅС‹Р№ Р»РѕРіРёРЅ РёР»Рё РїР°СЂРѕР»СЊ');
+        $response->assertJsonPath('error', __('api.auth.invalid_credentials'));
     }
 
     public function test_login_fails_when_user_is_inactive(): void
@@ -92,7 +92,7 @@ class AuthLoginTest extends TestCase
         ]);
 
         $response->assertForbidden();
-        $response->assertJsonPath('error', 'Account is disabled');
+        $response->assertJsonPath('error', __('api.common.account_disabled'));
     }
 
     public function test_login_fails_when_user_has_no_companies(): void

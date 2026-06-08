@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\LaravelCacheHeader;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -26,14 +27,25 @@ class CacheService
     {
         $ttl = $ttl ?? self::CACHE_TTL['reference_data'];
 
-        $hasCache = Cache::has($key);
+        if (Cache::has($key)) {
+            if (self::usesKeyRegistry()) {
+                CacheKeyRegistry::register($key);
+            }
 
-        if ($hasCache) {
+            LaravelCacheHeader::recordHit();
+
             return Cache::get($key);
         }
 
+        LaravelCacheHeader::recordMiss();
+
         $result = $callback();
         Cache::put($key, $result, $ttl);
+
+        if (self::usesKeyRegistry()) {
+            CacheKeyRegistry::register($key);
+        }
+
         return $result;
     }
 
@@ -140,12 +152,11 @@ class CacheService
     public static function invalidateByLike(string $like, ?int $companyId = null): void
     {
         $driver = config('cache.default');
-        $currentCompanyId = self::getCompanyId($companyId);
 
         if ($driver === 'database') {
-            self::invalidateDatabaseCache($like, $currentCompanyId);
+            self::invalidateDatabaseCache($like, self::getCompanyId($companyId));
         } else {
-            self::invalidateOtherCache($like, $currentCompanyId, $driver);
+            self::invalidateOtherCache($like, $companyId);
         }
     }
 
@@ -179,7 +190,6 @@ class CacheService
         try {
             $cacheTable = config('cache.stores.database.table', 'cache');
             $prefix = config('cache.prefix');
-            $originalPattern = $like;
 
             if ($prefix && strpos($like, '%') === 0) {
                 $cleanPattern = trim($like, '%');
@@ -192,33 +202,43 @@ class CacheService
 
             DB::table($cacheTable)->where('key', 'like', $like)->delete();
         } catch (\Exception $e) {
+            report($e);
         }
     }
 
     /**
-     * Invalidate other cache drivers
+     * Invalidate file and other non-database cache drivers
      *
      * @param  string  $like  Pattern
      * @param  int|null  $companyId  Company ID
-     * @param  string  $driver  Cache driver
      */
-    protected static function invalidateOtherCache(string $like, ?int $companyId, string $driver): void
+    protected static function invalidateOtherCache(string $like, ?int $companyId): void
     {
         try {
-            $hasWildcard = str_contains($like, '%');
-            if ($hasWildcard) {
-                Cache::flush();
+            if (self::usesKeyRegistry()) {
+                $keys = CacheKeyRegistry::matchKeys($like, $companyId);
+
+                foreach ($keys as $key) {
+                    Cache::forget($key);
+                    CacheKeyRegistry::unregister($key);
+                }
+
+                return;
+            }
+
+            if (str_contains($like, '%')) {
                 return;
             }
 
             if ($companyId !== null) {
-                $pattern = "{$like}_{$companyId}";
-                Cache::forget($pattern);
+                Cache::forget("{$like}_{$companyId}");
+
                 return;
             }
 
             Cache::forget($like);
         } catch (\Exception $e) {
+            report($e);
         }
     }
 
@@ -506,42 +526,43 @@ class CacheService
     public static function forget(string $key, ?int $companyId = null): void
     {
         $driver = config('cache.default');
-        $currentCompanyId = self::getCompanyId($companyId);
-        $fullKey = self::buildCacheKey($key, $currentCompanyId, $driver === 'database');
 
         if ($driver === 'database') {
+            $currentCompanyId = self::getCompanyId($companyId);
+            $fullKey = self::buildDatabaseCacheKey($key, $currentCompanyId);
             self::forgetDatabaseCache($fullKey);
-        } else {
-            self::forgetOtherCache($fullKey);
+
+            return;
+        }
+
+        try {
+            Cache::forget($key);
+        } catch (\Exception $e) {
+            report($e);
+        }
+
+        if (self::usesKeyRegistry()) {
+            CacheKeyRegistry::unregister($key);
         }
     }
 
     /**
-     * Build cache key with company ID suffix
+     * Build database cache key with prefix and optional company suffix
      *
      * @param  string  $key  Base cache key
      * @param  int|null  $companyId  Company ID
-     * @param  bool  $isDatabase  Whether using database cache
      */
-    protected static function buildCacheKey(string $key, ?int $companyId, bool $isDatabase): string
+    protected static function buildDatabaseCacheKey(string $key, ?int $companyId): string
     {
-        $fullKey = $key;
-
-        if ($isDatabase) {
-            $prefix = config('cache.prefix');
-            $fullKey = $prefix ? $prefix.$key : $key;
-        }
-
+        $prefix = config('cache.prefix');
+        $fullKey = $prefix ? $prefix.$key : $key;
         $defaultCompanyId = 'default';
-        $keyEndsWithCompanyId = false;
+        $keyEndsWithCompanyId = $companyId !== null
+            && (str_ends_with($key, "_{$companyId}") || str_ends_with($key, "_{$defaultCompanyId}"));
 
-        if ($companyId && (str_ends_with($key, "_{$companyId}") || str_ends_with($key, "_{$defaultCompanyId}"))) {
-            $keyEndsWithCompanyId = true;
-        }
-
-        if (! $keyEndsWithCompanyId && $companyId) {
+        if (! $keyEndsWithCompanyId && $companyId !== null) {
             $fullKey .= "_{$companyId}";
-        } elseif (! $keyEndsWithCompanyId && ! $companyId) {
+        } elseif (! $keyEndsWithCompanyId && $companyId === null) {
             $fullKey .= "_{$defaultCompanyId}";
         }
 
@@ -559,21 +580,7 @@ class CacheService
             $cacheTable = config('cache.stores.database.table', 'cache');
             DB::table($cacheTable)->where('key', $fullKey)->delete();
         } catch (\Exception $e) {
-            // Cache forget failed silently
-        }
-    }
-
-    /**
-     * Forget other cache drivers
-     *
-     * @param  string  $fullKey  Full cache key
-     */
-    protected static function forgetOtherCache(string $fullKey): void
-    {
-        try {
-            Cache::forget($fullKey);
-        } catch (\Exception $e) {
-            // Cache forget failed silently
+            report($e);
         }
     }
 
@@ -591,8 +598,20 @@ class CacheService
             } else {
                 Cache::flush();
             }
+
+            if (self::usesKeyRegistry()) {
+                CacheKeyRegistry::clear();
+            }
         } catch (\Exception $e) {
-            // Cache flush failed silently
+            report($e);
         }
+    }
+
+    /**
+     * @return bool
+     */
+    protected static function usesKeyRegistry(): bool
+    {
+        return config('cache.default') === 'file';
     }
 }

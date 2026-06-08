@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\DB;
 use App\Services\RoundingService;
 use App\Services\Timeline\OrderTimelineSummaryLogger;
 use App\Http\Resources\OrderResource;
-use Illuminate\Support\Facades\Log;
+use App\Support\TransactionCategoryBindingKeys;
 
 class OrdersRepository extends BaseRepository
 {
@@ -87,8 +87,7 @@ class OrdersRepository extends BaseRepository
             ['resource' => $orderResource, 'is_simple' => $isSimpleUser] = SimpleUser::orderAccess($currentUser);
             $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $categoryFilter, $unpaidOnly, null);
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
-            $paidAmountsMap = $this->getPaidAmountsMap($orders->pluck('id')->toArray());
-            $orders->getCollection()->transform(function ($order) use ($paidAmountsMap) {
+            $orders->getCollection()->transform(function ($order) {
                 assert($order instanceof Order);
                 if ($order->client) {
                     $order->client_first_name = $order->client->first_name;
@@ -184,20 +183,7 @@ class OrdersRepository extends BaseRepository
 
                 $order->setAttribute('products', $allProducts);
 
-                $paidAmount = (float) ($paidAmountsMap[$order->id] ?? 0);
-                $totalPrice = (float) ($order->total_price ?? 0);
-
-                $order->setAttribute('paid_amount', $paidAmount);
-
-                if ($paidAmount <= 0) {
-                    $order->setAttribute('payment_status', 'unpaid');
-                } elseif ($paidAmount < $totalPrice) {
-                    $order->setAttribute('payment_status', 'partially_paid');
-                } else {
-                    $order->setAttribute('payment_status', 'paid');
-                }
-
-                $order->makeVisible(['paid_amount', 'payment_status', 'payment_status_text']);
+                $this->setOrderPaymentInfo($order, (float) ($order->paid_amount ?? 0));
 
                 return $order;
             });
@@ -207,23 +193,12 @@ class OrdersRepository extends BaseRepository
             $unpaidQuery = Order::selectRaw('
                 COALESCE(SUM(
                     CASE
-                        WHEN orders.total_price > COALESCE(paid_amounts.total_paid, 0)
-                        THEN (orders.total_price - COALESCE(paid_amounts.total_paid, 0))
+                        WHEN orders.total_price > COALESCE(orders.paid_amount, 0)
+                        THEN (orders.total_price - COALESCE(orders.paid_amount, 0))
                         ELSE 0
                     END
                 ), 0) as unpaid_total
             ')
-                ->leftJoinSub(
-                    Transaction::select('source_id', DB::raw($this->orderPaymentsSumExpression() . ' as total_paid'))
-                        ->where('source_type', Order::class)
-                        ->where('is_debt', 0)
-                        ->where('is_deleted', 0)
-                        ->groupBy('source_id'),
-                    'paid_amounts',
-                    function ($join) {
-                        $join->on('orders.id', '=', 'paid_amounts.source_id');
-                    }
-                )
                 ->whereNull('orders.project_id');
 
             if (! $isSimpleUser) {
@@ -346,18 +321,7 @@ class OrdersRepository extends BaseRepository
         }
         if ($unpaidOnly) {
             $query->whereNull('orders.project_id')
-                ->leftJoinSub(
-                    Transaction::select('source_id', DB::raw($this->orderPaymentsSumExpression() . ' as total_paid'))
-                        ->where('source_type', Order::class)
-                        ->where('is_debt', 0)
-                        ->where('is_deleted', 0)
-                        ->groupBy('source_id'),
-                    'paid_transactions',
-                    function ($join) {
-                        $join->on('orders.id', '=', 'paid_transactions.source_id');
-                    }
-                )
-                ->whereRaw('orders.total_price > COALESCE(paid_transactions.total_paid, 0)');
+                ->whereRaw('orders.total_price > COALESCE(orders.paid_amount, 0)');
         }
 
         $this->applySimpleUserOrderCategoryFilter($query, $currentUser);
@@ -475,19 +439,7 @@ class OrdersRepository extends BaseRepository
         }
         if ($unpaidOnly) {
             $query->whereNull('orders.project_id')
-                ->leftJoinSub(
-                    Transaction::select('source_id', DB::raw($this->orderPaymentsSumExpression() . ' as total_paid'))
-                        ->where('source_type', Order::class)
-                        ->where('is_debt', 0)
-                        ->where('is_deleted', 0)
-                        ->groupBy('source_id'),
-                    'paid_transactions',
-                    function ($join) {
-                        $join->on('orders.id', '=', 'paid_transactions.source_id');
-                    }
-                )
-                ->whereRaw('orders.total_price > COALESCE(paid_transactions.total_paid, 0)')
-                ->select('orders.*');
+                ->whereRaw('orders.total_price > COALESCE(orders.paid_amount, 0)');
         }
         $this->applySimpleUserOrderCategoryFilter($query, $currentUser);
 
@@ -520,8 +472,7 @@ class OrdersRepository extends BaseRepository
         $searchTrimmed = is_string($search) ? trim($search) : '';
         $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $categoryFilter, $unpaidOnly, $ids);
         $orders = $query->orderBy('orders.created_at', 'desc')->limit($limit)->get();
-        $paidAmountsMap = $this->getPaidAmountsMap($orders->pluck('id')->toArray());
-        $orders->transform(function ($order) use ($paidAmountsMap) {
+        $orders->transform(function ($order) {
             assert($order instanceof Order);
             if ($order->client) {
                 $order->client_first_name = $order->client->first_name;
@@ -580,17 +531,7 @@ class OrdersRepository extends BaseRepository
                 }
             }
             $order->setAttribute('products', $allProducts);
-            $paidAmount = (float) ($paidAmountsMap[$order->id] ?? 0);
-            $totalPrice = (float) ($order->total_price ?? 0);
-            $order->setAttribute('paid_amount', $paidAmount);
-            if ($paidAmount <= 0) {
-                $order->setAttribute('payment_status', 'unpaid');
-            } elseif ($paidAmount < $totalPrice) {
-                $order->setAttribute('payment_status', 'partially_paid');
-            } else {
-                $order->setAttribute('payment_status', 'paid');
-            }
-            $order->makeVisible(['paid_amount', 'payment_status', 'payment_status_text']);
+            $this->setOrderPaymentInfo($order, (float) ($order->paid_amount ?? 0));
             return $order;
         });
         return $orders;
@@ -661,25 +602,7 @@ class OrdersRepository extends BaseRepository
             $this->getProducts([(int) $order->id])->get($order->id, collect())
         );
 
-        $paidAmountsMap = $this->getPaidAmountsMap([(int) $order->id]);
-        $paidAmount = (float) ($paidAmountsMap[$order->id] ?? 0);
-        $totalPrice = (float) ($order->total_price ?? 0);
-
-        $order->setAttribute('paid_amount', $paidAmount);
-
-        if ($paidAmount <= 0) {
-            $order->setAttribute('payment_status', 'unpaid');
-        } elseif ($paidAmount < $totalPrice) {
-            $order->setAttribute('payment_status', 'partially_paid');
-        } else {
-            $order->setAttribute('payment_status', 'paid');
-        }
-
-        $order->setAttribute(
-            'payment_status_text',
-            $paidAmount <= 0 ? 'Не оплачено' : ($paidAmount < $totalPrice ? 'Частично оплачено' : 'Оплачено')
-        );
-        $order->makeVisible(['paid_amount', 'payment_status', 'payment_status_text']);
+        $this->setOrderPaymentInfo($order, (float) ($order->paid_amount ?? 0));
 
         return $order;
     }
@@ -743,9 +666,8 @@ class OrdersRepository extends BaseRepository
         $client_ids = $orders->pluck('client_id')->unique()->filter()->toArray();
         $client_repository = new ClientsRepository();
         $clients = $client_repository->getItemsByIds($client_ids)->keyBy('id');
-        $paidAmountsMap = $this->getPaidAmountsMap($order_ids);
 
-        $items = $orders->map(function ($order) use ($products, $clients, $paidAmountsMap) {
+        $items = $orders->map(function ($order) use ($products, $clients) {
             $orderProducts = $products->get($order->id, collect());
 
             $item = (object) [
@@ -790,7 +712,7 @@ class OrdersRepository extends BaseRepository
                 ],
             ];
 
-            $paidAmount = (float) ($paidAmountsMap[$order->id] ?? 0);
+            $paidAmount = (float) ($order->paid_amount ?? 0);
             $totalPrice = (float) ($item->total_price ?? 0);
             $item->paid_amount = $paidAmount;
             $item->payment_status = $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid');
@@ -1530,7 +1452,7 @@ class OrdersRepository extends BaseRepository
                             'client_id' => $client_id,
                             'project_id' => $project_id,
                             'cash_id' => $cash_id,
-                            'category_id' => $this->resolveTransactionCategoryBinding('order', 1),
+                            'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::ORDER),
                             'date' => $date,
                             'note' => $note,
                             'client_balance_id' => $order->client_balance_id,
@@ -1643,17 +1565,6 @@ class OrdersRepository extends BaseRepository
             }
         }
 
-        $paidTotals = collect();
-        if (in_array($statusId, [self::PAID_STATUS_ID], true)) {
-            $paidTotals = Transaction::where('source_type', \App\Models\Order::class)
-                ->whereIn('source_id', $orders->keys())
-                ->where('is_debt', false)
-                ->where('is_deleted', false)
-                ->select('source_id', DB::raw($this->orderPaymentsSumExpression() . ' as total_paid'))
-                ->groupBy('source_id')
-                ->pluck('total_paid', 'source_id');
-        }
-
         $ordersToUpdate = [];
         $clientIdsToInvalidate = [];
 
@@ -1667,7 +1578,7 @@ class OrdersRepository extends BaseRepository
 
             if (in_array($statusId, [5], true) && !$order->project_id) {
                 $orderTotal = (float) ($order->total_price ?? 0);
-                $paidTotal = (float) ($paidTotals->get($order->id) ?? 0);
+                $paidTotal = (float) ($order->paid_amount ?? 0);
                 $remainingAmount = $orderTotal - $paidTotal;
 
                 if ($remainingAmount > 0.0001) {
@@ -2065,7 +1976,7 @@ class OrdersRepository extends BaseRepository
                                 'client_id' => $clientId,
                                 'project_id' => $projectId,
                                 'cash_id' => $cashId,
-                                'category_id' => $this->resolveTransactionCategoryBinding('order', 1),
+                                'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::ORDER),
                                 'date' => $date,
                                 'note' => $note,
                                 'client_balance_id' => $order->client_balance_id,
@@ -2233,11 +2144,6 @@ class OrdersRepository extends BaseRepository
         }
 
         return number_format((float) $value, 5, '.', '');
-    }
-
-    protected function orderPaymentsSumExpression(): string
-    {
-        return 'SUM(COALESCE(def_amount, orig_amount))';
     }
 
     protected function getOrderDefaultCurrency(): Currency
@@ -2420,27 +2326,6 @@ class OrdersRepository extends BaseRepository
         ];
     }
 
-    protected function getPaidAmountsMap($orderIds): array
-    {
-        $orderIdsArray = is_array($orderIds) ? $orderIds : (is_iterable($orderIds) ? collect($orderIds)->toArray() : []);
-
-        if (empty($orderIdsArray)) {
-            return [];
-        }
-
-        $sumExpr = $this->orderPaymentsSumExpression();
-
-        return Transaction::where('source_type', 'App\Models\Order')
-            ->whereIn('source_id', $orderIdsArray)
-            ->where('is_debt', 0)
-            ->where('is_deleted', false)
-            ->select('source_id', DB::raw("{$sumExpr} as total"))
-            ->groupBy('source_id')
-            ->pluck('total', 'source_id')
-            ->map(fn($total) => (float) $total)
-            ->toArray();
-    }
-
     protected function enrichOrderData($order, $loadProducts = true): void
     {
         $order->status_name = $order->status->name ?? null;
@@ -2466,10 +2351,10 @@ class OrdersRepository extends BaseRepository
                     'id' => $orderProduct->id,
                     'order_id' => $orderProduct->order_id,
                     'product_id' => $orderProduct->product_id,
-                    'product_name' => $orderProduct->product->name ?? null,
-                    'product_image' => $orderProduct->product->image ?? null,
-                    'unit_id' => $orderProduct->product->unit_id ?? null,
-                    'unit_short_name' => $orderProduct->product->unit->short_name ?? null,
+                    'product_name' => $orderProduct->product?->name ?? null,
+                    'product_image' => $orderProduct->product?->image ?? null,
+                    'unit_id' => $orderProduct->product?->unit_id ?? null,
+                    'unit_short_name' => $orderProduct->product?->unit?->short_name,
                     'quantity' => $orderProduct->quantity,
                     'price' => $orderProduct->price,
                     'width' => $orderProduct->width,
@@ -2486,7 +2371,7 @@ class OrdersRepository extends BaseRepository
                     'product_name' => $tempProduct->name,
                     'product_image' => null,
                     'unit_id' => $tempProduct->unit_id,
-                    'unit_short_name' => $tempProduct->unit->short_name ?? null,
+                    'unit_short_name' => $tempProduct->unit?->short_name,
                     'quantity' => $tempProduct->quantity,
                     'price' => $tempProduct->price,
                     'width' => $tempProduct->width,
@@ -2508,6 +2393,10 @@ class OrdersRepository extends BaseRepository
         $order->setAttribute(
             'payment_status',
             $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid')
+        );
+        $order->setAttribute(
+            'payment_status_text',
+            $paidAmount <= 0 ? 'Не оплачено' : ($paidAmount < $totalPrice ? 'Частично оплачено' : 'Оплачено')
         );
         $order->makeVisible(['paid_amount', 'payment_status', 'payment_status_text']);
     }
@@ -2558,12 +2447,7 @@ class OrdersRepository extends BaseRepository
         int $currencyId,
         ?int $clientBalanceId
     ): array {
-        $categoryId = $this->resolveTransactionCategoryBinding('order', 1);
-        Log::info('orders.repo.binding.order', [
-            'company_id' => $this->getCurrentCompanyId(),
-            'binding_key' => 'order',
-            'resolved_category_id' => $categoryId,
-        ]);
+        $categoryId = $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::ORDER);
 
         return [
             'client_id' => $clientId,

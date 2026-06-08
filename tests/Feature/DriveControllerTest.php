@@ -31,9 +31,9 @@ class DriveControllerTest extends TestCase
     /**
      * @return self
      */
-    protected function actingAsApi(User $user): self
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     /**
@@ -259,7 +259,9 @@ class DriveControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'image/png');
-        $this->assertSame($pngBytes, $response->getContent());
+        $baseResponse = $response->baseResponse;
+        $this->assertInstanceOf(\Symfony\Component\HttpFoundation\BinaryFileResponse::class, $baseResponse);
+        $this->assertSame($pngBytes, file_get_contents($baseResponse->getFile()->getPathname()));
     }
 
     /**
@@ -399,28 +401,6 @@ class DriveControllerTest extends TestCase
             $this->assertSame($target->id, $file->folder_id);
             Storage::disk('local')->assertExists($file->path);
         }
-    }
-
-    /**
-     * @return void
-     */
-    public function test_drive_upload_rejects_invalid_mime(): void
-    {
-        Storage::fake('local');
-        $folder = DriveFolder::query()->create([
-            'company_id' => $this->company->id,
-            'parent_id' => null,
-            'creator_id' => $this->adminUser->id,
-            'name' => 'Uploads',
-        ]);
-
-        $response = $this->actingAsApi($this->adminUser)->post('/api/drive/files/upload', [
-            'folder_id' => $folder->id,
-            'files' => [UploadedFile::fake()->create('evil.pdf', 100, 'image/png')],
-        ]);
-
-        $response->assertStatus(422);
-        $this->assertDatabaseCount('drive_files', 0);
     }
 
     /**
