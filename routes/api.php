@@ -412,20 +412,20 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     // Task files
     Route::middleware(['permission.scope:tasks_update_all,tasks_update', 'throttle:20,1'])->post('tasks/{id}/files', [TasksController::class, 'uploadFiles']);
 
-    Route::middleware('permission.scope:drive_view_all,drive_view_own,drive_view')->get('drive/config', [DriveController::class, 'config']);
-    Route::middleware('permission.scope:drive_view_all,drive_view_own,drive_view')->get('drive', [DriveController::class, 'index']);
+    Route::middleware('permission.scope:drive_view_all,drive_view')->get('drive/config', [DriveController::class, 'config']);
+    Route::middleware('permission.scope:drive_view_all,drive_view')->get('drive', [DriveController::class, 'index']);
     Route::middleware('permission:drive_create')->post('drive/folders', [DriveController::class, 'createFolder']);
-    Route::middleware('permission.scope:drive_update_all,drive_update_own,drive_update')->put('drive/folders/{id}', [DriveController::class, 'renameFolder']);
-    Route::middleware('permission.scope:drive_delete_all,drive_delete_own,drive_delete')->delete('drive/folders/{id}', [DriveController::class, 'deleteFolder']);
+    Route::middleware('permission.scope:drive_update_all,drive_update')->put('drive/folders/{id}', [DriveController::class, 'renameFolder']);
+    Route::middleware('permission.scope:drive_delete_all,drive_delete')->delete('drive/folders/{id}', [DriveController::class, 'deleteFolder']);
     Route::middleware('permission:drive_create')->post('drive/files/upload', [DriveController::class, 'upload']);
-    Route::middleware('permission.scope:drive_view_all,drive_view_own,drive_view')->get('drive/files/{id}/download', [DriveController::class, 'download']);
-    Route::middleware('permission.scope:drive_view_all,drive_view_own,drive_view')->get('drive/files/{id}/preview', [DriveController::class, 'preview']);
-    Route::middleware('permission.scope:drive_update_all,drive_update_own,drive_update')->put('drive/files/{id}', [DriveController::class, 'renameFile']);
-    Route::middleware('permission.scope:drive_delete_all,drive_delete_own,drive_delete')->delete('drive/files/{id}', [DriveController::class, 'deleteFile']);
-    Route::middleware('permission.scope:drive_update_all,drive_update_own,drive_update')->post('drive/files/move', [DriveController::class, 'moveFiles']);
-    Route::middleware('permission.scope:drive_update_all,drive_update_own,drive_update')->get('drive/permissions', [DriveController::class, 'listPermissions']);
-    Route::middleware('permission.scope:drive_update_all,drive_update_own,drive_update')->post('drive/permissions', [DriveController::class, 'setPermission']);
-    Route::middleware('permission.scope:drive_update_all,drive_update_own,drive_update')->put('drive/permissions', [DriveController::class, 'syncPermission']);
+    Route::middleware('permission.scope:drive_view_all,drive_view')->get('drive/files/{id}/download', [DriveController::class, 'download']);
+    Route::middleware('permission.scope:drive_view_all,drive_view')->get('drive/files/{id}/preview', [DriveController::class, 'preview']);
+    Route::middleware('permission.scope:drive_update_all,drive_update')->put('drive/files/{id}', [DriveController::class, 'renameFile']);
+    Route::middleware('permission.scope:drive_delete_all,drive_delete')->delete('drive/files/{id}', [DriveController::class, 'deleteFile']);
+    Route::middleware('permission.scope:drive_update_all,drive_update')->post('drive/files/move', [DriveController::class, 'moveFiles']);
+    Route::middleware('permission.scope:drive_update_all,drive_update')->get('drive/permissions', [DriveController::class, 'listPermissions']);
+    Route::middleware('permission.scope:drive_update_all,drive_update')->post('drive/permissions', [DriveController::class, 'setPermission']);
+    Route::middleware('permission.scope:drive_update_all,drive_update')->put('drive/permissions', [DriveController::class, 'syncPermission']);
 
     Route::prefix('v2')->group(function () {
         Route::middleware(['permission.scope:tasks_update_all,tasks_update', 'throttle:20,1'])->delete('tasks/{id}/files', [TasksController::class, 'deleteFile']);

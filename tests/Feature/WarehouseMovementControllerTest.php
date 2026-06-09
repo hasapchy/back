@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Warehouse;
 use App\Models\Product;
 use App\Models\WhMovement;
+use App\Models\WhUser;
 use Tests\TestCase;
 
 class WarehouseMovementControllerTest extends TestCase
@@ -118,6 +119,29 @@ class WarehouseMovementControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonPath('message', __('api.movements.deleted'));
         $this->assertDatabaseMissing('wh_movements', ['id' => $movement->id]);
+    }
+
+    public function test_index_does_not_duplicate_movements_when_warehouses_have_multiple_users(): void
+    {
+        $movement = WhMovement::factory()->create([
+            'wh_from' => $this->warehouseFrom->id,
+            'wh_to' => $this->warehouseTo->id,
+            'creator_id' => $this->adminUser->id,
+        ]);
+
+        $extraUsers = User::factory()->count(3)->create(['is_admin' => false, 'is_active' => true]);
+        foreach ($extraUsers as $user) {
+            $user->companies()->attach($this->company->id);
+            WhUser::create(['warehouse_id' => $this->warehouseFrom->id, 'user_id' => $user->id]);
+            WhUser::create(['warehouse_id' => $this->warehouseTo->id, 'user_id' => $user->id]);
+        }
+
+        $response = $this->actingAsApi($this->adminUser)->getJson('/api/warehouse_movements');
+
+        $response->assertStatus(200);
+        $items = $response->json('data.items') ?? $response->json('data') ?? [];
+        $ids = collect($items)->pluck('id')->map(static fn ($id) => (int) $id)->all();
+        $this->assertSame(1, count(array_keys($ids, (int) $movement->id, true)));
     }
 
     public function test_index_returns_only_current_company_records(): void

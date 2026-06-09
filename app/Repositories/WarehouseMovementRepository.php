@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\WarehouseStock;
 use App\Models\WhMovement;
 use App\Models\WhMovementProduct;
+use App\Models\WhUser;
 use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
 use App\Services\Timeline\WarehouseTimelineCache;
@@ -51,9 +52,7 @@ class WarehouseMovementRepository extends BaseRepository
 
             $items = WhMovement::leftJoin('warehouses as warehouses_from', 'wh_movements.wh_from', '=', 'warehouses_from.id')
                 ->leftJoin('users', 'wh_movements.creator_id', '=', 'users.id')
-                ->leftJoin('warehouses as warehouses_to', 'wh_movements.wh_to', '=', 'warehouses_to.id')
-                ->leftJoin('wh_users as wh_users_from', 'warehouses_from.id', '=', 'wh_users_from.warehouse_id')
-                ->leftJoin('wh_users as wh_users_to', 'warehouses_to.id', '=', 'wh_users_to.warehouse_id');
+                ->leftJoin('warehouses as warehouses_to', 'wh_movements.wh_to', '=', 'warehouses_to.id');
 
             if ($companyId) {
                 $items->where('warehouses_from.company_id', $companyId)
@@ -61,8 +60,17 @@ class WarehouseMovementRepository extends BaseRepository
             }
 
             if ($this->shouldApplyUserFilter('warehouses')) {
-                $items->where('wh_users_from.user_id', $userUuid)
-                    ->where('wh_users_to.user_id', $userUuid);
+                $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
+                $warehouseIds = WhUser::where('user_id', $filterUserId)
+                    ->pluck('warehouse_id')
+                    ->toArray();
+
+                if (empty($warehouseIds)) {
+                    $items->whereRaw('1 = 0');
+                } else {
+                    $items->whereIn('wh_movements.wh_from', $warehouseIds)
+                        ->whereIn('wh_movements.wh_to', $warehouseIds);
+                }
             }
 
             $items = $items->select(
@@ -88,8 +96,8 @@ class WarehouseMovementRepository extends BaseRepository
                 'current_page_count' => $items->count(),
             ]);
 
-            $wh_writeoffs_ids = $items->pluck('id')->toArray();
-            $products = $this->getProducts($wh_writeoffs_ids);
+            $wh_movement_ids = $items->pluck('id')->toArray();
+            $products = $this->getProducts($wh_movement_ids);
 
             foreach ($items as $item) {
                 $item->products = $products->get($item->id, collect());

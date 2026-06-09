@@ -18,10 +18,6 @@ class DriveAccessService
         'share' => 'update',
     ];
 
-    public function __construct(
-        private readonly PermissionCheckService $permissionCheckService,
-    ) {}
-
     /**
      * @return bool
      */
@@ -35,14 +31,26 @@ class DriveAccessService
             return true;
         }
 
-        $record = $file ?? $folder;
         $permissions = CompanyScopedPermissions::namesForCompany($user, $companyId);
 
-        if ($this->permissionCheckService->canPerformAction($user, 'drive', $action, $record, $permissions)) {
+        if (! $this->hasModuleActionPermission($action, $permissions)) {
+            return false;
+        }
+
+        $record = $file ?? $folder;
+        if ($record === null) {
             return true;
         }
 
-        return $this->hasAclAllow($user, $companyId, $action, $folder, $file);
+        if ($this->hasLegacyActionPermission($action, $permissions)) {
+            return true;
+        }
+
+        if ($this->hasAclAllow($user, $companyId, $action, $folder, $file)) {
+            return true;
+        }
+
+        return $this->isRecordCreator($user, $record);
     }
 
     /**
@@ -60,7 +68,7 @@ class DriveAccessService
 
         $permissions = CompanyScopedPermissions::namesForCompany($user, $companyId);
 
-        return $this->permissionCheckService->canPerformAction($user, 'drive', $action, null, $permissions);
+        return $this->hasModuleActionPermission($action, $permissions);
     }
 
     /**
@@ -80,6 +88,34 @@ class DriveAccessService
     public function normalizeAclAbility(string $ability): string
     {
         return self::LEGACY_ACL_ABILITIES[$ability] ?? $ability;
+    }
+
+    /**
+     * @param array<int, string> $permissions
+     * @return bool
+     */
+    private function hasModuleActionPermission(string $action, array $permissions): bool
+    {
+        return in_array("drive_{$action}_all", $permissions, true)
+            || in_array("drive_{$action}", $permissions, true);
+    }
+
+    /**
+     * @param array<int, string> $permissions
+     * @return bool
+     */
+    private function hasLegacyActionPermission(string $action, array $permissions): bool
+    {
+        return in_array("drive_{$action}", $permissions, true);
+    }
+
+    /**
+     * @param DriveFile|DriveFolder $record
+     * @return bool
+     */
+    private function isRecordCreator(User $user, DriveFile|DriveFolder $record): bool
+    {
+        return (int) $record->creator_id === (int) $user->id;
     }
 
     /**

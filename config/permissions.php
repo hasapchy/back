@@ -318,8 +318,8 @@ return [
             'scope_actions' => ['view', 'update', 'delete'],
         ],
         'drive' => [
-            'has_creator_id' => true,
-            'check_strategy' => 'creator_id',
+            'has_creator_id' => false,
+            'check_strategy' => 'many_to_many',
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
