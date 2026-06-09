@@ -2,33 +2,14 @@
 
 namespace App\Services;
 
-use App\Models\Transaction;
 use App\Models\WhPurchase;
-use Illuminate\Database\Eloquent\Builder;
+use App\Support\TransactionCategoryBindingKeys;
 
 class WarehousePurchaseGoodsPaymentLimitService
 {
-    /**
-     * Реальные оплаты товара по закупке (без автодолга).
-     *
-     * @return Builder<Transaction>
-     */
-    public function goodsCashPaymentQuery(int $purchaseId, ?int $excludeTransactionId = null): Builder
-    {
-        $q = Transaction::query()
-            ->where('source_type', WhPurchase::class)
-            ->where('source_id', $purchaseId)
-            ->where('type', 0)
-            ->where('category_id', WarehouseDocumentPaymentStatusService::GOODS_PAYMENT_CATEGORY_ID)
-            ->where('is_debt', 0)
-            ->where('is_deleted', false);
-
-        if ($excludeTransactionId) {
-            $q->where('id', '!=', $excludeTransactionId);
-        }
-
-        return $q;
-    }
+    public function __construct(
+        private readonly WarehouseDocumentPaymentStatusService $paymentStatusService
+    ) {}
 
     /**
      * @return float
@@ -39,7 +20,23 @@ class WarehousePurchaseGoodsPaymentLimitService
             return 0.0;
         }
 
-        return (float) $this->goodsCashPaymentQuery($purchaseId, $excludeTransactionId)->sum('def_amount');
+        $purchase = WhPurchase::query()->with('supplier:id,company_id')->find($purchaseId);
+        if (! $purchase instanceof WhPurchase) {
+            return 0.0;
+        }
+
+        $companyId = (int) ($purchase->supplier?->company_id ?? 0);
+        $categoryId = $this->paymentStatusService->resolveGoodsPaymentCategoryId(
+            $companyId,
+            TransactionCategoryBindingKeys::WAREHOUSE_PURCHASE
+        );
+
+        return $this->paymentStatusService->sumPaidDefaultFromTransactions(
+            WhPurchase::class,
+            $purchaseId,
+            $categoryId,
+            $excludeTransactionId
+        );
     }
 
     /**

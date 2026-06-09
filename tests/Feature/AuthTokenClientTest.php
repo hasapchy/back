@@ -71,6 +71,7 @@ class AuthTokenClientTest extends TestCase
         $mobileRefresh = $mobile->json('data.refresh_token');
 
         $web = $this
+            ->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class)
             ->withHeader('Origin', 'http://localhost')
             ->withHeader('Referer', 'http://localhost/auth/login')
             ->postJson('/api/user/login', [

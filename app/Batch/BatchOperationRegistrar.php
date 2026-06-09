@@ -214,7 +214,7 @@ final class BatchOperationRegistrar
             financial: false,
             permissionsAny: [],
             preferredStrategy: 'loop',
-            scopePermissionsAny: ['drive_delete_all', 'drive_delete'],
+            scopePermissionsAny: ['drive_delete_all', 'drive_delete_own', 'drive_delete'],
             loopHandler: static function (int $id, array $payload, $user, ?int $companyId) use ($app) {
                 $app->make(BatchEntityActions::class)->deleteDriveFile($user, $id, $companyId);
             },

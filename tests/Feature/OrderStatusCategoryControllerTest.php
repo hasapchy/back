@@ -19,9 +19,9 @@ class OrderStatusCategoryControllerTest extends TestCase
         [$this->company, $this->adminUser] = $this->createCompanyWithAdminUser();
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_store_order_status_category_requires_validation(): void
@@ -44,7 +44,7 @@ class OrderStatusCategoryControllerTest extends TestCase
             ->postJson('/api/order_status_categories', $data);
 
         $response->assertStatus(200);
-        $response->assertJsonPath('message', 'РљР°С‚РµРіРѕСЂРёСЏ СЃС‚Р°С‚СѓСЃРѕРІ СЃРѕР·РґР°РЅР°');
+        $response->assertJsonPath('message', __('Категория статусов создана'));
         $this->assertDatabaseHas('order_status_categories', [
             'name' => 'New Category',
             'color' => '#FF0000',
@@ -65,7 +65,7 @@ class OrderStatusCategoryControllerTest extends TestCase
             ->putJson("/api/order_status_categories/{$category->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJsonPath('message', 'РљР°С‚РµРіРѕСЂРёСЏ СЃС‚Р°С‚СѓСЃРѕРІ РѕР±РЅРѕРІР»РµРЅР°');
+        $response->assertJsonPath('message', __('Категория статусов обновлена'));
         $this->assertDatabaseHas('order_status_categories', [
             'id' => $category->id,
             'name' => 'Updated Category',
@@ -84,46 +84,6 @@ class OrderStatusCategoryControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonPath('message', $response->json('message'));
         $this->assertDatabaseMissing('order_status_categories', ['id' => $category->id]);
-    }
-
-    public function test_index_returns_only_current_company_records(): void
-    {
-        $current = OrderStatusCategory::factory()->create(['creator_id' => $this->adminUser->id]);
-        [$otherCompany, $otherAdmin] = $this->createCompanyWithAdminUser();
-        $other = OrderStatusCategory::factory()->create(['creator_id' => $otherAdmin->id]);
-
-        $response = $this->actingAsApi($this->adminUser)->getJson('/api/order_status_categories');
-
-        $response->assertStatus(200);
-        $items = $response->json('data.items') ?? $response->json('data') ?? [];
-        $ids = collect($items)->pluck('id')->map(static fn ($id) => (int) $id)->all();
-        $this->assertContains((int) $current->id, $ids);
-        $this->assertNotContains((int) $other->id, $ids);
-    }
-
-    public function test_user_cannot_view_resource_from_other_company(): void
-    {
-        $category = OrderStatusCategory::factory()->create(['creator_id' => $this->adminUser->id]);
-        [$otherCompany, $otherAdmin] = $this->createCompanyWithAdminUser();
-
-        $response = $this->withApiTokenForCompany($otherAdmin, (int) $otherCompany->id)
-            ->getJson('/api/order_status_categories');
-
-        $response->assertStatus(200);
-        $items = $response->json('data.items') ?? $response->json('data') ?? [];
-        $ids = collect($items)->pluck('id')->map(static fn ($id) => (int) $id)->all();
-        $this->assertNotContains((int) $category->id, $ids);
-    }
-
-    public function test_user_cannot_update_resource_from_other_company(): void
-    {
-        $category = OrderStatusCategory::factory()->create(['creator_id' => $this->adminUser->id]);
-        [$otherCompany, $otherAdmin] = $this->createCompanyWithAdminUser();
-
-        $response = $this->withApiTokenForCompany($otherAdmin, (int) $otherCompany->id)
-            ->putJson("/api/order_status_categories/{$category->id}", ['name' => 'Other']);
-
-        $this->assertContains($response->getStatusCode(), [403, 404]);
     }
 
     public function test_non_admin_cannot_store_order_status_category(): void

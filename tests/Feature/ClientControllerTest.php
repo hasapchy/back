@@ -30,11 +30,12 @@ class ClientControllerTest extends TestCase
             'is_active' => true,
         ]);
         $this->adminUser->companies()->attach($this->company->id);
+        $this->ensureDefaultCurrencyForCompany($this->company);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_store_client_requires_validation(): void
@@ -73,7 +74,7 @@ class ClientControllerTest extends TestCase
             $this->fail("Server error (500): {$message}\nFull response: {$content}");
         }
 
-        $response->assertStatus(200);
+        $response->assertCreated();
         $this->assertDatabaseHas('clients', [
             'first_name' => 'Test Client',
             'client_type' => 'company',
@@ -100,7 +101,7 @@ class ClientControllerTest extends TestCase
             $this->fail('Server error: '.$response->getContent());
         }
 
-        $response->assertStatus(200);
+        $response->assertCreated();
         $client = Client::where('first_name', 'Test Client')->first();
         $this->assertTrue((bool) $client->is_supplier);
         $this->assertFalse((bool) $client->is_conflict);
@@ -129,7 +130,7 @@ class ClientControllerTest extends TestCase
             $this->fail('Server error: '.$response->getContent());
         }
 
-        $response->assertStatus(200);
+        $response->assertCreated();
         $client = Client::where('first_name', 'Test Client')->first();
         $this->assertNull($client->last_name);
         $this->assertNull($client->patronymic);
@@ -156,7 +157,7 @@ class ClientControllerTest extends TestCase
             $this->fail('Server error: '.$response->getContent());
         }
 
-        $response->assertStatus(200);
+        $response->assertCreated();
     }
 
     public function test_store_employee_client_is_forbidden(): void

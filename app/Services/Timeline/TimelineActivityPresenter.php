@@ -2,6 +2,7 @@
 
 namespace App\Services\Timeline;
 
+use App\Support\ActivityLog\ActivityPropertiesNormalizer;
 use App\Models\CashRegister;
 use App\Models\Category;
 use App\Models\Client;
@@ -28,7 +29,6 @@ use App\Models\WhPurchase;
 use App\Models\WhReceipt;
 use App\Models\WhWriteoff;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Collection;
 use Spatie\Activitylog\Models\Activity;
 
 class TimelineActivityPresenter
@@ -40,60 +40,6 @@ class TimelineActivityPresenter
     private array $unitCache = [];
 
     private ?string $defaultCurrencySymbolCache = null;
-
-    /**
-     * @return Collection<int, mixed>
-     */
-    public function collectOrderTransactionTimelineRows(int $orderId): Collection
-    {
-        $rows = Transaction::query()
-            ->select(['id', 'source_id', 'source_type', 'amount', 'currency_id'])
-            ->where('source_type', Order::class)
-            ->where('source_id', $orderId)
-            ->with(['currency:id,code'])
-            ->get()
-            ->flatMap(function (Transaction $transaction) {
-                return $transaction->activities()
-                    ->select([
-                        'activity_log.id',
-                        'activity_log.description',
-                        'activity_log.properties',
-                        'activity_log.causer_id',
-                        'activity_log.created_at',
-                        'activity_log.log_name',
-                        'activity_log.event',
-                    ])
-                    ->with(['causer:id,name', 'subject'])
-                    ->get()
-                    ->map(function (Activity $log) use ($transaction) {
-                        $currencySymbol = optional($transaction->currency)->code;
-                        [$descriptionKey, $descriptionParams, $descriptionFallback] = $this->buildActivityLogI18n($log);
-
-                        return [
-                            'type' => 'log',
-                            'id' => $log->id,
-                            'event' => $log->event,
-                            'description' => $descriptionFallback ?? $descriptionKey,
-                            'description_key' => $descriptionKey,
-                            'description_params' => $descriptionParams,
-                            'description_fallback' => $descriptionFallback,
-                            'changes' => null,
-                            'user' => $this->getUserForActivity($log, Order::class),
-                            'created_at' => $log->created_at,
-                            'log_name' => $log->log_name ?? 'transaction',
-                            'meta' => [
-                                'transaction_id' => $transaction->id,
-                                'amount' => $transaction->amount !== null ? (float) $transaction->amount : null,
-                                'currency_symbol' => $currencySymbol,
-                            ],
-                        ];
-                    });
-            })
-            ->filter()
-            ->values();
-
-        return new Collection($rows->all());
-    }
 
     /**
      * @return array<string, mixed>|null
@@ -167,21 +113,11 @@ class TimelineActivityPresenter
             }
 
             if (in_array($logName, ['order_product', 'order_temp_product'], true)) {
-                $props = $log->properties;
-                $attrs = null;
-                $old = null;
-                if (method_exists($props, 'toArray')) {
-                    $arr = $props->toArray();
-                    $attrs = $arr['attributes'] ?? null;
-                    $old = $arr['old'] ?? null;
-                } elseif (is_object($props)) {
-                    $attrs = $props->attributes ?? null;
-                    $old = $props->old ?? null;
-                } elseif (is_array($props)) {
-                    $attrs = $props['attributes'] ?? null;
-                    $old = $props['old'] ?? null;
-                }
-                if (is_array($attrs)) {
+                $propsArray = ActivityPropertiesNormalizer::toArray($log->properties);
+                $expanded = ActivityPropertiesNormalizer::expand($log->properties);
+                $attrs = $expanded['attributes'] ?? [];
+
+                if ($attrs !== []) {
                     $q = isset($attrs['quantity']) ? (float) $attrs['quantity'] : null;
                     $p = isset($attrs['price']) ? (float) $attrs['price'] : null;
                     $meta = array_merge($meta ?? [], [
@@ -199,11 +135,14 @@ class TimelineActivityPresenter
 
                 $unitName = null;
                 if ($logName === 'order_product') {
-                    $productId = isset($attrs['product_id']) ? (int) $attrs['product_id'] : (isset($old['product_id']) ? (int) $old['product_id'] : null);
+                    $productIdValue = ActivityPropertiesNormalizer::fieldValue($propsArray, 'product_id', 'to')
+                        ?? ActivityPropertiesNormalizer::fieldValue($propsArray, 'product_id', 'from');
+                    $productId = $productIdValue !== null ? (int) $productIdValue : null;
                     $unitName = $this->getProductUnitName($productId);
                 } else {
-                    $unitId = $attrs['unit_id'] ?? $old['unit_id'] ?? null;
-                    $unitName = $this->getUnitName($unitId !== null ? (int) $unitId : null);
+                    $unitIdValue = ActivityPropertiesNormalizer::fieldValue($propsArray, 'unit_id', 'to')
+                        ?? ActivityPropertiesNormalizer::fieldValue($propsArray, 'unit_id', 'from');
+                    $unitName = $this->getUnitName($unitIdValue !== null ? (int) $unitIdValue : null);
                 }
 
                 if ($unitName) {
@@ -231,7 +170,9 @@ class TimelineActivityPresenter
             'log_name' => $logName,
         ];
 
-        $baseRow['changes'] = $this->processActivityChanges($log->properties, $modelClass);
+        $baseRow['changes'] = ($log->event ?? '') === 'deleted'
+            ? null
+            : $this->processActivityChanges($log->properties, $modelClass);
 
         return $baseRow;
     }
@@ -243,7 +184,15 @@ class TimelineActivityPresenter
     {
         $raw = trim((string) $log->description);
         if ($raw === '') {
-            return [null, [], null];
+            $derived = ActivityPropertiesNormalizer::deriveDescriptionKey($log);
+            if ($derived === null) {
+                return [null, [], null];
+            }
+            $key = $derived;
+            $params = $this->extractDescriptionParams($log, $key);
+            $this->applyOrderNumberedKey($log, $key, $params);
+
+            return [$key, $params, null];
         }
         if (! str_starts_with($raw, 'activity_log.')) {
             return [null, [], $raw];
@@ -263,17 +212,9 @@ class TimelineActivityPresenter
      */
     private function activityPropertyAttributes(Activity $log): array
     {
-        $props = $log->properties;
-        $attributes = null;
-        if (is_object($props) && method_exists($props, 'toArray')) {
-            $attributes = ($props->toArray())['attributes'] ?? null;
-        } elseif (is_object($props)) {
-            $attributes = $props->attributes ?? null;
-        } elseif (is_array($props)) {
-            $attributes = $props['attributes'] ?? null;
-        }
+        $expanded = ActivityPropertiesNormalizer::expand($log->properties);
 
-        return is_array($attributes) ? $attributes : [];
+        return $expanded['attributes'] ?? [];
     }
 
     /**
@@ -281,17 +222,9 @@ class TimelineActivityPresenter
      */
     private function activityPropertyOld(Activity $log): array
     {
-        $props = $log->properties;
-        $old = null;
-        if (is_object($props) && method_exists($props, 'toArray')) {
-            $old = ($props->toArray())['old'] ?? null;
-        } elseif (is_object($props)) {
-            $old = $props->old ?? null;
-        } elseif (is_array($props)) {
-            $old = $props['old'] ?? null;
-        }
+        $expanded = ActivityPropertiesNormalizer::expand($log->properties);
 
-        return is_array($old) ? $old : [];
+        return $expanded['old'] ?? [];
     }
 
     /**
@@ -312,26 +245,38 @@ class TimelineActivityPresenter
             ];
         }
 
-        if (str_starts_with($key, 'activity_log.invoice_product.')) {
-            $attrs = $this->activityPropertyAttributes($log);
-            $old = $this->activityPropertyOld($log);
+        if ($key === 'activity_log.inventory.items_counted') {
+            $all = ActivityPropertiesNormalizer::toArray($log->properties);
 
             return [
-                'name' => (string) ($attrs['product_name'] ?? $old['product_name'] ?? ''),
+                'counted' => (string) ($all['counted'] ?? 0),
+                'with_discrepancy' => (string) ($all['with_discrepancy'] ?? 0),
+            ];
+        }
+
+        if (str_starts_with($key, 'activity_log.invoice_product.')) {
+            $propsArray = ActivityPropertiesNormalizer::toArray($log->properties);
+            $name = ActivityPropertiesNormalizer::fieldValue($propsArray, 'product_name', 'to')
+                ?? ActivityPropertiesNormalizer::fieldValue($propsArray, 'product_name', 'from');
+
+            return [
+                'name' => (string) ($name ?? ''),
             ];
         }
         if (str_starts_with($key, 'activity_log.order_temp_product.')) {
-            $attrs = $this->activityPropertyAttributes($log);
-            $old = $this->activityPropertyOld($log);
+            $propsArray = ActivityPropertiesNormalizer::toArray($log->properties);
+            $name = ActivityPropertiesNormalizer::fieldValue($propsArray, 'name', 'to')
+                ?? ActivityPropertiesNormalizer::fieldValue($propsArray, 'name', 'from');
 
             return [
-                'name' => (string) ($attrs['name'] ?? $old['name'] ?? ''),
+                'name' => (string) ($name ?? ''),
             ];
         }
         if (str_starts_with($key, 'activity_log.order_product.')) {
-            $attrs = $this->activityPropertyAttributes($log);
-            $old = $this->activityPropertyOld($log);
-            $pid = isset($attrs['product_id']) ? (int) $attrs['product_id'] : (isset($old['product_id']) ? (int) $old['product_id'] : 0);
+            $propsArray = ActivityPropertiesNormalizer::toArray($log->properties);
+            $pidValue = ActivityPropertiesNormalizer::fieldValue($propsArray, 'product_id', 'to')
+                ?? ActivityPropertiesNormalizer::fieldValue($propsArray, 'product_id', 'from');
+            $pid = $pidValue !== null ? (int) $pidValue : 0;
             if ($pid > 0) {
                 $name = Product::query()->whereKey($pid)->value('name');
 
@@ -349,11 +294,19 @@ class TimelineActivityPresenter
      */
     private function applyOrderNumberedKey(Activity $log, string &$key, array &$params): void
     {
-        if (($log->log_name ?? '') !== 'order' || ! $log->subject instanceof Order) {
+        if (($log->log_name ?? '') !== 'order') {
             return;
         }
-        $orderId = $log->subject->getKey();
-        if (! $orderId) {
+
+        $orderId = (int) ($log->subject_id ?? 0);
+        if ($orderId < 1) {
+            $subject = $log->relationLoaded('subject') ? $log->getRelation('subject') : $log->subject;
+            if ($subject instanceof Order) {
+                $orderId = (int) ($subject->getKey() ?? 0);
+            }
+        }
+
+        if ($orderId < 1) {
             return;
         }
         foreach (['created', 'updated', 'deleted'] as $ev) {
@@ -376,20 +329,9 @@ class TimelineActivityPresenter
             return null;
         }
 
-        $attributes = null;
-        $old = null;
-
-        if (is_object($changes) && method_exists($changes, 'toArray')) {
-            $changesArray = $changes->toArray();
-            $attributes = $changesArray['attributes'] ?? null;
-            $old = $changesArray['old'] ?? null;
-        } elseif (is_object($changes)) {
-            $attributes = $changes->attributes ?? null;
-            $old = $changes->old ?? null;
-        } elseif (is_array($changes)) {
-            $attributes = $changes['attributes'] ?? null;
-            $old = $changes['old'] ?? null;
-        }
+        $expanded = ActivityPropertiesNormalizer::expand($changes);
+        $attributes = $expanded['attributes'];
+        $old = $expanded['old'];
 
         if (! is_array($attributes)) {
             return null;
@@ -519,33 +461,6 @@ class TimelineActivityPresenter
     }
 
     /**
-     * @param string|null $description
-     * @return bool
-     */
-    private function isOrderCreatedActivityDescription(?string $description): bool
-    {
-        if ($description === null || $description === '') {
-            return false;
-        }
-
-        $trimmed = trim($description);
-
-        if ($trimmed === 'created') {
-            return true;
-        }
-
-        if (in_array($trimmed, ['activity_log.order.created', 'activity_log.order.created_numbered'], true)) {
-            return true;
-        }
-
-        if (in_array($trimmed, ['Создан заказ', 'Order created'], true)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
      * @param  mixed  $currencyId
      * @return mixed
      */
@@ -654,7 +569,7 @@ class TimelineActivityPresenter
             }
         }
 
-        if ($this->isOrderCreatedActivityDescription($log->description)) {
+        if (ActivityPropertiesNormalizer::isOrderCreatedActivity($log)) {
             try {
                 $subject = $log->subject;
                 if ($subject instanceof Model) {

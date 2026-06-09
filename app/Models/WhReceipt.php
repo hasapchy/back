@@ -24,6 +24,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string|null $note Примечание
  * @property int|null $cash_id ID кассы
  * @property float $amount Сумма
+ * @property float $paid_amount Оплаченная сумма
  * @property float|null $orig_amount Сумма в валюте документа
  * @property int|null $orig_currency_id ID валюты документа (касса / ввод)
  * @property \Carbon\Carbon $date Дата прихода
@@ -57,6 +58,7 @@ class WhReceipt extends Model implements SupportsTimeline
         'note',
         'cash_id',
         'amount',
+        'paid_amount',
         'orig_amount',
         'orig_currency_id',
         'date',
@@ -66,6 +68,7 @@ class WhReceipt extends Model implements SupportsTimeline
 
     protected $casts = [
         'amount' => 'decimal:5',
+        'paid_amount' => 'decimal:5',
         'orig_amount' => 'decimal:5',
         'status' => WhReceiptStatus::class,
     ];
@@ -85,6 +88,7 @@ class WhReceipt extends Model implements SupportsTimeline
                 'note',
                 'cash_id',
                 'amount',
+                'paid_amount',
                 'orig_amount',
                 'orig_currency_id',
                 'date',

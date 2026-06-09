@@ -37,7 +37,6 @@ class SaleFactory extends Factory
             'price' => $price,
             'discount' => $discount,
             'note' => fake()->optional()->sentence(),
-            'no_balance_update' => fake()->boolean(10), // 10% chance of being true
         ];
     }
 }

@@ -11,13 +11,16 @@ use App\Models\Lead;
 use App\Models\LeadSource;
 use App\Models\LeadStatus;
 use App\Models\Order;
-use App\Models\TransactionCategory;
+use App\Models\OrderStatus;
+use App\Models\OrderStatusCategory;
 use App\Models\User;
 use App\Models\Warehouse;
+use Tests\Support\Concerns\SeedsTransactionCategoryBindings;
 use Tests\TestCase;
 
 class LeadConversionTest extends TestCase
 {
+    use SeedsTransactionCategoryBindings;
 
     protected User $adminUser;
 
@@ -50,7 +53,8 @@ class LeadConversionTest extends TestCase
             'is_active' => true,
         ]);
         $this->adminUser->companies()->attach($this->company->id);
-        $this->ensureOrderDebtTransactionCategoryExists();
+        $this->seedStandardTransactionCategoryBindings($this->company, $this->adminUser);
+        $this->ensureDefaultOrderStatusExists();
 
         $this->client = Client::factory()->create([
             'company_id' => $this->company->id,
@@ -63,11 +67,7 @@ class LeadConversionTest extends TestCase
             'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
         ]);
-        $this->currency = Currency::factory()->create([
-            'company_id' => $this->company->id,
-            'is_default' => true,
-            'is_report' => true,
-        ]);
+        $this->currency = $this->ensureDefaultCurrencyForCompany($this->company);
         $this->cashRegister = CashRegister::factory()->create([
             'company_id' => $this->company->id,
             'currency_id' => $this->currency->id,
@@ -76,7 +76,7 @@ class LeadConversionTest extends TestCase
         $this->statusNew = LeadStatus::query()->create([
             'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
-            'name' => 'РќРѕРІС‹Р№',
+            'name' => 'Новый',
             'color' => '#207ac7',
             'is_active' => true,
             'sort' => 0,
@@ -85,7 +85,7 @@ class LeadConversionTest extends TestCase
         $this->statusSuccess = LeadStatus::query()->create([
             'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
-            'name' => 'РЈСЃРїРµС…',
+            'name' => 'Успех',
             'color' => '#6c757d',
             'is_active' => true,
             'sort' => 10,
@@ -94,26 +94,25 @@ class LeadConversionTest extends TestCase
         $this->source = LeadSource::query()->create([
             'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
-            'name' => 'Р—РІРѕРЅРѕРє',
+            'name' => 'Звонок',
         ]);
     }
 
-    private function ensureOrderDebtTransactionCategoryExists(): void
+    private function ensureDefaultOrderStatusExists(): void
     {
-        TransactionCategory::query()->updateOrCreate([
-            'id' => 1,
-        ], [
-            'name' => 'Order debt',
-            'type' => 1,
-            'creator_id' => null,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        OrderStatusCategory::query()->updateOrCreate(
+            ['id' => 1],
+            ['name' => 'NEW', 'creator_id' => $this->adminUser->id, 'color' => '#207ac7']
+        );
+        OrderStatus::query()->updateOrCreate(
+            ['id' => 1],
+            ['name' => 'NEW', 'category_id' => 1, 'is_active' => true]
+        );
     }
 
-    protected function actingAsApi(User $user): self
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_lead_move_to_success_creates_order_once(): void
@@ -121,7 +120,7 @@ class LeadConversionTest extends TestCase
         $response = $this->actingAsApi($this->adminUser)->postJson('/api/leads', [
             'client_id' => $this->client->id,
             'status_id' => $this->statusNew->id,
-            'comment' => 'РўРµСЃС‚РѕРІС‹Р№ РєРѕРјРјРµРЅС‚Р°СЂРёР№',
+            'comment' => 'Тестовый комментарий',
             'files' => ['https://example.com/a.pdf'],
         ]);
         $response->assertStatus(200);
@@ -140,7 +139,7 @@ class LeadConversionTest extends TestCase
         $this->assertSame((int) $orderId, (int) $lead->order_id);
 
         $response3 = $this->actingAsApi($this->adminUser)->putJson("/api/leads/{$leadId}", [
-            'comment' => 'РћР±РЅРѕРІР»РµРЅРёРµ Р±РµР· СЃРјРµРЅС‹ СЃС‚Р°С‚СѓСЃР°',
+            'comment' => 'Обновление без смены статуса',
         ]);
         $response3->assertStatus(200);
         $this->assertSame((int) $orderId, (int) $response3->json('data.order_id'));

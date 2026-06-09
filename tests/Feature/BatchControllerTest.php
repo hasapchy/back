@@ -41,9 +41,9 @@ class BatchControllerTest extends TestCase
         Permission::firstOrCreate(['name' => 'tasks_delete_all', 'guard_name' => 'api']);
     }
 
-    protected function actingAsApi(User $user): self
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_execute_unknown_operation_returns_404(): void

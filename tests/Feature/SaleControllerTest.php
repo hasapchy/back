@@ -12,10 +12,12 @@ use App\Models\CashRegister;
 use App\Models\Currency;
 use App\Models\SalesProduct;
 use App\Models\WarehouseStock;
+use Tests\Support\Concerns\SeedsTransactionCategoryBindings;
 use Tests\TestCase;
 
 class SaleControllerTest extends TestCase
 {
+    use SeedsTransactionCategoryBindings;
 
     protected User $adminUser;
     protected Company $company;
@@ -36,7 +38,8 @@ class SaleControllerTest extends TestCase
             'is_active' => true,
         ]);
         $this->adminUser->companies()->attach($this->company->id);
-        $this->currency = Currency::factory()->create();
+        $this->currency = $this->ensureDefaultCurrencyForCompany($this->company);
+        $this->seedStandardTransactionCategoryBindings($this->company, $this->adminUser);
         $this->client = \App\Models\Client::factory()->create([
             'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
@@ -53,9 +56,9 @@ class SaleControllerTest extends TestCase
         ]);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_store_sale_requires_validation(): void
@@ -88,7 +91,7 @@ class SaleControllerTest extends TestCase
             ->postJson('/api/sales', $data);
 
         $response->assertStatus(201);
-        $response->assertJson(['message' => 'РџСЂРѕРґР°Р¶Р° РґРѕР±Р°РІР»РµРЅР°']);
+        $response->assertJson(['message' => __('api.sales.created')]);
     }
 
     public function test_destroy_sale_success(): void
@@ -105,7 +108,7 @@ class SaleControllerTest extends TestCase
             ->deleteJson("/api/sales/{$sale->id}");
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'РџСЂРѕРґР°Р¶Р° СѓРґР°Р»РµРЅР°']);
+        $response->assertJson(['message' => __('api.sales.deleted_success')]);
     }
 
     public function test_destroy_sale_is_idempotent_and_second_delete_fails(): void

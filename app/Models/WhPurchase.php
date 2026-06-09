@@ -24,6 +24,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property \Carbon\Carbon $date
  * @property string|null $note
  * @property float $amount
+ * @property float $paid_amount
  * @property float|null $orig_amount Сумма в валюте документа
  * @property int|null $orig_currency_id ID валюты документа
  * @property \Carbon\Carbon $created_at
@@ -47,12 +48,14 @@ class WhPurchase extends Model implements SupportsTimeline
         'date',
         'note',
         'amount',
+        'paid_amount',
         'orig_amount',
         'orig_currency_id',
     ];
 
     protected $casts = [
         'amount' => 'decimal:5',
+        'paid_amount' => 'decimal:5',
         'orig_amount' => 'decimal:5',
         'status' => WhPurchaseStatus::class,
         'date' => 'datetime',
@@ -75,6 +78,7 @@ class WhPurchase extends Model implements SupportsTimeline
                 'date',
                 'note',
                 'amount',
+                'paid_amount',
                 'orig_amount',
                 'orig_currency_id',
             ])

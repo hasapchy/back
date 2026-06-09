@@ -21,20 +21,13 @@ class SetDrivePermissionRequest extends FormRequest
      */
     public function rules(): array
     {
-        $subjectIdRules = ['required', 'integer'];
-        if ($this->input('subject_type') === 'user') {
-            $subjectIdRules[] = 'exists:users,id';
-        } elseif ($this->input('subject_type') === 'role') {
-            $subjectIdRules[] = 'exists:roles,id';
-        }
+        $resourceType = (string) $this->input('resource_type');
 
         return [
             'resource_type' => ['required', Rule::in([DrivePermission::RESOURCE_FOLDER, DrivePermission::RESOURCE_FILE])],
             'resource_id' => 'required|integer',
-            'subject_type' => 'required|in:user,role',
-            'subject_id' => $subjectIdRules,
-            'ability' => 'required|in:view,upload,rename,delete,share',
-            'effect' => 'required|in:allow,deny',
+            'subject_id' => ['required', 'integer', 'exists:users,id'],
+            'ability' => ['required', Rule::in(DrivePermission::abilitiesForResourceType($resourceType))],
         ];
     }
 }

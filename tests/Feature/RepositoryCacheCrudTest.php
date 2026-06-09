@@ -34,7 +34,7 @@ class RepositoryCacheCrudTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Cache::flush();
+        $this->flushApplicationCache();
         request()->attributes->set(ResolvedCompany::ATTRIBUTE, 1);
     }
 
@@ -44,7 +44,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('order_statuses_all', ['test_user']);
         $fullKey = "reference_{$cacheKey}";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         try {
@@ -55,12 +55,12 @@ class RepositoryCacheCrudTest extends TestCase
             $status = $repo->createItem(['name' => 'Test Status', 'category_id' => $category->id]);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after create');
 
-            Cache::put($fullKey, ['test'], 3600);
+            $this->putCache($fullKey, ['test'], 3600);
             $repo->updateItem($status->id, ['name' => 'Updated Status']);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after update');
 
             if (!in_array($status->id, [1, 2, 4, 5, 6])) {
-                Cache::put($fullKey, ['test'], 3600);
+                $this->putCache($fullKey, ['test'], 3600);
                 $repo->deleteItem($status->id);
                 $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after delete');
             }
@@ -75,18 +75,18 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('order_status_categories_all', ['test_user']);
         $fullKey = "reference_{$cacheKey}";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         try {
             $category = $repo->createItem(['name' => 'Test Category', 'creator_id' => 1, 'color' => '#000000']);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after create');
 
-            Cache::put($fullKey, ['test'], 3600);
+            $this->putCache($fullKey, ['test'], 3600);
             $repo->updateItem($category->id, ['name' => 'Updated Category']);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after update');
 
-            Cache::put($fullKey, ['test'], 3600);
+            $this->putCache($fullKey, ['test'], 3600);
             $repo->deleteItem($category->id);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after delete');
         } catch (\Exception $e) {
@@ -100,18 +100,18 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('project_statuses_all', ['test_user']);
         $fullKey = "reference_{$cacheKey}";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         try {
             $status = $repo->createItem(['name' => 'Test Status', 'creator_id' => 1]);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after create');
 
-            Cache::put($fullKey, ['test'], 3600);
+            $this->putCache($fullKey, ['test'], 3600);
             $repo->updateItem($status->id, ['name' => 'Updated Status']);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after update');
 
-            Cache::put($fullKey, ['test'], 3600);
+            $this->putCache($fullKey, ['test'], 3600);
             $repo->deleteItem($status->id);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after delete');
         } catch (\Exception $e) {
@@ -125,7 +125,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('transaction_categories_all', []);
         $fullKey = "reference_{$cacheKey}";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         try {
@@ -134,12 +134,12 @@ class RepositoryCacheCrudTest extends TestCase
 
             $category = \App\Models\TransactionCategory::where('name', 'Test Category')->first();
             if ($category && $category->canBeEdited()) {
-                Cache::put($fullKey, ['test'], 3600);
+                $this->putCache($fullKey, ['test'], 3600);
                 $repo->updateItem($category->id, ['name' => 'Updated Category', 'type' => 1, 'creator_id' => 1, 'parent_id' => null]);
                 $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after update');
 
                 if ($category->canBeDeleted()) {
-                    Cache::put($fullKey, ['test'], 3600);
+                    $this->putCache($fullKey, ['test'], 3600);
                     $repo->deleteItem($category->id);
                     $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after delete');
                 }
@@ -155,7 +155,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('categories_paginated', ['test_user', 20]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         try {
@@ -164,11 +164,11 @@ class RepositoryCacheCrudTest extends TestCase
 
             $category = \App\Models\Category::where('name', 'Test Category')->first();
             if ($category) {
-                Cache::put($fullKey, ['test'], 3600);
+                $this->putCache($fullKey, ['test'], 3600);
                 $repo->updateItem($category->id, ['name' => 'Updated Category', 'parent_id' => null, 'creator_id' => 1, 'users' => [1]]);
                 $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after update');
 
-                Cache::put($fullKey, ['test'], 3600);
+                $this->putCache($fullKey, ['test'], 3600);
                 $repo->deleteItem($category->id);
                 $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after delete');
             }
@@ -183,7 +183,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('invoices_paginated', ['test_user', 20, null, 'all_time', null, null, null, null]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
         CacheService::invalidateInvoicesCache();
         $this->assertFalse(Cache::has($fullKey), 'Invoices cache should be invalidated');
@@ -195,7 +195,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('orders_paginated', ['test_user', 20]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         CacheService::invalidateOrdersCache();
@@ -210,8 +210,8 @@ class RepositoryCacheCrudTest extends TestCase
         $itemKey = $repo->generateCacheKey('leads_item', [42]);
         $itemFullKey = "reference_{$itemKey}";
 
-        Cache::put($listFullKey, ['test'], 3600);
-        Cache::put($itemFullKey, ['test'], 3600);
+        $this->putCache($listFullKey, ['test'], 3600);
+        $this->putCache($itemFullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($listFullKey));
         $this->assertTrue(Cache::has($itemFullKey));
 
@@ -227,7 +227,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('sales_paginated', ['test_user', 20]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         CacheService::invalidateSalesCache();
@@ -240,7 +240,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('clients_paginated', [10, null, false, null, null]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
         CacheService::invalidateClientsCache();
         $this->assertFalse(Cache::has($fullKey), 'Clients cache should be invalidated');
@@ -252,7 +252,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('products', ['test_user', 20, 1]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         try {
@@ -262,7 +262,7 @@ class RepositoryCacheCrudTest extends TestCase
                 ['creator_id' => 1, 'company_id' => 1]
             );
 
-            Cache::put($fullKey, ['test'], 3600);
+            $this->putCache($fullKey, ['test'], 3600);
             $this->assertTrue(Cache::has($fullKey), 'Cache should exist before create');
 
             $product = $repo->createItem([
@@ -288,7 +288,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('transactions_paginated', ['test_user', 10]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
         $repo->invalidateTransactionsCache();
         $this->assertFalse(Cache::has($fullKey), 'Transactions cache should be invalidated');
@@ -300,7 +300,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('transfers_paginated', ['test_user', 20]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         CacheService::invalidateTransfersCache();
@@ -313,7 +313,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('cash_registers_all', ['test_user']);
         $fullKey = "reference_{$cacheKey}";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         try {
@@ -327,6 +327,8 @@ class RepositoryCacheCrudTest extends TestCase
                 'balance' => 0,
                 'currency_id' => $currency->id,
                 'users' => [1],
+                'sort_order' => 0,
+                'icon_size' => 16,
             ]);
 
             CacheService::invalidateCashRegistersCache();
@@ -342,7 +344,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('warehouses_all', ['test_user']);
         $fullKey = "reference_{$cacheKey}";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         try {
@@ -350,12 +352,12 @@ class RepositoryCacheCrudTest extends TestCase
             CacheService::invalidateWarehousesCache();
             $this->assertFalse(Cache::has($fullKey), 'Warehouses cache should be invalidated');
 
-            Cache::put($fullKey, ['test'], 3600);
+            $this->putCache($fullKey, ['test'], 3600);
             $repo->updateItem($warehouse->id, 'Updated Warehouse', [1]);
             CacheService::invalidateWarehousesCache();
             $this->assertFalse(Cache::has($fullKey), 'Warehouses cache should be invalidated after update');
 
-            Cache::put($fullKey, ['test'], 3600);
+            $this->putCache($fullKey, ['test'], 3600);
             $repo->deleteItem($warehouse->id);
             CacheService::invalidateWarehousesCache();
             $this->assertFalse(Cache::has($fullKey), 'Warehouses cache should be invalidated after delete');
@@ -370,7 +372,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('warehouse_movements_paginated', ['test_user', 20]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         CacheService::invalidateWarehouseMovementsCache();
@@ -383,7 +385,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('warehouse_writeoffs_paginated', ['test_user', 20]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         CacheService::invalidateWarehouseWriteoffsCache();
@@ -396,7 +398,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('warehouse_receipts_paginated', ['test_user', 20]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         CacheService::invalidateWarehouseReceiptsCache();
@@ -409,7 +411,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('projects_paginated', ['test_user', 20]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         try {
@@ -445,7 +447,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('project_contracts_paginated', [1, 20, 1, null]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         CacheService::invalidateByLike('%project_contract%');
@@ -461,6 +463,10 @@ class RepositoryCacheCrudTest extends TestCase
                 ['first_name' => 'Test', 'last_name' => 'Client'],
                 ['client_type' => 'individual', 'creator_id' => 1, 'company_id' => 1]
             );
+            $category = \App\Models\Category::firstOrCreate(
+                ['name' => 'TEST_CATEGORY_CACHE'],
+                ['company_id' => 1, 'creator_id' => 1]
+            );
             $status = \App\Models\OrderStatus::firstOrCreate(['name' => 'Test Status'], ['category_id' => 1]);
             $order = \App\Models\Order::firstOrCreate(
                 ['id' => 1],
@@ -468,6 +474,7 @@ class RepositoryCacheCrudTest extends TestCase
                     'client_id' => $client->id,
                     'creator_id' => 1,
                     'status_id' => $status->id,
+                    'category_id' => $category->id,
                     'date' => now(),
                     'price' => 1000,
                     'discount' => 0,
@@ -478,7 +485,7 @@ class RepositoryCacheCrudTest extends TestCase
             $cacheKey = $repo->generateCacheKey('comments', ['order', $order->id]);
             $fullKey = "{$cacheKey}";
 
-            Cache::put($fullKey, ['test'], 3600);
+            $this->putCache($fullKey, ['test'], 3600);
             $this->assertTrue(Cache::has($fullKey));
 
             $comment = $repo->createItem('order', $order->id, 'Test comment', 1);
@@ -495,7 +502,7 @@ class RepositoryCacheCrudTest extends TestCase
         $cacheKey = $repo->generateCacheKey('users_paginated', [20, null, null]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         CacheService::invalidateUsersCache();

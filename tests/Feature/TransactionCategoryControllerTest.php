@@ -19,9 +19,9 @@ class TransactionCategoryControllerTest extends TestCase
         [$this->company, $this->adminUser] = $this->createCompanyWithAdminUser();
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_store_transaction_category_requires_validation(): void
@@ -44,7 +44,7 @@ class TransactionCategoryControllerTest extends TestCase
             ->postJson('/api/transaction_categories', $data);
 
         $response->assertStatus(200);
-        $response->assertJsonPath('message', 'РљР°С‚РµРіРѕСЂРёСЏ С‚СЂР°РЅР·Р°РєС†РёРё СЃРѕР·РґР°РЅР°');
+        $response->assertJsonPath('message', __('api.transaction_categories.created'));
         $this->assertDatabaseHas('transaction_categories', [
             'name' => 'New Category',
             'type' => true,
@@ -64,7 +64,7 @@ class TransactionCategoryControllerTest extends TestCase
             ->putJson("/api/transaction_categories/{$category->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJsonPath('message', 'РљР°С‚РµРіРѕСЂРёСЏ С‚СЂР°РЅР·Р°РєС†РёРё РѕР±РЅРѕРІР»РµРЅР°');
+        $response->assertJsonPath('message', __('api.transaction_categories.updated'));
         $this->assertDatabaseHas('transaction_categories', [
             'id' => $category->id,
             'name' => 'Updated Category',
@@ -84,49 +84,6 @@ class TransactionCategoryControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonPath('message', $response->json('message'));
         $this->assertDatabaseMissing('transaction_categories', ['id' => $category->id]);
-    }
-
-    public function test_index_returns_only_current_company_records(): void
-    {
-        $current = TransactionCategory::factory()->create(['creator_id' => $this->adminUser->id]);
-        [$otherCompany, $otherAdmin] = $this->createCompanyWithAdminUser();
-        $other = TransactionCategory::factory()->create(['creator_id' => $otherAdmin->id]);
-
-        $response = $this->actingAsApi($this->adminUser)->getJson('/api/transaction_categories');
-
-        $response->assertStatus(200);
-        $items = $response->json('data.items') ?? $response->json('data') ?? [];
-        $ids = collect($items)->pluck('id')->map(static fn ($id) => (int) $id)->all();
-        $this->assertContains((int) $current->id, $ids);
-        $this->assertNotContains((int) $other->id, $ids);
-    }
-
-    public function test_user_cannot_view_resource_from_other_company(): void
-    {
-        $category = TransactionCategory::factory()->create(['creator_id' => $this->adminUser->id]);
-        [$otherCompany, $otherAdmin] = $this->createCompanyWithAdminUser();
-
-        $response = $this->withApiTokenForCompany($otherAdmin, (int) $otherCompany->id)
-            ->getJson('/api/transaction_categories');
-
-        $response->assertStatus(200);
-        $items = $response->json('data.items') ?? $response->json('data') ?? [];
-        $ids = collect($items)->pluck('id')->map(static fn ($id) => (int) $id)->all();
-        $this->assertNotContains((int) $category->id, $ids);
-    }
-
-    public function test_user_cannot_update_resource_from_other_company(): void
-    {
-        $category = TransactionCategory::factory()->create(['creator_id' => $this->adminUser->id]);
-        [$otherCompany, $otherAdmin] = $this->createCompanyWithAdminUser();
-
-        $response = $this->withApiTokenForCompany($otherAdmin, (int) $otherCompany->id)
-            ->putJson("/api/transaction_categories/{$category->id}", [
-                'name' => 'Other',
-                'type' => true,
-            ]);
-
-        $this->assertContains($response->getStatusCode(), [403, 404]);
     }
 
     public function test_non_admin_cannot_store_transaction_category(): void

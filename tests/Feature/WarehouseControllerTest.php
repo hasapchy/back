@@ -32,9 +32,9 @@ class WarehouseControllerTest extends TestCase
         config(['reference_contracts.canary.enabled' => false]);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_store_warehouse_requires_validation(): void
@@ -57,7 +57,7 @@ class WarehouseControllerTest extends TestCase
             ->postJson('/api/warehouses', $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'РЎРєР»Р°Рґ СЃРѕР·РґР°РЅ']);
+        $response->assertJson(['message' => 'Склад создан']);
     }
 
     public function test_update_warehouse_success(): void
@@ -75,7 +75,7 @@ class WarehouseControllerTest extends TestCase
             ->putJson("/api/warehouses/{$warehouse->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJson(['message' => 'РЎРєР»Р°Рґ РѕР±РЅРѕРІР»РµРЅ']);
+        $response->assertJson(['message' => 'Склад обновлен']);
     }
 
     /**

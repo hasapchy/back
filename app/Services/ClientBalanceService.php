@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\Currency;
 use App\Models\ClientBalance;
 use App\Services\CurrencyConverter;
+use App\Services\RoundingModuleRegistry;
 use App\Services\RoundingService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -156,7 +157,11 @@ class ClientBalanceService
                 );
 
                 $roundingService = new RoundingService;
-                $convertedAmount = $roundingService->roundForCompany($companyId, $convertedAmount);
+                $convertedAmount = $roundingService->roundForModule(
+                    $companyId,
+                    $convertedAmount,
+                    RoundingModuleRegistry::CLIENT_BALANCE
+                );
 
                 $delta = self::balanceDelta($convertedAmount, $type, $isDebt);
                 $defaultBalance->increment('balance', $delta);

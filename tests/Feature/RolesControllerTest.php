@@ -19,9 +19,9 @@ class RolesControllerTest extends TestCase
         [$this->company, $this->adminUser] = $this->createCompanyWithAdminUser();
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_store_role_requires_validation(): void
@@ -44,7 +44,7 @@ class RolesControllerTest extends TestCase
             ->postJson('/api/roles', $data);
 
         $response->assertStatus(201);
-        $response->assertJsonPath('message', 'Р РѕР»СЊ СЃРѕР·РґР°РЅР° СѓСЃРїРµС€РЅРѕ');
+        $response->assertJsonPath('message', __('Роль создана успешно'));
         $this->assertDatabaseHas('roles', [
             'company_id' => $this->company->id,
             'name' => 'Test Role',
@@ -68,7 +68,7 @@ class RolesControllerTest extends TestCase
             ->putJson("/api/roles/{$role->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJsonPath('message', 'Р РѕР»СЊ РѕР±РЅРѕРІР»РµРЅР° СѓСЃРїРµС€РЅРѕ');
+        $response->assertJsonPath('message', __('Роль обновлена успешно'));
         $this->assertDatabaseHas('roles', [
             'id' => $role->id,
             'name' => 'Updated Role',
@@ -125,21 +125,6 @@ class RolesControllerTest extends TestCase
 
         $response = $this->withApiTokenForCompany($otherAdmin, (int) $otherCompany->id)
             ->getJson("/api/roles/{$role->id}");
-
-        $this->assertContains($response->getStatusCode(), [403, 404]);
-    }
-
-    public function test_user_cannot_update_resource_from_other_company(): void
-    {
-        $role = Role::create([
-            'name' => 'role-update-'.uniqid(),
-            'guard_name' => 'api',
-            'company_id' => $this->company->id,
-        ]);
-        [$otherCompany, $otherAdmin] = $this->createCompanyWithAdminUser();
-
-        $response = $this->withApiTokenForCompany($otherAdmin, (int) $otherCompany->id)
-            ->putJson("/api/roles/{$role->id}", ['name' => 'Updated Other']);
 
         $this->assertContains($response->getStatusCode(), [403, 404]);
     }

@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\CacheService;
 use App\Services\ClientBalanceService;
 use App\Services\Timeline\TimelineCache;
+use App\Support\ClientBalanceViewAccess;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -63,7 +64,7 @@ class ClientsRepository extends BaseRepository
         $query = Client::with([
             'phones:id,client_id,phone',
             'emails:id,client_id,email',
-            'creator:id,name,photo',
+            'creator:id,name,surname,photo',
             'employee:id,name,surname,position,photo',
             'balances.currency',
             'balances.users',
@@ -217,7 +218,7 @@ class ClientsRepository extends BaseRepository
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
-                'creator:id,name,photo',
+                'creator:id,name,surname,photo',
                 'employee:id,name,surname,position,photo',
                 'balances.currency',
                 'balances.users',
@@ -325,7 +326,7 @@ class ClientsRepository extends BaseRepository
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
-                'creator:id,name,photo',
+                'creator:id,name,surname,photo',
                 'employee:id,name,surname,position,photo',
             ])
                 ->where('clients.status', true);
@@ -374,7 +375,7 @@ class ClientsRepository extends BaseRepository
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
-                'creator:id,name,photo',
+                'creator:id,name,surname,photo',
                 'employee:id,name,surname,position,photo',
                 'balances.currency',
                 'balances.users',
@@ -655,7 +656,7 @@ class ClientsRepository extends BaseRepository
                     'cashRegister:id,name,currency_id',
                     'cashRegister.currency:id,code',
                     'currency:id,code',
-                    'creator:id,name',
+                    'creator:id,name,surname,photo',
                     'category:id,name',
                     'project:id,name',
                 ])
@@ -1057,13 +1058,14 @@ class ClientsRepository extends BaseRepository
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
         $userId = $currentUser?->id;
+        $allowedBalanceTypes = ClientBalanceViewAccess::getAllowedBalanceTypes($currentUser, $companyId);
 
         $cacheKey = $this->generateCacheKey('clients_settlements_summary', [
             $currentUser?->id,
             $companyId,
         ]);
 
-        return CacheService::remember($cacheKey, function () use ($currentUser, $companyId, $userId) {
+        return CacheService::remember($cacheKey, function () use ($currentUser, $companyId, $userId, $allowedBalanceTypes) {
             $balanceQuery = ClientBalance::query()
                 ->select([
                     'client_balances.currency_id',
@@ -1081,6 +1083,11 @@ class ClientsRepository extends BaseRepository
                     $q->whereDoesntHave('users')
                         ->orWhereHas('users', fn ($uq) => $uq->where('users.id', $userId));
                 });
+            }
+            if (! empty($allowedBalanceTypes)) {
+                $balanceQuery->whereIn('client_balances.type', $allowedBalanceTypes);
+            } else {
+                $balanceQuery->whereRaw('1 = 0');
             }
 
             $aggregates = $balanceQuery

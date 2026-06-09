@@ -23,12 +23,6 @@ class CompaniesControllerTest extends TestCase
             'is_active' => true,
         ]);
     }
-
-    protected function actingAsApi(User $user)
-    {
-        return $this->withApiTokenForCompany($user, null);
-    }
-
     public function test_store_company_requires_validation(): void
     {
         $response = $this->actingAsApi($this->adminUser)
@@ -44,7 +38,6 @@ class CompaniesControllerTest extends TestCase
             'name' => 'Test Company',
             'show_deleted_transactions' => true,
             'rounding_enabled' => true,
-            'rounding_decimals' => 2,
             'rounding_direction' => 'standard',
         ];
 
@@ -113,6 +106,35 @@ class CompaniesControllerTest extends TestCase
         $this->assertFalse($company->rounding_orders_enabled);
         $this->assertFalse($company->rounding_contracts_enabled);
         $this->assertFalse($company->rounding_warehouse_enabled);
+        $this->assertFalse($company->rounding_transactions_enabled);
+    }
+
+    public function test_store_company_persists_module_rounding_decimals(): void
+    {
+        $companyData = [
+            'name' => 'Test Company Module Decimals',
+            'rounding_enabled' => true,
+            'rounding_direction' => 'standard',
+            'rounding_orders_enabled' => true,
+            'rounding_orders_decimals' => 1,
+            'rounding_contracts_enabled' => true,
+            'rounding_contracts_decimals' => 0,
+            'rounding_warehouse_enabled' => true,
+            'rounding_warehouse_decimals' => 2,
+            'rounding_transactions_enabled' => true,
+            'rounding_transactions_decimals' => 1,
+        ];
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/companies', $companyData);
+
+        $response->assertStatus(200);
+        $company = Company::where('name', 'Test Company Module Decimals')->first();
+        $this->assertSame(1, $company->rounding_orders_decimals);
+        $this->assertSame(0, $company->rounding_contracts_decimals);
+        $this->assertSame(2, $company->rounding_warehouse_decimals);
+        $this->assertTrue($company->rounding_transactions_enabled);
+        $this->assertSame(1, $company->rounding_transactions_decimals);
     }
 
     public function test_store_company_resets_rounding_quantity_fields_when_disabled(): void
@@ -189,7 +211,6 @@ class CompaniesControllerTest extends TestCase
         $updateData = [
             'name' => 'New Name',
             'rounding_enabled' => true,
-            'rounding_decimals' => 2,
         ];
 
         $response = $this->actingAsApi($this->adminUser)
@@ -207,7 +228,6 @@ class CompaniesControllerTest extends TestCase
         $companyData = [
             'name' => 'Test Company Module Rounding',
             'rounding_enabled' => true,
-            'rounding_decimals' => 0,
             'rounding_direction' => 'standard',
             'rounding_orders_enabled' => true,
             'rounding_contracts_enabled' => false,
@@ -307,5 +327,41 @@ class CompaniesControllerTest extends TestCase
         $this->assertFalse($company->rounding_enabled);
         $this->assertNull($company->rounding_direction);
         $this->assertNull($company->rounding_custom_threshold);
+    }
+
+    public function test_update_company_persists_ui_theme(): void
+    {
+        $company = Company::factory()->create(['name' => 'Theme Co']);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->patchJson("/api/companies/{$company->id}", [
+                'name' => $company->name,
+                'ui_theme' => [
+                    'color_brand' => '#112233',
+                    'color_success' => '#AABBCC',
+                ],
+            ]);
+
+        $response->assertStatus(200);
+        $company->refresh();
+
+        $this->assertSame([
+            'color_brand' => '#112233',
+            'color_success' => '#AABBCC',
+        ], $company->ui_theme);
+
+        $responseTheme = $response->json('data.ui_theme');
+        $this->assertSame('#112233', $responseTheme['color_brand']);
+        $this->assertSame('#AABBCC', $responseTheme['color_success']);
+
+        $clearResponse = $this->actingAsApi($this->adminUser)
+            ->patchJson("/api/companies/{$company->id}", [
+                'name' => $company->name,
+                'ui_theme' => null,
+            ]);
+
+        $clearResponse->assertStatus(200);
+        $company->refresh();
+        $this->assertNull($company->ui_theme);
     }
 }

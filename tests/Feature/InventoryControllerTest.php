@@ -11,6 +11,7 @@ use App\Models\Warehouse;
 use App\Models\WarehouseStock;
 use App\Models\WhReceipt;
 use App\Models\WhWriteoff;
+use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
 class InventoryControllerTest extends TestCase
@@ -57,9 +58,9 @@ class InventoryControllerTest extends TestCase
         ]);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     protected function postNewInventoryId(): int
@@ -105,6 +106,36 @@ class InventoryControllerTest extends TestCase
         $finalize = $this->actingAsApi($this->adminUser)->postJson("/api/inventories/{$inventoryId}/finalize", []);
         $finalize->assertOk();
         $this->assertSame('completed', $finalize->json('data.status'));
+    }
+
+    public function test_bulk_update_writes_inventory_summary_log_not_per_item_logs(): void
+    {
+        $inventoryId = $this->postNewInventoryId();
+
+        $items = $this->actingAsApi($this->adminUser)
+            ->getJson("/api/inventories/{$inventoryId}/items")
+            ->json('data.items');
+
+        $this->actingAsApi($this->adminUser)->patchJson("/api/inventories/{$inventoryId}/items", [
+            'items' => [
+                ['id' => (int) $items[0]['id'], 'actual_quantity' => 20],
+            ],
+        ])->assertOk();
+
+        $this->assertSame(
+            0,
+            Activity::query()->where('log_name', 'inventory_item')->count()
+        );
+
+        $summary = Activity::query()
+            ->where('log_name', 'inventory')
+            ->where('description', 'activity_log.inventory.items_counted')
+            ->first();
+
+        $this->assertNotNull($summary);
+        $props = $summary->properties->toArray();
+        $this->assertSame(1, $props['counted']);
+        $this->assertSame(1, $props['with_discrepancy']);
     }
 
     public function test_completed_inventory_items_cannot_be_updated(): void
@@ -153,7 +184,7 @@ class InventoryControllerTest extends TestCase
 
         $wo = WhWriteoff::query()->find($writeOffId);
         $this->assertNotNull($wo);
-        $this->assertStringContainsString('РќРµРґРѕСЃС‚Р°С‡Р°', (string) $wo->note);
+        $this->assertStringContainsString('Недостача', (string) $wo->note);
         $this->assertSame(WhWriteoffReason::Shortage, $wo->reason);
 
         $show = $this->actingAsApi($this->adminUser)->getJson("/api/inventories/{$id}");
@@ -168,6 +199,7 @@ class InventoryControllerTest extends TestCase
             'type' => 1,
         ]);
         $product2->categories()->attach($this->category->id);
+        $this->ensureProductPurchasePrice((int) $product2->id);
         WarehouseStock::query()->create([
             'warehouse_id' => $this->warehouse->id,
             'product_id' => $product2->id,
@@ -263,7 +295,7 @@ class InventoryControllerTest extends TestCase
 
         $receipt = WhReceipt::query()->find($receiptId);
         $this->assertNotNull($receipt);
-        $this->assertStringContainsString('РР·Р»РёС€РµРє', (string) $receipt->note);
+        $this->assertStringContainsString('Излишек', (string) $receipt->note);
     }
 
     public function test_apply_stock_adjustment_no_lines_returns_400(): void

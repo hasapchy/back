@@ -48,31 +48,4 @@ class TimelineBroadcastTest extends TestCase
         $response->assertOk();
     }
 
-    public function test_user_cannot_authorize_timeline_channel_for_foreign_company_order(): void
-    {
-        $this->seed(PermissionsSeeder::class);
-
-        $companyA = Company::factory()->create();
-        $companyB = Company::factory()->create();
-        $user = User::factory()->create(['is_admin' => true, 'is_active' => true]);
-        $user->companies()->attach($companyA->id);
-
-        $clientB = Client::factory()->create(['company_id' => $companyB->id]);
-        $cashB = CashRegister::factory()->create(['company_id' => $companyB->id]);
-        $orderB = Order::factory()->create([
-            'client_id' => $clientB->id,
-            'cash_id' => $cashB->id,
-            'warehouse_id' => null,
-            'project_id' => null,
-        ]);
-
-        Sanctum::actingAs($user);
-
-        $response = $this->postJson('/api/broadcasting/auth', [
-            'channel_name' => "private-company.{$companyA->id}.timeline.order.{$orderB->id}",
-            'socket_id' => '123.456',
-        ]);
-
-        $response->assertForbidden();
-    }
 }

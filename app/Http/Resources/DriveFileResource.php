@@ -22,6 +22,7 @@ class DriveFileResource extends JsonResource
             'mime_type' => $this->mime_type,
             'extension' => $this->extension,
             'size' => (int) $this->size,
+            'is_shared' => (bool) ($this->is_shared ?? false),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
             'creator' => $this->whenLoaded('creator', fn () => [

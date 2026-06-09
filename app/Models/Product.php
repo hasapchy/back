@@ -196,7 +196,6 @@ class Product extends Model implements SupportsTimeline
                 'type',
                 'stock_alert_notify',
                 'stock_min_quantity',
-                'image',
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()

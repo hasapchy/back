@@ -94,13 +94,17 @@ class AuthController extends BaseController
             $authSession = $this->authSessionService->createForLogin($user, $request, TokenClient::Web);
             $request->session()->put('auth_session_id', $authSession->id);
 
-            $this->authLoginLog('auth.login.success', array_merge($baseCtx, [
-                'user_id' => $user->id,
-                'company_id' => $companyId,
-                'mode' => 'session',
-                'session_id' => $request->session()->getId(),
-                'auth_session_id' => $authSession->id,
-            ]));
+            $this->authLoginLog('auth.login.success', array_merge(
+                AuthRequestLogContext::fromRequest($request),
+                $baseCtx,
+                [
+                    'user_id' => $user->id,
+                    'company_id' => $companyId,
+                    'mode' => 'session',
+                    'auth_session_id' => $authSession->id,
+                    'remember_cookie_will_be_set' => $remember,
+                ]
+            ));
 
             return $this->successResponse([
                 'user' => $this->userPayloadForAuthResponse($user, $companyId),
@@ -192,11 +196,28 @@ class AuthController extends BaseController
 
         $companyId = $this->getCurrentCompanyId();
         if (! $companyId) {
+            AuthRequestLogContext::logAuth('warning', 'auth.me.failed', array_merge(
+                AuthRequestLogContext::fromRequest($request),
+                AuthRequestLogContext::forUser($user),
+                ['reason' => 'company_context_missing']
+            ));
+
             return $this->errorResponse(__('api.common.company_context_missing'), 409);
         }
 
         $permissions = $user->getAllPermissionsForCompany((int) $companyId)->pluck('name')->toArray();
         $currentAuthSessionId = $this->authSessionService->resolveCurrentSessionId($request, $user);
+
+        if (AuthRequestLogContext::verbose()) {
+            AuthRequestLogContext::logAuth('info', 'auth.me.success', array_merge(
+                AuthRequestLogContext::fromRequest($request),
+                AuthRequestLogContext::forUser($user),
+                [
+                    'auth_session_id' => $currentAuthSessionId,
+                    'company_id' => $companyId,
+                ]
+            ));
+        }
 
         return $this->successResponse([
             'user' => $this->serializeUserForApi($user, $user->getAllRoleNames(), $permissions),
@@ -222,11 +243,29 @@ class AuthController extends BaseController
                 : null;
 
             if ($authSession !== null) {
+                AuthRequestLogContext::logAuth('info', 'auth.logout', array_merge(
+                    AuthRequestLogContext::fromRequest($request),
+                    AuthRequestLogContext::forUser($user),
+                    [
+                        'auth_session_id' => $authSessionId,
+                        'client_type' => $authSession->client_type,
+                        'reason' => 'explicit',
+                    ]
+                ));
                 $this->credentialRevocationService->revokeSession($authSession, $request);
 
                 return $this->successResponse(null, __('api.common.logged_out_success'));
             }
 
+            AuthRequestLogContext::logAuth('info', 'auth.logout', array_merge(
+                AuthRequestLogContext::fromRequest($request),
+                AuthRequestLogContext::forUser($user),
+                [
+                    'auth_session_id' => $authSessionId,
+                    'client_type' => 'token',
+                    'reason' => 'explicit',
+                ]
+            ));
             $user->tokens()->delete();
             $this->authSessionService->invalidateWebSession($request);
         }

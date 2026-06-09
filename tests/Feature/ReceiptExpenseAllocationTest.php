@@ -16,10 +16,12 @@ use App\Models\WhReceipt;
 use App\Models\WhReceiptExpenseAllocation;
 use App\Models\WhReceiptProduct;
 use App\Services\ReceiptExpenseAllocationService;
+use Tests\Support\Concerns\SeedsWarehouseTransactionCategoryBindings;
 use Tests\TestCase;
 
 class ReceiptExpenseAllocationTest extends TestCase
 {
+    use SeedsWarehouseTransactionCategoryBindings;
 
     protected User $adminUser;
 
@@ -69,6 +71,7 @@ class ReceiptExpenseAllocationTest extends TestCase
             'creator_id' => $this->adminUser->id,
             'type' => 0,
         ]);
+        $this->seedWarehouseGoodsPaymentBindings($this->company, $this->adminUser);
     }
 
     public function test_allocates_non_goods_expense_by_line_subtotal_share(): void
@@ -120,9 +123,6 @@ class ReceiptExpenseAllocationTest extends TestCase
 
     public function test_excludes_goods_payment_category(): void
     {
-        if (! TransactionCategory::query()->whereKey(6)->exists()) {
-            $this->fail('РљР°С‚РµРіРѕСЂРёСЏ 6 (РѕРїР»Р°С‚Р° С‚РѕРІР°СЂР°) РЅРµ РЅР°Р№РґРµРЅР° РІ Р‘Р”.');
-        }
         $receipt = WhReceipt::factory()->create([
             'warehouse_id' => $this->warehouse->id,
             'supplier_id' => $this->client->id,
@@ -139,7 +139,7 @@ class ReceiptExpenseAllocationTest extends TestCase
         $transaction = Transaction::factory()->create([
             'type' => 0,
             'is_debt' => false,
-            'category_id' => 6,
+            'category_id' => $this->warehouseGoodsPaymentCategory->id,
             'def_amount' => 50,
             'orig_amount' => 50,
             'amount' => 50,
@@ -195,6 +195,54 @@ class ReceiptExpenseAllocationTest extends TestCase
 
         $this->assertEqualsWithDelta(100.0, (float) $summary['goods_subtotal_default'], 0.01);
         $this->assertEqualsWithDelta(100.0, (float) $summary['lines'][0]['line_subtotal_default'], 0.01);
+    }
+
+    public function test_allocation_sum_matches_pool_with_zero_warehouse_decimals(): void
+    {
+        $this->company->update([
+            'rounding_enabled' => true,
+            'rounding_direction' => 'standard',
+            'rounding_warehouse_enabled' => true,
+            'rounding_warehouse_decimals' => 0,
+        ]);
+
+        $receipt = WhReceipt::factory()->create([
+            'warehouse_id' => $this->warehouse->id,
+            'supplier_id' => $this->client->id,
+            'creator_id' => $this->adminUser->id,
+            'cash_id' => $this->cashRegister->id,
+        ]);
+        WhReceiptProduct::query()->create([
+            'receipt_id' => $receipt->id,
+            'product_id' => $this->productA->id,
+            'quantity' => 3,
+            'price' => 10,
+        ]);
+        WhReceiptProduct::query()->create([
+            'receipt_id' => $receipt->id,
+            'product_id' => $this->productB->id,
+            'quantity' => 1,
+            'price' => 10,
+        ]);
+
+        $transaction = Transaction::factory()->create([
+            'type' => 0,
+            'is_debt' => false,
+            'category_id' => $this->expenseCategory->id,
+            'def_amount' => 100,
+            'orig_amount' => 100,
+            'amount' => 100,
+            'currency_id' => $this->defaultCurrency->id,
+            'cash_id' => $this->cashRegister->id,
+            'source_type' => WhReceipt::class,
+            'source_id' => $receipt->id,
+            'is_deleted' => false,
+        ]);
+
+        app(ReceiptExpenseAllocationService::class)->syncForTransaction($transaction);
+
+        $rows = WhReceiptExpenseAllocation::query()->where('transaction_id', $transaction->id)->get();
+        $this->assertEqualsWithDelta(100.0, (float) $rows->sum('amount_default'), 0.01);
     }
 
 }

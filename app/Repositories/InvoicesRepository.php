@@ -295,6 +295,7 @@ class InvoicesRepository extends BaseRepository
             'cash_currency.code as currency_symbol',
             'projects.name as project_name',
             'users.name as creator_name',
+            'users.surname as creator_surname',
             'users.photo as creator_photo',
             'categories.name as category_name'
         );
@@ -306,12 +307,13 @@ class InvoicesRepository extends BaseRepository
                 $creator = new User;
                 $creator->id = (int) $order->creator_id;
                 $creator->name = (string) $order->creator_name;
+                $creator->surname = (string) ($order->creator_surname ?? '');
                 $creator->photo = $order->creator_photo;
                 $order->setRelation('creator', $creator);
             } else {
                 $order->setRelation('creator', null);
             }
-            unset($order->creator_name, $order->creator_photo);
+            unset($order->creator_name, $order->creator_surname, $order->creator_photo);
             $order->setRelation('client', $order->client()->with(['phones', 'emails'])->first());
             $order->setRelation('orderProducts', $order->orderProducts()->with('product')->get());
             $order->setRelation('tempProducts', $order->tempProducts()->with('unit')->get());
@@ -367,13 +369,13 @@ class InvoicesRepository extends BaseRepository
                 $products[] = [
                     'product_id' => $orderProduct->product_id,
                     'order_id' => $order->id,
-                    'product_name' => $orderProduct->product->name ?? 'Товар',
-                    'product_description' => $orderProduct->product->description ?? null,
+                    'product_name' => $orderProduct->product?->name ?? 'Товар',
+                    'product_description' => $orderProduct->product?->description ?? null,
                     'quantity' => $orderProduct->quantity,
                     'price' => $orderProduct->price,
                     'total_price' => $adjustedTotalPrice,
-                    'unit_id' => $orderProduct->product->unit_id ?? null,
-                    'unit_short_name' => $orderProduct->product->unit?->short_name,
+                    'unit_id' => $orderProduct->product?->unit_id ?? null,
+                    'unit_short_name' => $orderProduct->product?->unit?->short_name,
                 ];
             }
 

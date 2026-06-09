@@ -6,6 +6,7 @@ use App\Http\Requests\ListDrivePermissionsRequest;
 use App\Http\Requests\MoveDriveFilesRequest;
 use App\Http\Requests\RenameDriveFileRequest;
 use App\Http\Requests\SetDrivePermissionRequest;
+use App\Http\Requests\SyncDrivePermissionRequest;
 use App\Http\Requests\StoreDriveFolderRequest;
 use App\Http\Requests\UpdateDriveFolderRequest;
 use App\Http\Requests\UploadDriveFilesRequest;
@@ -23,6 +24,7 @@ use App\Support\DriveFileRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -60,10 +62,11 @@ class DriveController extends BaseController
 
         $parentId = $request->input('parent_id');
         $parentIdInt = $parentId !== null && $parentId !== '' ? (int) $parentId : null;
+        $viewAbilities = $this->driveAccessService->aclAbilitiesFor('view');
 
         if ($parentIdInt !== null) {
             $parentFolder = $this->driveRepository->findFolder($companyId, $parentIdInt);
-            if (! $this->driveAccessService->can($user, $companyId, 'view', $parentFolder)) {
+            if (! $this->canBrowseFolder($user, $companyId, $parentFolder, $viewAbilities)) {
                 return $this->errorResponse('Forbidden', 403);
             }
         }
@@ -82,9 +85,71 @@ class DriveController extends BaseController
             ->filter(fn (DriveFile $file) => $this->driveAccessService->can($user, $companyId, 'view', $file->folder, $file))
             ->values();
 
+        if ($parentIdInt === null) {
+            $listing['files'] = $this->appendRootDirectAclFiles($user, $companyId, $listing['files'], $viewAbilities);
+        }
+
         return $this->successResponse(
             DriveListingResource::make($listing)->resolve()
         );
+    }
+
+    /**
+     * @param  array<int, string>  $viewAbilities
+     */
+    private function canBrowseFolder(User $user, int $companyId, DriveFolder $folder, array $viewAbilities): bool
+    {
+        if ($this->driveAccessService->can($user, $companyId, 'view', $folder)) {
+            return true;
+        }
+
+        return $this->driveRepository->userHasDirectFileViewInFolder(
+            $companyId,
+            (int) $user->id,
+            (int) $folder->id,
+            $viewAbilities
+        );
+    }
+
+    /**
+     * @param  Collection<int, DriveFile>  $listedFiles
+     * @param  array<int, string>  $viewAbilities
+     * @return Collection<int, DriveFile>
+     */
+    private function appendRootDirectAclFiles(User $user, int $companyId, Collection $listedFiles, array $viewAbilities): Collection
+    {
+        if ($user->is_admin) {
+            return $listedFiles;
+        }
+
+        $listedIds = $listedFiles->pluck('id')->flip();
+        $directAclFiles = $this->driveRepository->listFilesWithDirectUserAcl(
+            $companyId,
+            (int) $user->id,
+            $viewAbilities
+        );
+
+        $extra = $directAclFiles->filter(function (DriveFile $file) use ($user, $companyId, $listedIds) {
+            if ($listedIds->has($file->id)) {
+                return false;
+            }
+
+            if (! $this->driveAccessService->can($user, $companyId, 'view', $file->folder, $file)) {
+                return false;
+            }
+
+            if ($file->folder_id === null) {
+                return false;
+            }
+
+            if ($file->folder && $this->driveAccessService->can($user, $companyId, 'view', $file->folder)) {
+                return false;
+            }
+
+            return true;
+        });
+
+        return $listedFiles->merge($extra)->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
     }
 
     /**
@@ -104,7 +169,7 @@ class DriveController extends BaseController
             ! empty($validated['parent_id']) ? (int) $validated['parent_id'] : null
         );
 
-        if (! $this->driveAccessService->can($user, $companyId, 'upload', $parentFolder)) {
+        if (! $this->driveAccessService->can($user, $companyId, 'create', $parentFolder)) {
             return $this->errorResponse('Forbidden', 403);
         }
 
@@ -136,7 +201,7 @@ class DriveController extends BaseController
         $validated = $request->validated();
         $folder = $this->driveRepository->findFolder($companyId, $id);
 
-        if (! $this->driveAccessService->can($user, $companyId, 'rename', $folder)) {
+        if (! $this->driveAccessService->can($user, $companyId, 'update', $folder)) {
             return $this->errorResponse('Forbidden', 403);
         }
 
@@ -194,7 +259,7 @@ class DriveController extends BaseController
             ! empty($validated['folder_id']) ? (int) $validated['folder_id'] : null
         );
 
-        if (! $this->driveAccessService->can($user, $companyId, 'upload', $folder)) {
+        if (! $this->driveAccessService->can($user, $companyId, 'create', $folder)) {
             return $this->errorResponse('Forbidden', 403);
         }
 
@@ -295,7 +360,7 @@ class DriveController extends BaseController
         $validated = $request->validated();
         $file = $this->driveRepository->findFile($companyId, $id);
 
-        if (! $this->driveAccessService->can($user, $companyId, 'rename', $file->folder, $file)) {
+        if (! $this->driveAccessService->can($user, $companyId, 'update', $file->folder, $file)) {
             return $this->errorResponse('Forbidden', 403);
         }
 
@@ -362,13 +427,79 @@ class DriveController extends BaseController
             $folder = $file->folder;
         }
 
-        if (! $this->driveAccessService->can($user, $companyId, 'share', $folder, $file)) {
+        if (! $this->driveAccessService->can($user, $companyId, 'update', $folder, $file)) {
             return $this->errorResponse('Forbidden', 403);
         }
 
-        $permission = $this->driveRepository->setPermission($companyId, $user->id, $validated);
+        $validated['ability'] = $this->driveAccessService->normalizeAclAbility($validated['ability']);
+        $validated['effect'] = DrivePermission::EFFECT_ALLOW;
+        $validated['subject_type'] = DrivePermission::SUBJECT_USER;
+
+        $abilities = DrivePermission::expandAbilityDependencies(
+            [$validated['ability']],
+            $validated['resource_type']
+        );
+        $permission = null;
+        foreach ($abilities as $ability) {
+            $permission = $this->driveRepository->setPermission($companyId, $user->id, [
+                ...$validated,
+                'ability' => $ability,
+            ]);
+        }
 
         return $this->successResponse(DrivePermissionResource::make($permission)->resolve());
+    }
+
+    /**
+     * @return JsonResponse
+     */
+    public function syncPermission(SyncDrivePermissionRequest $request): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = $this->getCurrentCompanyId();
+        if (! $companyId) {
+            return $this->errorResponse('Company is required', 422);
+        }
+
+        $validated = $request->validated();
+        $folder = null;
+        $file = null;
+
+        if ($validated['resource_type'] === DrivePermission::RESOURCE_FOLDER) {
+            $folder = $this->driveRepository->findFolder($companyId, (int) $validated['resource_id']);
+        } else {
+            $file = $this->driveRepository->findFile($companyId, (int) $validated['resource_id']);
+            $folder = $file->folder;
+        }
+
+        if (! $this->driveAccessService->can($user, $companyId, 'update', $folder, $file)) {
+            return $this->errorResponse('Forbidden', 403);
+        }
+
+        $abilities = array_map(
+            static fn (string $ability) => DrivePermission::normalizeAbility($ability),
+            $validated['abilities']
+        );
+        $abilities = DrivePermission::stripDependentAbilitiesWithoutView($abilities, $validated['resource_type']);
+
+        $this->driveRepository->syncSubjectPermissions(
+            $companyId,
+            $user->id,
+            $validated['resource_type'],
+            (int) $validated['resource_id'],
+            (int) $validated['subject_id'],
+            $abilities
+        );
+
+        $permissions = $this->driveRepository->listPermissions(
+            $companyId,
+            $validated['resource_type'],
+            (int) $validated['resource_id']
+        );
+
+        return $this->successResponse(
+            $this->driveRepository->groupPermissionsBySubject($permissions, $validated['resource_type'])
+        );
     }
 
     /**
@@ -393,7 +524,7 @@ class DriveController extends BaseController
             $folder = $file->folder;
         }
 
-        if (! $this->driveAccessService->can($user, $companyId, 'share', $folder, $file)) {
+        if (! $this->driveAccessService->can($user, $companyId, 'update', $folder, $file)) {
             return $this->errorResponse('Forbidden', 403);
         }
 
@@ -403,7 +534,9 @@ class DriveController extends BaseController
             (int) $validated['resource_id']
         );
 
-        return $this->successResponse(DrivePermissionResource::collection($permissions)->resolve());
+        return $this->successResponse(
+            $this->driveRepository->groupPermissionsBySubject($permissions, $validated['resource_type'])
+        );
     }
 
     /**
@@ -439,13 +572,13 @@ class DriveController extends BaseController
      */
     private function authorizeFilesMove(User $user, int $companyId, array $fileIds, ?DriveFolder $targetFolder): ?JsonResponse
     {
-        if ($targetFolder !== null && ! $this->driveAccessService->can($user, $companyId, 'upload', $targetFolder)) {
+        if ($targetFolder !== null && ! $this->driveAccessService->can($user, $companyId, 'create', $targetFolder)) {
             return $this->errorResponse('Forbidden', 403);
         }
 
         foreach ($fileIds as $fileId) {
             $file = $this->driveRepository->findFile($companyId, $fileId);
-            if (! $this->driveAccessService->can($user, $companyId, 'rename', $file->folder, $file)) {
+            if (! $this->driveAccessService->can($user, $companyId, 'update', $file->folder, $file)) {
                 return $this->errorResponse('Forbidden', 403);
             }
         }

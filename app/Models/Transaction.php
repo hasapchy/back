@@ -11,6 +11,7 @@ use App\Services\TransactionSourceService;
 use App\Services\BalanceService;
 use App\Repositories\OrdersRepository;
 use App\Repositories\ProjectContractsRepository;
+use App\Services\WarehouseDocumentPaymentStatusService;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use App\Contracts\SupportsTimeline;
@@ -62,9 +63,6 @@ class Transaction extends Model implements SupportsTimeline
         LogsActivity::shouldLogEvent as protected traitShouldLogEvent;
     }
     use BelongsToCompany;
-
-    public const SALARY_CATEGORY_IDS = [7, 23, 24, 26, 27];
-
     protected $skipClientBalanceUpdate = false;
     protected $skipCashBalanceUpdate = false;
     protected $fillable = [
@@ -101,7 +99,6 @@ class Transaction extends Model implements SupportsTimeline
         'note',
         'project_id',
         'type',
-        'creator_id',
     ];
 
     protected static $logName = 'transaction';
@@ -122,13 +119,18 @@ class Transaction extends Model implements SupportsTimeline
         return LogOptions::defaults()
             ->logOnly(static::$logAttributes)
             ->useLogName('transaction')
+            ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => $this->getDescriptionForEvent($eventName));
     }
 
+    /**
+     * @param string $eventName
+     * @return bool
+     */
     protected function shouldLogEvent(string $eventName): bool
     {
-        if ($this->is_debt && $this->source_type === Order::class) {
+        if ($this->is_debt && $this->source_type) {
             return false;
         }
 
@@ -230,6 +232,7 @@ class Transaction extends Model implements SupportsTimeline
                     CacheService::invalidateProjectsCache();
                 }
             }
+            self::syncWarehousePaidAmountForSource($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
         });
 
         static::updated(function ($transaction) {
@@ -257,6 +260,10 @@ class Transaction extends Model implements SupportsTimeline
                     CacheService::invalidateProjectsCache();
                 }
             }
+            if ($oldSourceType && $oldSourceId && ((string) $oldSourceType !== (string) $transaction->source_type || (int) $oldSourceId !== (int) $transaction->source_id)) {
+                self::syncWarehousePaidAmountForSource($oldSourceType, (int) $oldSourceId);
+            }
+            self::syncWarehousePaidAmountForSource($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
         });
 
         static::deleted(function ($transaction) {
@@ -292,7 +299,28 @@ class Transaction extends Model implements SupportsTimeline
                     CacheService::invalidateProjectsCache();
                 }
             }
+            self::syncWarehousePaidAmountForSource($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
         });
+    }
+
+    /**
+     * @return void
+     */
+    private static function syncWarehousePaidAmountForSource(?string $sourceType, ?int $sourceId): void
+    {
+        if ($sourceType === null || $sourceId === null || $sourceId <= 0) {
+            return;
+        }
+
+        $service = app(WarehouseDocumentPaymentStatusService::class);
+
+        if ($sourceType === WhPurchase::class || str_contains($sourceType, 'WhPurchase')) {
+            $service->syncPurchasePaidAmount($sourceId);
+        }
+
+        if ($sourceType === WhReceipt::class || str_contains($sourceType, 'WhReceipt')) {
+            $service->syncReceiptPaidAmount($sourceId);
+        }
     }
 
     /**

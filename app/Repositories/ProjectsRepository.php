@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Models\Chat;
 use App\Models\Currency;
 use App\Models\Project;
 use App\Models\ProjectContract;
@@ -11,6 +12,7 @@ use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Builder;
 use App\Models\User;
 use App\Services\CacheService;
+use App\Services\Chat\ChatService;
 use App\Services\ProjectBudgetService;
 use App\Services\Timeline\TimelineCache;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -22,6 +24,11 @@ use Illuminate\Support\Facades\DB;
  */
 class ProjectsRepository extends BaseRepository
 {
+    public function __construct(
+        private ?ChatService $chatService = null,
+    ) {
+    }
+
     /**
      * Получить базовые связи для проектов
      */
@@ -33,7 +40,7 @@ class ProjectsRepository extends BaseRepository
             'client.emails:id,client_id,email',
             'currency:id,name,code',
             'status:id,name,color,is_visible',
-            'creator:id,name,photo',
+            'creator:id,name,surname,photo',
             'users:id,name',
         ];
     }
@@ -44,8 +51,14 @@ class ProjectsRepository extends BaseRepository
      * @param  int  $projectId  ID проекта
      * @param  array  $userIds  Массив ID пользователей
      */
-    private function syncProjectUsers(int $projectId, array $userIds): void
+    private function syncProjectUsers(int $projectId, array $userIds, ?int $creatorId = null): void
     {
+        if ($creatorId !== null) {
+            $userIds[] = (int) $creatorId;
+        }
+
+        $userIds = array_values(array_unique(array_map('intval', $userIds)));
+
         $this->syncManyToManyUsers(
             ProjectUser::class,
             'project_id',
@@ -53,6 +66,21 @@ class ProjectsRepository extends BaseRepository
             $userIds,
             ['user_column' => 'user_id']
         );
+    }
+
+    private function resolveChatService(): ChatService
+    {
+        return $this->chatService ??= app(ChatService::class);
+    }
+
+    private function syncProjectChatIfExists(Project $project): void
+    {
+        $companyId = (int) $project->company_id;
+        if (! $companyId) {
+            return;
+        }
+
+        $this->resolveChatService()->syncProjectChatFromProject($companyId, $project);
     }
 
     /**
@@ -256,13 +284,14 @@ class ProjectsRepository extends BaseRepository
             $item->client_id = $data['client_id'];
             $item->company_id = $companyId;
             $item->description = $data['description'] ?? null;
-            $item->files = $data['files'] ?? [];
             $item->status_id = $data['status_id'] ?? 1;
             $item->save();
 
             if (isset($data['users']) && is_array($data['users'])) {
-                $this->syncProjectUsers($item->id, $data['users']);
+                $this->syncProjectUsers($item->id, $data['users'], (int) $item->creator_id);
             }
+
+            $this->syncProjectChatIfExists($item->fresh(['users:id']));
 
             CacheService::invalidateProjectsCache();
             TimelineCache::forget('project', (int) $item->id);
@@ -285,10 +314,6 @@ class ProjectsRepository extends BaseRepository
             $item = Project::findOrFail($id);
             $previousCurrencyId = $item->currency_id;
 
-            if (isset($data['files']) && is_array($data['files'])) {
-                $item->files = $data['files'];
-            }
-
             $item->name = $data['name'];
             if (array_key_exists('currency_id', $data)) {
                 $rawCurrencyId = $data['currency_id'];
@@ -310,8 +335,10 @@ class ProjectsRepository extends BaseRepository
             $item->save();
 
             if (isset($data['users']) && is_array($data['users'])) {
-                $this->syncProjectUsers($id, $data['users']);
+                $this->syncProjectUsers($id, $data['users'], (int) $item->creator_id);
             }
+
+            $this->syncProjectChatIfExists($item->fresh(['users:id']));
 
             $previousCurrencyNormalized = $previousCurrencyId !== null ? (int) $previousCurrencyId : null;
             $currentCurrencyNormalized = $item->currency_id !== null ? (int) $item->currency_id : null;
@@ -346,7 +373,6 @@ class ProjectsRepository extends BaseRepository
                 'projects.creator_id',
                 'projects.client_id',
                 'projects.status_id',
-                'projects.files',
                 'projects.created_at',
                 'projects.updated_at',
             ])
@@ -354,7 +380,7 @@ class ProjectsRepository extends BaseRepository
                     'client:id,first_name,last_name,balance,client_type',
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
-                    'creator:id,name,photo',
+                    'creator:id,name,surname,photo',
                     'currency:id,name,code',
                     'status:id,name,color,is_visible',
                     'users:id,name',
@@ -384,6 +410,10 @@ class ProjectsRepository extends BaseRepository
                 ->count();
             if ($transactionsCount > 0) {
                 throw new \Exception(__('api.projects.delete_has_transactions_prefix').$transactionsCount);
+            }
+
+            if (Chat::query()->where('project_id', $id)->exists()) {
+                throw new \Exception(__('api.projects.delete_has_chat'));
             }
 
             ProjectUser::where('project_id', $id)->delete();
@@ -422,7 +452,7 @@ class ProjectsRepository extends BaseRepository
                 ->with([
                     'cashRegister.currency:id,code',
                     'currency:id,code,name,is_default',
-                    'creator:id,name',
+                    'creator:id,name,surname,photo',
                     'category:id,name',
                 ])
                 ->select(

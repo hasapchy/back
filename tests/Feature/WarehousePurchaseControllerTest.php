@@ -9,7 +9,6 @@ use App\Models\Currency;
 use App\Models\CurrencyHistory;
 use App\Models\Product;
 use App\Models\Transaction;
-use App\Models\TransactionCategory;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WhPurchase;
@@ -18,10 +17,12 @@ use App\Repositories\WarehouseReceiptRepository;
 use Illuminate\Support\Facades\Config;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Tests\Support\Concerns\SeedsWarehouseTransactionCategoryBindings;
 use Tests\TestCase;
 
 class WarehousePurchaseControllerTest extends TestCase
 {
+    use SeedsWarehouseTransactionCategoryBindings;
 
     protected User $adminUser;
     protected User $regularUser;
@@ -87,14 +88,7 @@ class WarehousePurchaseControllerTest extends TestCase
             'is_working_minus' => true,
         ]);
 
-        TransactionCategory::query()->updateOrCreate([
-            'id' => 6,
-        ], [
-            'name' => 'Р—Р°РєСѓРїРєР° С‚РѕРІР°СЂРѕРІ',
-            'is_default' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $this->seedWarehouseGoodsPaymentBindings($this->company, $this->adminUser);
 
         Permission::firstOrCreate(['name' => 'warehouse_purchases_view', 'guard_name' => 'api']);
         Permission::firstOrCreate(['name' => 'warehouse_purchases_create', 'guard_name' => 'api']);
@@ -102,9 +96,9 @@ class WarehousePurchaseControllerTest extends TestCase
         Permission::firstOrCreate(['name' => 'warehouse_purchases_delete', 'guard_name' => 'api']);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     private function createApprovedPurchaseWithProduct(float $quantity, float $unitPrice): WhPurchase
@@ -279,7 +273,7 @@ class WarehousePurchaseControllerTest extends TestCase
         ]);
 
         $response->assertStatus(400);
-        $response->assertJsonFragment(['error' => 'Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ РґРѕСЃС‚СѓРїРЅРѕ С‚РѕР»СЊРєРѕ РґР»СЏ Р·Р°РєСѓРїРєРё РІ СЃС‚Р°С‚СѓСЃРµ Р§РµСЂРЅРѕРІРёРє']);
+        $response->assertJsonFragment(['error' => __('warehouse_purchase.edit_only_draft')]);
     }
 
     public function test_manual_purchase_completion_via_api_is_forbidden(): void
@@ -594,7 +588,11 @@ class WarehousePurchaseControllerTest extends TestCase
         ]);
 
         $response->assertStatus(400);
-        $response->assertJsonFragment(['error' => 'РћС€РёР±РєР° РѕРїСЂРёС…РѕРґРѕРІР°РЅРёСЏ: РќРµР»СЊР·СЏ СЃРѕР·РґР°С‚СЊ РѕРїСЂРёС…РѕРґРѕРІР°РЅРёРµ РёР· Р·Р°РєСѓРїРєРё РІ СЃС‚Р°С‚СѓСЃРµ Р§РµСЂРЅРѕРІРёРє']);
+        $response->assertJsonFragment([
+            'error' => __('warehouse_receipt.store_error', [
+                'message' => __('api.warehouse_receipt.from_draft_purchase_forbidden'),
+            ]),
+        ]);
     }
 
     public function test_purchase_index_forbidden_without_view_permission_for_non_admin(): void
@@ -762,7 +760,7 @@ class WarehousePurchaseControllerTest extends TestCase
         ]);
         $updateResponse->assertStatus(200);
 
-        $this->assertDatabaseCount('wh_purchase_products', 1);
+        $this->assertSame(1, WhPurchaseProduct::query()->where('purchase_id', $purchaseId)->count());
         $this->assertDatabaseHas('wh_purchase_products', [
             'purchase_id' => $purchaseId,
             'product_id' => $this->product->id,
@@ -877,7 +875,7 @@ class WarehousePurchaseControllerTest extends TestCase
         $showResponse = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_purchases/{$purchaseId}");
         $showResponse->assertStatus(200);
         $showResponse->assertJsonPath('data.payment_status', 'unpaid');
-        $showResponse->assertJsonPath('data.paid_amount', 0);
+        $this->assertEqualsWithDelta(0.0, (float) $showResponse->json('data.paid_amount'), 1e-9);
 
         $unpaidIndex = $this->actingAsApi($this->adminUser)->getJson('/api/warehouse_purchases?payment_status=unpaid');
         $unpaidIndex->assertStatus(200);
@@ -892,6 +890,7 @@ class WarehousePurchaseControllerTest extends TestCase
         $partialResponse = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_purchases/{$purchaseId}");
         $partialResponse->assertStatus(200);
         $partialResponse->assertJsonPath('data.payment_status', 'partially_paid');
+        $this->assertEqualsWithDelta(40.0, (float) WhPurchase::query()->findOrFail($purchaseId)->paid_amount, 1e-9);
 
         $this->actingAsApi($this->adminUser)->postJson("/api/warehouse_purchases/{$purchaseId}/pay", [
             'cash_id' => $this->cashRegister->id,
@@ -901,6 +900,7 @@ class WarehousePurchaseControllerTest extends TestCase
         $paidResponse = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_purchases/{$purchaseId}");
         $paidResponse->assertStatus(200);
         $paidResponse->assertJsonPath('data.payment_status', 'paid');
+        $this->assertEqualsWithDelta(100.0, (float) WhPurchase::query()->findOrFail($purchaseId)->paid_amount, 1e-9);
 
         $paidIndex = $this->actingAsApi($this->adminUser)->getJson('/api/warehouse_purchases?payment_status=paid');
         $paidIndex->assertStatus(200);

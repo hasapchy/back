@@ -1,0 +1,44 @@
+<?php
+
+namespace App\Http\Resources;
+
+use App\Models\WhWriteoffProduct;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+/**
+ * @mixin WhWriteoffProduct
+ */
+class WarehouseWriteoffProductResource extends JsonResource
+{
+    /**
+     * @param  \Illuminate\Http\Request  $request
+     * @return array<string, mixed>
+     */
+    public function toArray($request): array
+    {
+        $line = $this->resource;
+        $product = $line->relationLoaded('product') ? $line->product : null;
+        $sourceLine = $line->relationLoaded('sourceReceiptProduct') ? $line->sourceReceiptProduct : null;
+
+        return [
+            'id' => $line->id,
+            'write_off_id' => $line->write_off_id,
+            'product_id' => $line->product_id,
+            'quantity' => $line->quantity,
+            'price' => $line->price,
+            'orig_unit_price' => $sourceLine?->orig_unit_price,
+            'source_receipt_product_id' => $line->source_receipt_product_id,
+            'orig_unit_id' => $line->orig_unit_id,
+            'orig_quantity' => $line->orig_quantity,
+            'product_name' => $product?->name,
+            'product_image' => $product?->image,
+            'unit_id' => $product?->unit_id,
+            'unit_name' => $product?->unit?->name,
+            'unit_short_name' => $product?->unit?->short_name,
+            'orig_unit_name' => $line->relationLoaded('origUnit') ? $line->origUnit?->name : null,
+            'orig_unit_short_name' => $line->relationLoaded('origUnit') ? $line->origUnit?->short_name : null,
+            'stock_by_units' => $line->stock_by_units,
+            'alternate_unit_options' => $product ? $product->alternate_unit_options : [],
+        ];
+    }
+}

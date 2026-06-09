@@ -13,7 +13,7 @@ class ChatResource extends JsonResource
     public function toArray(Request $request): array
     {
         $creator = null;
-        if ($this->type === 'group' && $this->created_by && $this->relationLoaded('creator')) {
+        if (in_array($this->type, ['group', 'project'], true) && $this->created_by && $this->relationLoaded('creator')) {
             $creatorUser = $this->creator;
             if ($creatorUser) {
                 $creator = [
@@ -43,6 +43,7 @@ class ChatResource extends JsonResource
         return [
             'id' => (int) $this->id,
             'company_id' => (int) $this->company_id,
+            'project_id' => $this->project_id ? (int) $this->project_id : null,
             'type' => $this->type,
             'direct_key' => $this->direct_key,
             'title' => $this->title,

@@ -621,15 +621,6 @@ final class ReferencePayloadBenchmark
         User $member
     ): EloquentCollection {
         $heavyDescription = str_repeat('Bench project description block. ', 30);
-        $heavyFiles = [
-            [
-                'name' => 'report.pdf',
-                'path' => 'projects/1/report.pdf',
-                'size' => 250_000,
-                'mime_type' => 'application/pdf',
-                'uploaded_at' => '2026-01-10 12:00:00',
-            ],
-        ];
         $list = [];
         foreach (range(1, $n) as $i) {
             $project = Project::make([
@@ -643,7 +634,6 @@ final class ReferencePayloadBenchmark
                 'budget' => 5000.5,
                 'date' => '2026-02-01',
                 'description' => $heavyDescription,
-                'files' => $heavyFiles,
             ]);
             $project->exists = true;
             $project->syncOriginal();

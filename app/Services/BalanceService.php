@@ -222,7 +222,11 @@ class BalanceService
                     $cashCurrency
                 );
                 $roundingService = new RoundingService;
-                $amountToUse = $roundingService->roundForCompany($companyId, $convertedAmount);
+                $amountToUse = $roundingService->roundForModule(
+                    $companyId,
+                    $convertedAmount,
+                    RoundingModuleRegistry::CLIENT_BALANCE
+                );
             }
 
             $sign = $transaction->is_debt

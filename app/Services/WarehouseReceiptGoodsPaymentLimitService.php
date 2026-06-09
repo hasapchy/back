@@ -2,18 +2,22 @@
 
 namespace App\Services;
 
-use App\Models\Transaction;
 use App\Models\WhReceipt;
+use App\Support\TransactionCategoryBindingKeys;
 
 class WarehouseReceiptGoodsPaymentLimitService
 {
+    public function __construct(
+        private readonly WarehouseDocumentPaymentStatusService $paymentStatusService
+    ) {}
+
     /**
      * @return float
      */
     public function goodsTotalDefault(WhReceipt $receipt): float
     {
         $landed = (float) app(ReceiptExpenseAllocationService::class)->buildLandedCostSummary($receipt)['goods_subtotal_default'];
-        $debtBooked = $this->debtGoodsBookedDefault((int) $receipt->id);
+        $debtBooked = $this->debtGoodsBookedDefault($receipt);
 
         return max($landed, $debtBooked);
     }
@@ -21,20 +25,24 @@ class WarehouseReceiptGoodsPaymentLimitService
     /**
      * @return float
      */
-    private function debtGoodsBookedDefault(int $receiptId): float
+    private function debtGoodsBookedDefault(WhReceipt $receipt): float
     {
-        if ($receiptId <= 0) {
+        if ((int) $receipt->id <= 0) {
             return 0.0;
         }
 
-        return (float) Transaction::query()
-            ->where('source_type', WhReceipt::class)
-            ->where('source_id', $receiptId)
-            ->where('category_id', 6)
-            ->where('type', 0)
-            ->where('is_debt', true)
-            ->where('is_deleted', false)
-            ->sum('def_amount');
+        $receipt->loadMissing('warehouse:id,company_id');
+        $companyId = (int) ($receipt->warehouse?->company_id ?? 0);
+        $categoryId = $this->paymentStatusService->resolveGoodsPaymentCategoryId(
+            $companyId,
+            TransactionCategoryBindingKeys::WAREHOUSE_RECEIPT
+        );
+
+        return $this->paymentStatusService->sumDebtGoodsDefaultFromTransactions(
+            WhReceipt::class,
+            (int) $receipt->id,
+            $categoryId
+        );
     }
 
     /**
@@ -43,19 +51,27 @@ class WarehouseReceiptGoodsPaymentLimitService
      */
     public function paidGoodsCashDefault(int $receiptId, ?int $excludeTransactionId = null): float
     {
-        $q = Transaction::query()
-            ->where('source_type', WhReceipt::class)
-            ->where('source_id', $receiptId)
-            ->where('category_id', 6)
-            ->where('type', 0)
-            ->where('is_debt', false)
-            ->where('is_deleted', false);
-
-        if ($excludeTransactionId) {
-            $q->where('id', '!=', $excludeTransactionId);
+        if ($receiptId <= 0) {
+            return 0.0;
         }
 
-        return (float) $q->sum('def_amount');
+        $receipt = WhReceipt::query()->with('warehouse:id,company_id')->find($receiptId);
+        if (! $receipt instanceof WhReceipt) {
+            return 0.0;
+        }
+
+        $companyId = (int) ($receipt->warehouse?->company_id ?? 0);
+        $categoryId = $this->paymentStatusService->resolveGoodsPaymentCategoryId(
+            $companyId,
+            TransactionCategoryBindingKeys::WAREHOUSE_RECEIPT
+        );
+
+        return $this->paymentStatusService->sumPaidDefaultFromTransactions(
+            WhReceipt::class,
+            $receiptId,
+            $categoryId,
+            $excludeTransactionId
+        );
     }
 
     /**

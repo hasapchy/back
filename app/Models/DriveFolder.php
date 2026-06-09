@@ -43,4 +43,13 @@ class DriveFolder extends Model
     {
         return $this->belongsTo(User::class, 'creator_id');
     }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function permissions()
+    {
+        return $this->hasMany(DrivePermission::class, 'resource_id')
+            ->where('resource_type', DrivePermission::RESOURCE_FOLDER);
+    }
 }

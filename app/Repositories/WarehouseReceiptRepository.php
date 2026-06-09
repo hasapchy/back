@@ -23,6 +23,7 @@ use App\Services\ReceiptExpenseAllocationService;
 use App\Services\RoundingService;
 use App\Services\WarehouseReceiptGoodsPaymentLimitService;
 use Illuminate\Database\Eloquent\Builder;
+use App\Support\TransactionCategoryBindingKeys;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -143,6 +144,7 @@ class WarehouseReceiptRepository extends BaseRepository
             'wh_receipts.purchase_id',
             'wh_receipts.client_balance_id',
             'wh_receipts.amount',
+            'wh_receipts.paid_amount',
             'wh_receipts.orig_amount',
             'wh_receipts.orig_currency_id',
             'wh_receipts.cash_id',
@@ -161,7 +163,7 @@ class WarehouseReceiptRepository extends BaseRepository
                 'cashRegister:id,name,currency_id,is_cash',
                 'cashRegister.currency:id,name,code',
                 'origCurrency:id,name,code',
-                'creator:id,name',
+                'creator:id,name,surname,photo',
                 'supplier:id,first_name,last_name,status,balance',
                 'supplier.phones:id,client_id,phone',
                 'supplier.emails:id,client_id,email',
@@ -525,7 +527,7 @@ class WarehouseReceiptRepository extends BaseRepository
         }
 
         /** @var Transaction|null $debtTx */
-        $goodsCategoryId = $this->resolveTransactionCategoryBinding('warehouse.receipt', 6);
+        $goodsCategoryId = $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::WAREHOUSE_RECEIPT);
 
         $debtTx = Transaction::query()
             ->where('source_type', WhReceipt::class)
@@ -1034,7 +1036,7 @@ class WarehouseReceiptRepository extends BaseRepository
             'skip_amount_rounding' => true,
             'currency_id' => $data['currency_id'],
             'cash_id' => $data['cash_id'],
-            'category_id' => $this->resolveTransactionCategoryBinding('warehouse.receipt', 6),
+            'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::WAREHOUSE_RECEIPT),
             'client_id' => $data['client_id'],
             'client_balance_id' => $data['client_balance_id'] ?? null,
             'note' => $data['note'],

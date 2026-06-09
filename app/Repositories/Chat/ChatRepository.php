@@ -67,6 +67,24 @@ class ChatRepository extends BaseRepository
         ]);
     }
 
+    public function findByProjectId(int $projectId): ?Chat
+    {
+        return Chat::query()
+            ->where('project_id', $projectId)
+            ->first();
+    }
+
+    public function createProjectChat(int $companyId, int $createdByUserId, int $projectId, string $title): Chat
+    {
+        return Chat::query()->create([
+            'company_id' => $companyId,
+            'project_id' => $projectId,
+            'type' => 'project',
+            'title' => $title,
+            'created_by' => $createdByUserId,
+        ]);
+    }
+
     public function delete(int $chatId): bool
     {
         return Chat::query()->where('id', $chatId)->delete();

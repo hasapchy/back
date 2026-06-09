@@ -13,9 +13,6 @@ use Illuminate\Support\Facades\Log;
 
 class ReceiptExpenseAllocationService
 {
-    /** @var list<int> */
-    private const EXCLUDED_ALLOCATION_CATEGORY_IDS = [6];
-
     /**
      * @param  int  $transactionId
      */
@@ -312,7 +309,14 @@ class ReceiptExpenseAllocationService
         if (! is_a($transaction->source_type, WhReceipt::class, true)) {
             return false;
         }
-        if (in_array((int) $transaction->category_id, self::EXCLUDED_ALLOCATION_CATEGORY_IDS, true)) {
+
+        $receipt = WhReceipt::query()->with('warehouse:id,company_id')->find($transaction->source_id);
+        if (! $receipt instanceof WhReceipt) {
+            return false;
+        }
+
+        $companyId = (int) ($receipt->warehouse?->company_id ?? 0);
+        if (app(WarehouseDocumentPaymentStatusService::class)->isWarehouseGoodsPaymentCategory($companyId, (int) $transaction->category_id)) {
             return false;
         }
 

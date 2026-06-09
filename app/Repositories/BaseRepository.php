@@ -13,6 +13,7 @@ use App\Services\CurrencyConverter;
 use App\Services\RoundingService;
 use App\Support\CompanyScopedPermissions;
 use App\Support\ResolvedCompany;
+use App\Support\TransactionCategoryBindingKeys;
 use App\Support\SimpleUser;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -332,15 +333,16 @@ abstract class BaseRepository
     }
 
     /**
-     * Округлить сумму по правилам компании
-     *
-     * @param  float  $amount  Сумма
+     * @param  float  $amount
+     * @param  string  $sourceType
+     * @return float
      */
-    protected function roundAmount(float $amount): float
+    protected function roundAmountBySource(float $amount, string $sourceType): float
     {
-        return app(RoundingService::class)->roundForCompany(
+        return app(RoundingService::class)->roundAmountBySourceType(
             $this->getCurrentCompanyId(),
-            $amount
+            $amount,
+            $sourceType
         );
     }
 
@@ -371,11 +373,11 @@ abstract class BaseRepository
      * @param  int  $fromCurrencyId  ID исходной валюты
      * @param  int  $toCurrencyId  ID целевой валюты
      */
-    protected function convertAndRoundCurrency(float $amount, int $fromCurrencyId, int $toCurrencyId): float
+    protected function convertAndRoundCurrency(float $amount, int $fromCurrencyId, int $toCurrencyId, string $sourceType): float
     {
         $converted = $this->convertCurrency($amount, $fromCurrencyId, $toCurrencyId);
 
-        return $this->roundAmount($converted);
+        return $this->roundAmountBySource($converted, $sourceType);
     }
 
     /**
@@ -404,7 +406,6 @@ abstract class BaseRepository
     protected function buildTransactionData(array $data, string $sourceType, int $sourceId): array
     {
         $defaultCurrency = $this->getDefaultCurrency();
-        $skipAmountRounding = (bool) ($data['skip_amount_rounding'] ?? false);
 
         $amount = $data['amount'] ?? 0;
         $origAmount = $data['orig_amount'] ?? $amount;
@@ -415,18 +416,19 @@ abstract class BaseRepository
                 $amount = $this->convertAndRoundCurrency(
                     $origAmount,
                     $data['currency_id'],
-                    $cashRegister->currency_id
+                    $cashRegister->currency_id,
+                    $sourceType
                 );
             }
         }
 
-        $defaultCategoryId = $this->resolveTransactionCategoryBinding('transaction.default.income', 1);
+        $defaultCategoryId = $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::TRANSACTION_DEFAULT_INCOME);
 
         return [
             'client_id' => $data['client_id'] ?? null,
-            'amount' => $skipAmountRounding ? (float) $amount : $this->roundAmount($amount),
-            'orig_amount' => $skipAmountRounding ? (float) $origAmount : $this->roundAmount($origAmount),
-            'skip_amount_rounding' => $skipAmountRounding,
+            'amount' => $this->roundAmountBySource((float) $amount, $sourceType),
+            'orig_amount' => $this->roundAmountBySource((float) $origAmount, $sourceType),
+            'skip_amount_rounding' => true,
             'type' => $data['type'] ?? 1,
             'is_debt' => $data['is_debt'] ?? false,
             'cash_id' => $data['cash_id'] ?? null,
@@ -458,9 +460,11 @@ abstract class BaseRepository
         return app(TransactionsRepository::class)->createItem($transactionData, $returnId, false);
     }
 
-    protected function resolveTransactionCategoryBinding(string $bindingKey, ?int $fallback = null): ?int
+    protected function requireTransactionCategoryBinding(string $bindingKey): int
     {
-        return app(TransactionCategoryBindingResolver::class)->resolve($this->getCurrentCompanyId(), $bindingKey, $fallback);
+        $companyId = (int) $this->getCurrentCompanyId();
+
+        return app(TransactionCategoryBindingResolver::class)->require($companyId, $bindingKey);
     }
 
     /**

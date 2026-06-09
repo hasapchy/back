@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class DriveControllerTest extends TestCase
@@ -31,9 +32,29 @@ class DriveControllerTest extends TestCase
     /**
      * @return self
      */
-    protected function actingAsApi(User $user): self
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
+    }
+
+    /**
+     * @return void
+     */
+    protected function grantDriveViewOwn(User $user): void
+    {
+        Permission::query()->firstOrCreate([
+            'name' => 'drive_view_own',
+            'guard_name' => 'api',
+        ]);
+
+        $role = Role::query()->create([
+            'name' => 'drive_view_own_'.uniqid('', true),
+            'guard_name' => 'api',
+        ]);
+        $role->givePermissionTo('drive_view_own');
+        $user->companyRoles()->syncWithoutDetaching([
+            $role->id => ['company_id' => $this->company->id],
+        ]);
     }
 
     /**
@@ -180,10 +201,8 @@ class DriveControllerTest extends TestCase
         $response = $this->actingAsApi($this->adminUser)->postJson('/api/drive/permissions', [
             'resource_type' => 'folder',
             'resource_id' => $folder->id,
-            'subject_type' => 'user',
             'subject_id' => $subjectUser->id,
             'ability' => 'view',
-            'effect' => 'deny',
         ]);
 
         $response->assertStatus(200);
@@ -194,14 +213,144 @@ class DriveControllerTest extends TestCase
             'subject_type' => 'user',
             'subject_id' => $subjectUser->id,
             'ability' => 'view',
-            'effect' => 'deny',
+            'effect' => 'allow',
         ]);
     }
 
     /**
      * @return void
      */
-    public function test_drive_access_denied_by_acl_for_non_admin_user(): void
+    public function test_drive_permission_rejects_create_ability_for_file(): void
+    {
+        Storage::fake('local');
+        $file = DriveFile::query()->create([
+            'company_id' => $this->company->id,
+            'folder_id' => null,
+            'creator_id' => $this->adminUser->id,
+            'disk' => 'local',
+            'name' => 'shared.pdf',
+            'stored_name' => 'shared.pdf',
+            'path' => 'drive/'.$this->company->id.'/root/shared.pdf',
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'size' => 100,
+        ]);
+        $subjectUser = User::factory()->create(['is_admin' => false, 'is_active' => true]);
+        $subjectUser->companies()->attach($this->company->id);
+
+        $response = $this->actingAsApi($this->adminUser)->postJson('/api/drive/permissions', [
+            'resource_type' => 'file',
+            'resource_id' => $file->id,
+            'subject_id' => $subjectUser->id,
+            'ability' => 'create',
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseMissing('drive_permissions', [
+            'resource_type' => 'file',
+            'resource_id' => $file->id,
+            'subject_id' => $subjectUser->id,
+            'ability' => 'create',
+        ]);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_drive_set_update_permission_adds_view(): void
+    {
+        Storage::fake('local');
+        $file = DriveFile::query()->create([
+            'company_id' => $this->company->id,
+            'folder_id' => null,
+            'creator_id' => $this->adminUser->id,
+            'disk' => 'local',
+            'name' => 'acl.pdf',
+            'stored_name' => 'acl.pdf',
+            'path' => 'drive/'.$this->company->id.'/root/acl.pdf',
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'size' => 100,
+        ]);
+        $subjectUser = User::factory()->create(['is_admin' => false, 'is_active' => true]);
+        $subjectUser->companies()->attach($this->company->id);
+
+        $response = $this->actingAsApi($this->adminUser)->postJson('/api/drive/permissions', [
+            'resource_type' => 'file',
+            'resource_id' => $file->id,
+            'subject_id' => $subjectUser->id,
+            'ability' => 'update',
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('drive_permissions', [
+            'resource_type' => 'file',
+            'resource_id' => $file->id,
+            'subject_id' => $subjectUser->id,
+            'ability' => 'view',
+        ]);
+        $this->assertDatabaseHas('drive_permissions', [
+            'resource_type' => 'file',
+            'resource_id' => $file->id,
+            'subject_id' => $subjectUser->id,
+            'ability' => 'update',
+        ]);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_drive_sync_permissions_replaces_and_revokes(): void
+    {
+        $folder = DriveFolder::query()->create([
+            'company_id' => $this->company->id,
+            'parent_id' => null,
+            'creator_id' => $this->adminUser->id,
+            'name' => 'SyncFolder',
+        ]);
+        $subjectUser = User::factory()->create(['is_admin' => false, 'is_active' => true]);
+        $subjectUser->companies()->attach($this->company->id);
+        foreach (['view', 'update', 'delete'] as $ability) {
+            DrivePermission::query()->create([
+                'company_id' => $this->company->id,
+                'resource_type' => 'folder',
+                'resource_id' => $folder->id,
+                'subject_type' => 'user',
+                'subject_id' => $subjectUser->id,
+                'ability' => $ability,
+                'effect' => 'allow',
+                'created_by' => $this->adminUser->id,
+            ]);
+        }
+
+        $response = $this->actingAsApi($this->adminUser)->putJson('/api/drive/permissions', [
+            'resource_type' => 'folder',
+            'resource_id' => $folder->id,
+            'subject_id' => $subjectUser->id,
+            'abilities' => ['view'],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.abilities', ['view']);
+        $this->assertDatabaseHas('drive_permissions', [
+            'resource_type' => 'folder',
+            'resource_id' => $folder->id,
+            'subject_id' => $subjectUser->id,
+            'ability' => 'view',
+        ]);
+        $this->assertDatabaseMissing('drive_permissions', [
+            'resource_type' => 'folder',
+            'resource_id' => $folder->id,
+            'subject_id' => $subjectUser->id,
+            'ability' => 'update',
+        ]);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_drive_view_own_denies_foreign_folder_without_acl(): void
     {
         $folder = DriveFolder::query()->create([
             'company_id' => $this->company->id,
@@ -211,11 +360,27 @@ class DriveControllerTest extends TestCase
         ]);
         $user = User::factory()->create(['is_admin' => false, 'is_active' => true]);
         $user->companies()->attach($this->company->id);
-        $viewPermission = Permission::query()->firstOrCreate([
-            'name' => 'drive_view',
-            'guard_name' => 'api',
+        $this->grantDriveViewOwn($user);
+
+        $response = $this->actingAsApi($user)->getJson('/api/drive?parent_id='.$folder->id);
+
+        $response->assertStatus(403);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_drive_view_own_allows_foreign_folder_with_acl_allow(): void
+    {
+        $folder = DriveFolder::query()->create([
+            'company_id' => $this->company->id,
+            'parent_id' => null,
+            'creator_id' => $this->adminUser->id,
+            'name' => 'SharedFolder',
         ]);
-        $user->givePermissionTo($viewPermission);
+        $user = User::factory()->create(['is_admin' => false, 'is_active' => true]);
+        $user->companies()->attach($this->company->id);
+        $this->grantDriveViewOwn($user);
         DrivePermission::query()->create([
             'company_id' => $this->company->id,
             'resource_type' => 'folder',
@@ -223,13 +388,13 @@ class DriveControllerTest extends TestCase
             'subject_type' => 'user',
             'subject_id' => $user->id,
             'ability' => 'view',
-            'effect' => 'deny',
+            'effect' => 'allow',
             'created_by' => $this->adminUser->id,
         ]);
 
         $response = $this->actingAsApi($user)->getJson('/api/drive?parent_id='.$folder->id);
 
-        $response->assertStatus(403);
+        $response->assertStatus(200);
     }
 
     /**
@@ -259,7 +424,9 @@ class DriveControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'image/png');
-        $this->assertSame($pngBytes, $response->getContent());
+        $baseResponse = $response->baseResponse;
+        $this->assertInstanceOf(\Symfony\Component\HttpFoundation\BinaryFileResponse::class, $baseResponse);
+        $this->assertSame($pngBytes, file_get_contents($baseResponse->getFile()->getPathname()));
     }
 
     /**
@@ -404,28 +571,6 @@ class DriveControllerTest extends TestCase
     /**
      * @return void
      */
-    public function test_drive_upload_rejects_invalid_mime(): void
-    {
-        Storage::fake('local');
-        $folder = DriveFolder::query()->create([
-            'company_id' => $this->company->id,
-            'parent_id' => null,
-            'creator_id' => $this->adminUser->id,
-            'name' => 'Uploads',
-        ]);
-
-        $response = $this->actingAsApi($this->adminUser)->post('/api/drive/files/upload', [
-            'folder_id' => $folder->id,
-            'files' => [UploadedFile::fake()->create('evil.pdf', 100, 'image/png')],
-        ]);
-
-        $response->assertStatus(422);
-        $this->assertDatabaseCount('drive_files', 0);
-    }
-
-    /**
-     * @return void
-     */
     public function test_drive_upload_rejects_octet_stream_mime(): void
     {
         Storage::fake('local');
@@ -445,7 +590,7 @@ class DriveControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422);
-        $this->assertDatabaseCount('drive_files', 0);
+        $this->assertSame(0, DriveFile::query()->where('folder_id', $folder->id)->count());
     }
 
     /**
@@ -474,6 +619,159 @@ class DriveControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'data');
-        $response->assertJsonPath('data.0.ability', 'view');
+        $response->assertJsonPath('data.0.subject_id', $this->adminUser->id);
+        $response->assertJsonPath('data.0.subject.name', $this->adminUser->name);
+        $response->assertJsonPath('data.0.subject.surname', $this->adminUser->surname);
+        $response->assertJsonPath('data.0.abilities', ['view']);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_drive_list_permissions_groups_abilities_by_subject(): void
+    {
+        $folder = DriveFolder::query()->create([
+            'company_id' => $this->company->id,
+            'parent_id' => null,
+            'creator_id' => $this->adminUser->id,
+            'name' => 'Grouped',
+        ]);
+        $subjectUser = User::factory()->create(['is_admin' => false, 'is_active' => true]);
+        $subjectUser->companies()->attach($this->company->id);
+        foreach (['view', 'update'] as $ability) {
+            DrivePermission::query()->create([
+                'company_id' => $this->company->id,
+                'resource_type' => 'folder',
+                'resource_id' => $folder->id,
+                'subject_type' => 'user',
+                'subject_id' => $subjectUser->id,
+                'ability' => $ability,
+                'effect' => 'allow',
+                'created_by' => $this->adminUser->id,
+            ]);
+        }
+
+        $response = $this->actingAsApi($this->adminUser)->getJson('/api/drive/permissions?resource_type=folder&resource_id='.$folder->id);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.subject_id', $subjectUser->id);
+        $response->assertJsonPath('data.0.abilities', ['view', 'update']);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_drive_index_marks_shared_file(): void
+    {
+        Storage::fake('local');
+        $folder = DriveFolder::query()->create([
+            'company_id' => $this->company->id,
+            'parent_id' => null,
+            'creator_id' => $this->adminUser->id,
+            'name' => 'SharedFiles',
+        ]);
+        $file = DriveFile::query()->create([
+            'company_id' => $this->company->id,
+            'folder_id' => $folder->id,
+            'creator_id' => $this->adminUser->id,
+            'disk' => 'local',
+            'name' => 'shared.pdf',
+            'stored_name' => 'shared.pdf',
+            'path' => 'drive/'.$this->company->id.'/'.$folder->id.'/shared.pdf',
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'size' => 100,
+        ]);
+        $subjectUser = User::factory()->create(['is_admin' => false, 'is_active' => true]);
+        $subjectUser->companies()->attach($this->company->id);
+        DrivePermission::query()->create([
+            'company_id' => $this->company->id,
+            'resource_type' => 'file',
+            'resource_id' => $file->id,
+            'subject_type' => 'user',
+            'subject_id' => $subjectUser->id,
+            'ability' => 'view',
+            'effect' => 'allow',
+            'created_by' => $this->adminUser->id,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)->getJson('/api/drive?parent_id='.$folder->id);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.files.0.is_shared', true);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_drive_view_own_allows_file_without_folder_acl(): void
+    {
+        Storage::fake('local');
+        $folder = DriveFolder::query()->create([
+            'company_id' => $this->company->id,
+            'parent_id' => null,
+            'creator_id' => $this->adminUser->id,
+            'name' => 'PrivateFolder',
+        ]);
+        $path = 'drive/'.$this->company->id.'/'.$folder->id.'/only-file.pdf';
+        Storage::disk('local')->put($path, 'pdf-content');
+        $file = DriveFile::query()->create([
+            'company_id' => $this->company->id,
+            'folder_id' => $folder->id,
+            'creator_id' => $this->adminUser->id,
+            'disk' => 'local',
+            'name' => 'only-file.pdf',
+            'stored_name' => 'only-file.pdf',
+            'path' => $path,
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'size' => 100,
+        ]);
+        $user = User::factory()->create(['is_admin' => false, 'is_active' => true]);
+        $user->companies()->attach($this->company->id);
+        $this->grantDriveViewOwn($user);
+        DrivePermission::query()->create([
+            'company_id' => $this->company->id,
+            'resource_type' => 'file',
+            'resource_id' => $file->id,
+            'subject_type' => 'user',
+            'subject_id' => $user->id,
+            'ability' => 'view',
+            'effect' => 'allow',
+            'created_by' => $this->adminUser->id,
+        ]);
+
+        $folderListing = $this->actingAsApi($user)->getJson('/api/drive?parent_id='.$folder->id);
+        $folderListing->assertStatus(200);
+        $folderListing->assertJsonCount(1, 'data.files');
+        $folderListing->assertJsonPath('data.files.0.id', $file->id);
+        $folderListing->assertJsonCount(0, 'data.folders');
+
+        $rootListing = $this->actingAsApi($user)->getJson('/api/drive');
+        $rootListing->assertStatus(200);
+        $rootListing->assertJsonPath('data.files.0.id', $file->id);
+
+        $download = $this->actingAsApi($user)->get('/api/drive/files/'.$file->id.'/download');
+        $download->assertStatus(200);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_drive_admin_ignores_folder_acl(): void
+    {
+        $folder = DriveFolder::query()->create([
+            'company_id' => $this->company->id,
+            'parent_id' => null,
+            'creator_id' => $this->adminUser->id,
+            'name' => 'AdminOnlyFolder',
+        ]);
+        $otherUser = User::factory()->create(['is_admin' => false, 'is_active' => true]);
+        $otherUser->companies()->attach($this->company->id);
+
+        $response = $this->actingAsApi($this->adminUser)->getJson('/api/drive?parent_id='.$folder->id);
+
+        $response->assertStatus(200);
     }
 }

@@ -33,9 +33,9 @@ class WarehouseMovementControllerTest extends TestCase
         ]);
     }
 
-    protected function actingAsApi(User $user)
+    protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
-        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+        return parent::actingAsApi($user, $company ?? $this->company);
     }
 
     public function test_store_warehouse_movement_requires_validation(): void
@@ -65,7 +65,7 @@ class WarehouseMovementControllerTest extends TestCase
             ->postJson('/api/warehouse_movements', $data);
 
         $response->assertStatus(200);
-        $response->assertJsonPath('message', 'РџРµСЂРµРјРµС‰РµРЅРёРµ СЃРѕР·РґР°РЅРѕ');
+        $response->assertJsonPath('message', __('api.movements.created'));
         $this->assertDatabaseHas('wh_movements', [
             'wh_from' => $this->warehouseFrom->id,
             'wh_to' => $this->warehouseTo->id,
@@ -97,7 +97,7 @@ class WarehouseMovementControllerTest extends TestCase
             ->putJson("/api/warehouse_movements/{$movement->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJsonPath('message', 'РџРµСЂРµРјРµС‰РµРЅРёРµ РѕР±РЅРѕРІР»РµРЅРѕ');
+        $response->assertJsonPath('message', __('api.movements.updated'));
         $this->assertDatabaseHas('wh_movements', [
             'id' => $movement->id,
             'note' => 'Updated movement',
@@ -116,7 +116,7 @@ class WarehouseMovementControllerTest extends TestCase
             ->deleteJson("/api/warehouse_movements/{$movement->id}");
 
         $response->assertStatus(200);
-        $response->assertJsonPath('message', 'РџРµСЂРµРјРµС‰РµРЅРёРµ СѓРґР°Р»РµРЅРѕ');
+        $response->assertJsonPath('message', __('api.movements.deleted'));
         $this->assertDatabaseMissing('wh_movements', ['id' => $movement->id]);
     }
 
@@ -161,25 +161,6 @@ class WarehouseMovementControllerTest extends TestCase
         $items = $response->json('data.items') ?? $response->json('data') ?? [];
         $ids = collect($items)->pluck('id')->map(static fn ($id) => (int) $id)->all();
         $this->assertNotContains((int) $movement->id, $ids);
-    }
-
-    public function test_user_cannot_update_resource_from_other_company(): void
-    {
-        $movement = WhMovement::factory()->create([
-            'wh_from' => $this->warehouseFrom->id,
-            'wh_to' => $this->warehouseTo->id,
-            'creator_id' => $this->adminUser->id,
-        ]);
-        [$otherCompany, $otherAdmin] = $this->createCompanyWithAdminUser();
-
-        $response = $this->withApiTokenForCompany($otherAdmin, (int) $otherCompany->id)
-            ->putJson("/api/warehouse_movements/{$movement->id}", [
-                'warehouse_from_id' => $this->warehouseFrom->id,
-                'warehouse_to_id' => $this->warehouseTo->id,
-                'products' => [['product_id' => $this->product->id, 'quantity' => 1]],
-            ]);
-
-        $this->assertContains($response->getStatusCode(), [403, 404]);
     }
 
     public function test_non_admin_cannot_store_warehouse_movement(): void

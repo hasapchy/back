@@ -25,7 +25,7 @@ class CategoriesRepository extends BaseRepository
         return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
             $query = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
                 ->leftJoin('users as users', 'categories.creator_id', '=', 'users.id')
-                ->select('categories.*', 'parents.name as parent_name', 'users.name as creator_name');
+                ->select('categories.*', 'parents.name as parent_name', 'users.name as creator_name', 'users.surname as creator_surname');
 
             $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'categories');
@@ -55,7 +55,7 @@ class CategoriesRepository extends BaseRepository
         return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
             $query = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
                 ->leftJoin('users as users', 'categories.creator_id', '=', 'users.id')
-                ->select('categories.*', 'parents.name as parent_name', 'users.name as creator_name');
+                ->select('categories.*', 'parents.name as parent_name', 'users.name as creator_name', 'users.surname as creator_surname');
 
             $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'categories');
@@ -81,7 +81,7 @@ class CategoriesRepository extends BaseRepository
 
         return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
             $query = Category::leftJoin('users as users', 'categories.creator_id', '=', 'users.id')
-                ->select('categories.*', 'users.name as creator_name')
+                ->select('categories.*', 'users.name as creator_name', 'users.surname as creator_surname')
                 ->whereNull('categories.parent_id')
                 ->whereHas('children');
 
@@ -103,11 +103,12 @@ class CategoriesRepository extends BaseRepository
             $creator = new User;
             $creator->id = (int) $category->creator_id;
             $creator->name = (string) $category->creator_name;
+            $creator->surname = (string) ($category->creator_surname ?? '');
             $category->setRelation('creator', $creator);
         } else {
             $category->setRelation('creator', null);
         }
-        unset($category->creator_name);
+        unset($category->creator_name, $category->creator_surname);
     }
 
     /**

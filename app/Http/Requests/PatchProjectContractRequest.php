@@ -136,7 +136,7 @@ class PatchProjectContractRequest extends FormRequest
                 ? Project::query()->whereKey($effectiveProjectId)->value('client_id')
                 : null;
 
-            if ($this->has('project_id')) {
+            if ($this->has('project_id') && $currentStatus !== ProjectContractStatus::Draft) {
                 $targetProjectId = $this->input('project_id');
                 $targetProject = $targetProjectId
                     ? Project::query()->select(['id', 'client_id', 'currency_id'])->find((int) $targetProjectId)

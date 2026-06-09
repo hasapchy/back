@@ -7,14 +7,17 @@ use App\Models\Currency;
 use App\Models\CurrencyHistory;
 use App\Models\ProductPrice;
 use App\Models\User;
+use App\Services\CacheKeyRegistry;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 
 abstract class TestCase extends BaseTestCase
 {
     use CreatesApplication;
     use DatabaseTransactions;
+    use \Tests\Support\Concerns\ActsAsApiUser;
     private static bool $forbiddenTestPatternsChecked = false;
 
     /**
@@ -109,17 +112,38 @@ abstract class TestCase extends BaseTestCase
             ->where('is_default', true)
             ->first();
         if ($existing !== null) {
+            if (! $existing->is_report) {
+                $existing->forceFill(['is_report' => true])->save();
+            }
+            $this->ensureCurrencyHistoryForCompany($existing, $company);
+
             return $existing;
         }
 
         $currency = Currency::factory()->create([
             'company_id' => $company->id,
             'is_default' => true,
+            'is_report' => true,
             'code' => 'ZZ'.$company->id.'_'.bin2hex(random_bytes(4)),
             'name' => 'Test default',
             'symbol' => '¤',
             'status' => true,
         ]);
+        $this->ensureCurrencyHistoryForCompany($currency, $company);
+
+        return $currency;
+    }
+
+    protected function ensureCurrencyHistoryForCompany(Currency $currency, Company $company): void
+    {
+        $exists = CurrencyHistory::query()
+            ->where('currency_id', $currency->id)
+            ->where('company_id', $company->id)
+            ->exists();
+        if ($exists) {
+            return;
+        }
+
         CurrencyHistory::query()->create([
             'currency_id' => $currency->id,
             'company_id' => $company->id,
@@ -127,8 +151,6 @@ abstract class TestCase extends BaseTestCase
             'start_date' => now()->subDay()->toDateString(),
             'end_date' => null,
         ]);
-
-        return $currency;
     }
 
     protected function ensureProductPurchasePrice(int $productId, float $purchasePrice = 150.0): void
@@ -150,5 +172,26 @@ abstract class TestCase extends BaseTestCase
         }
 
         return $this->withHeader('Authorization', 'Bearer '.$issued->plainTextToken);
+    }
+
+    /**
+     * @return void
+     */
+    protected function flushApplicationCache(): void
+    {
+        Cache::flush();
+        CacheKeyRegistry::clear();
+    }
+
+    /**
+     * @param  mixed  $value
+     */
+    protected function putCache(string $key, $value, int $ttl = 3600): void
+    {
+        Cache::put($key, $value, $ttl);
+
+        if (config('cache.default') === 'file') {
+            CacheKeyRegistry::register($key);
+        }
     }
 }

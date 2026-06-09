@@ -31,6 +31,12 @@ class DriveRepository extends BaseRepository
             ->where('company_id', $companyId)
             ->where('parent_id', $parentFolder?->id)
             ->with('creator:id,name,surname')
+            ->withExists([
+                'permissions as is_shared' => static function ($query) {
+                    $query->where('effect', DrivePermission::EFFECT_ALLOW)
+                        ->where('subject_type', DrivePermission::SUBJECT_USER);
+                },
+            ])
             ->orderBy('name')
             ->get();
 
@@ -38,6 +44,12 @@ class DriveRepository extends BaseRepository
             ->where('company_id', $companyId)
             ->where('folder_id', $parentFolder?->id)
             ->with('creator:id,name,surname')
+            ->withExists([
+                'permissions as is_shared' => static function ($query) {
+                    $query->where('effect', DrivePermission::EFFECT_ALLOW)
+                        ->where('subject_type', DrivePermission::SUBJECT_USER);
+                },
+            ])
             ->orderBy('name')
             ->get();
 
@@ -47,6 +59,53 @@ class DriveRepository extends BaseRepository
             'files' => $files,
             'breadcrumbs' => $parentFolder ? $this->breadcrumbs($parentFolder) : [],
         ];
+    }
+
+    /**
+     * @param  array<int, string>  $abilities
+     */
+    public function userHasDirectFileViewInFolder(int $companyId, int $userId, int $folderId, array $abilities): bool
+    {
+        return DriveFile::query()
+            ->where('company_id', $companyId)
+            ->where('folder_id', $folderId)
+            ->whereHas('permissions', static function ($query) use ($userId, $abilities) {
+                $query->where('subject_type', DrivePermission::SUBJECT_USER)
+                    ->where('subject_id', $userId)
+                    ->where('effect', DrivePermission::EFFECT_ALLOW)
+                    ->whereIn('ability', $abilities);
+            })
+            ->exists();
+    }
+
+    /**
+     * @param  array<int, string>  $abilities
+     * @return Collection<int, DriveFile>
+     */
+    public function listFilesWithDirectUserAcl(int $companyId, int $userId, array $abilities, ?int $folderId = null): Collection
+    {
+        $query = DriveFile::query()
+            ->where('company_id', $companyId)
+            ->whereHas('permissions', static function ($permissionsQuery) use ($userId, $abilities) {
+                $permissionsQuery->where('subject_type', DrivePermission::SUBJECT_USER)
+                    ->where('subject_id', $userId)
+                    ->where('effect', DrivePermission::EFFECT_ALLOW)
+                    ->whereIn('ability', $abilities);
+            })
+            ->with(['creator:id,name,surname', 'folder'])
+            ->withExists([
+                'permissions as is_shared' => static function ($sharedQuery) {
+                    $sharedQuery->where('effect', DrivePermission::EFFECT_ALLOW)
+                        ->where('subject_type', DrivePermission::SUBJECT_USER);
+                },
+            ])
+            ->orderBy('name');
+
+        if ($folderId !== null) {
+            $query->where('folder_id', $folderId);
+        }
+
+        return $query->get();
     }
 
     /**
@@ -276,8 +335,48 @@ class DriveRepository extends BaseRepository
             ->where('company_id', $companyId)
             ->where('resource_type', $resourceType)
             ->where('resource_id', $resourceId)
+            ->where('subject_type', DrivePermission::SUBJECT_USER)
+            ->where('effect', DrivePermission::EFFECT_ALLOW)
+            ->with('subject:id,name,surname')
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * @param  Collection<int, DrivePermission>  $permissions
+     * @return array<int, array{subject_id: int, subject_type: string, subject: array<string, mixed>|null, abilities: array<int, string>}>
+     */
+    public function groupPermissionsBySubject(Collection $permissions, string $resourceType): array
+    {
+        $groups = [];
+
+        foreach ($permissions as $permission) {
+            $subjectId = (int) $permission->subject_id;
+            if (! isset($groups[$subjectId])) {
+                $groups[$subjectId] = [
+                    'subject_id' => $subjectId,
+                    'subject_type' => $permission->subject_type,
+                    'subject' => $permission->subject ? [
+                        'id' => $permission->subject->id,
+                        'name' => $permission->subject->name,
+                        'surname' => $permission->subject->surname,
+                    ] : null,
+                    'abilities' => [],
+                ];
+            }
+
+            $ability = DrivePermission::normalizeAbility((string) $permission->ability);
+            if (! in_array($ability, $groups[$subjectId]['abilities'], true)) {
+                $groups[$subjectId]['abilities'][] = $ability;
+            }
+        }
+
+        foreach ($groups as &$group) {
+            $group['abilities'] = DrivePermission::sortAbilities($group['abilities'], $resourceType);
+        }
+        unset($group);
+
+        return array_values($groups);
     }
 
     /**
@@ -330,6 +429,49 @@ class DriveRepository extends BaseRepository
                 'created_by' => $createdBy,
             ]
         );
+    }
+
+    /**
+     * @param  array<int, string>  $abilities
+     */
+    public function syncSubjectPermissions(
+        int $companyId,
+        int $createdBy,
+        string $resourceType,
+        int $resourceId,
+        int $subjectId,
+        array $abilities
+    ): void {
+        $abilities = DrivePermission::expandAbilityDependencies($abilities, $resourceType);
+        $abilities = DrivePermission::sortAbilities($abilities, $resourceType);
+
+        DB::transaction(function () use ($companyId, $createdBy, $resourceType, $resourceId, $subjectId, $abilities): void {
+            $baseQuery = DrivePermission::query()
+                ->where('company_id', $companyId)
+                ->where('resource_type', $resourceType)
+                ->where('resource_id', $resourceId)
+                ->where('subject_type', DrivePermission::SUBJECT_USER)
+                ->where('subject_id', $subjectId);
+
+            if ($abilities === []) {
+                $baseQuery->delete();
+
+                return;
+            }
+
+            (clone $baseQuery)->whereNotIn('ability', $abilities)->delete();
+
+            foreach ($abilities as $ability) {
+                $this->setPermission($companyId, $createdBy, [
+                    'resource_type' => $resourceType,
+                    'resource_id' => $resourceId,
+                    'subject_type' => DrivePermission::SUBJECT_USER,
+                    'subject_id' => $subjectId,
+                    'ability' => $ability,
+                    'effect' => DrivePermission::EFFECT_ALLOW,
+                ]);
+            }
+        });
     }
 
     public function findFolder(int $companyId, int $id): DriveFolder

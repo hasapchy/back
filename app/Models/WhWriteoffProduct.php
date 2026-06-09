@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \App\Models\WhWriteoff $writeOff
  * @property-read \App\Models\Product $product
  * @property-read \App\Models\Unit|null $origUnit
+ * @property-read \App\Models\WhReceiptProduct|null $sourceReceiptProduct
  */
 class WhWriteoffProduct extends Model
 {
@@ -67,5 +68,13 @@ class WhWriteoffProduct extends Model
     public function origUnit()
     {
         return $this->belongsTo(Unit::class, 'orig_unit_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function sourceReceiptProduct()
+    {
+        return $this->belongsTo(WhReceiptProduct::class, 'source_receipt_product_id');
     }
 }

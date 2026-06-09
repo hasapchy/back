@@ -12,6 +12,7 @@ use App\Models\SalaryMonthlyReportLine;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Repositories\TransactionsRepository;
+use App\Support\TransactionCategoryBindingKeys;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -20,19 +21,10 @@ use Illuminate\Support\Facades\Log;
 
 class SalaryAccrualService
 {
-    private const CATEGORY_ADVANCE = 23;
-
-    private const CATEGORY_SALARY_ACCRUAL = 24;
-
-    private const CATEGORY_SALARY_PAYMENT = 7;
-
-    private const CATEGORY_BONUS = 26;
-
-    private const CATEGORY_PENALTY = 27;
-
     public function __construct(
         private TransactionsRepository $transactionsRepository,
-        private PayrollOfficialWorkingDaysCalculator $payrollOfficialWorkingDaysCalculator
+        private PayrollOfficialWorkingDaysCalculator $payrollOfficialWorkingDaysCalculator,
+        private TransactionCategoryBindingResolver $categoryBindingResolver,
     ) {}
 
     /**
@@ -57,7 +49,7 @@ class SalaryAccrualService
             $userIds,
             $paymentType,
             $items,
-            self::CATEGORY_SALARY_ACCRUAL,
+            TransactionCategoryBindingKeys::PRESET_EMPLOYEE_SALARY_ACCRUAL,
             true,
             SalaryMonthlyReport::TYPE_ACCRUAL,
             'Зарплата за '.Carbon::parse($date)->format('d.m.Y'),
@@ -82,7 +74,7 @@ class SalaryAccrualService
             $userIds,
             $paymentType,
             $items,
-            self::CATEGORY_SALARY_PAYMENT,
+            TransactionCategoryBindingKeys::PRESET_EMPLOYEE_SALARY_PAYMENT,
             false,
             SalaryMonthlyReport::TYPE_PAYMENT,
             'Выплата зарплаты '.Carbon::parse($date)->format('d.m.Y'),
@@ -103,7 +95,7 @@ class SalaryAccrualService
         array $userIds,
         bool $paymentType,
         ?array $items,
-        int $categoryId,
+        string $categoryBindingKey,
         bool $isDebt,
         string $reportType,
         string $defaultNote,
@@ -155,6 +147,7 @@ class SalaryAccrualService
             $paymentTypeValue = $paymentType ? 1 : 0;
             $company = Company::query()->findOrFail($companyId);
             $monthPayroll = $this->payrollMonthDayBounds($date);
+            $categoryId = $this->categoryBindingResolver->require($companyId, $categoryBindingKey);
 
             foreach ($uniqueUserIds as $userId) {
                 $employeeClient = $employeesByUserId->get($userId);
@@ -328,6 +321,7 @@ class SalaryAccrualService
             ->keyBy('id');
 
         $clientIds = $employeeClients->pluck('id')->values();
+        $employeeCategories = $this->categoryBindingResolver->requireEmployeeCategoryIds($companyId);
         $adjustmentsByClient = collect();
         if ($applyTransactionAdjustmentsToTotal && $clientIds->isNotEmpty()) {
             $adjustmentsByClient = Transaction::query()
@@ -335,9 +329,9 @@ class SalaryAccrualService
                 ->whereBetween('date', [$startOfMonth->toDateTimeString(), $endOfMonth->toDateTimeString()])
                 ->where('is_deleted', false)
                 ->whereIn('category_id', [
-                    self::CATEGORY_ADVANCE,
-                    self::CATEGORY_BONUS,
-                    self::CATEGORY_PENALTY,
+                    $employeeCategories['advance'],
+                    $employeeCategories['bonus'],
+                    $employeeCategories['penalty'],
                 ])
                 ->whereNotNull('client_balance_id')
                 ->whereHas('clientBalance', function (Builder $q) use ($paymentTypeValue) {
@@ -464,9 +458,9 @@ class SalaryAccrualService
                 $byCategory = $client
                     ? ($adjustmentsByClient->get((int) $client->id) ?? collect())->groupBy(fn (Transaction $t) => (int) $t->category_id)
                     : collect();
-                $advanceRows = $byCategory->get(self::CATEGORY_ADVANCE, collect());
-                $penaltyRows = $byCategory->get(self::CATEGORY_PENALTY, collect());
-                $bonusRows = $byCategory->get(self::CATEGORY_BONUS, collect());
+                $advanceRows = $byCategory->get($employeeCategories['advance'], collect());
+                $penaltyRows = $byCategory->get($employeeCategories['penalty'], collect());
+                $bonusRows = $byCategory->get($employeeCategories['bonus'], collect());
                 $advance = (float) $advanceRows->sum(fn (Transaction $t) => (float) $t->orig_amount);
                 $penalty = (float) $penaltyRows->sum(fn (Transaction $t) => (float) $t->orig_amount);
                 $bonus = (float) $bonusRows->sum(fn (Transaction $t) => (float) $t->orig_amount);
@@ -570,8 +564,13 @@ class SalaryAccrualService
             (float) $activeSalary->amount
         );
         $origAmount = (float) $proration['prorated_salary_amount'];
-        if ($categoryId === self::CATEGORY_SALARY_PAYMENT) {
+        $salaryPaymentCategoryId = $this->categoryBindingResolver->require(
+            (int) $company->id,
+            TransactionCategoryBindingKeys::PRESET_EMPLOYEE_SALARY_PAYMENT
+        );
+        if ($categoryId === $salaryPaymentCategoryId) {
             $adjustments = $this->salaryMonthAdjustmentsForClient(
+                (int) $company->id,
                 (int) $employeeClient->id,
                 (int) $activeSalary->payment_type,
                 $monthPayroll['start'],
@@ -723,16 +722,17 @@ class SalaryAccrualService
     /**
      * @return array{advance: float, penalty: float, bonus: float}
      */
-    private function salaryMonthAdjustmentsForClient(int $clientId, int $paymentTypeValue, Carbon $start, Carbon $end): array
+    private function salaryMonthAdjustmentsForClient(int $companyId, int $clientId, int $paymentTypeValue, Carbon $start, Carbon $end): array
     {
+        $categories = $this->categoryBindingResolver->requireEmployeeCategoryIds($companyId);
         $rows = Transaction::query()
             ->where('client_id', $clientId)
             ->whereBetween('date', [$start->toDateTimeString(), $end->toDateTimeString()])
             ->where('is_deleted', false)
             ->whereIn('category_id', [
-                self::CATEGORY_ADVANCE,
-                self::CATEGORY_BONUS,
-                self::CATEGORY_PENALTY,
+                $categories['advance'],
+                $categories['bonus'],
+                $categories['penalty'],
             ])
             ->whereNotNull('client_balance_id')
             ->whereHas('clientBalance', function (Builder $q) use ($paymentTypeValue) {
@@ -740,9 +740,9 @@ class SalaryAccrualService
             })
             ->get(['category_id', 'orig_amount']);
 
-        $advance = (float) $rows->where('category_id', self::CATEGORY_ADVANCE)->sum('orig_amount');
-        $penalty = (float) $rows->where('category_id', self::CATEGORY_PENALTY)->sum('orig_amount');
-        $bonus = (float) $rows->where('category_id', self::CATEGORY_BONUS)->sum('orig_amount');
+        $advance = (float) $rows->where('category_id', $categories['advance'])->sum('orig_amount');
+        $penalty = (float) $rows->where('category_id', $categories['penalty'])->sum('orig_amount');
+        $bonus = (float) $rows->where('category_id', $categories['bonus'])->sum('orig_amount');
 
         return [
             'advance' => $advance,

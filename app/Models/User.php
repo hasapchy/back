@@ -168,7 +168,7 @@ class User extends Authenticatable
      */
     public function projectUsers()
     {
-        return $this->hasMany(\App\Models\ProjectUser::class, 'creator_id');
+        return $this->hasMany(\App\Models\ProjectUser::class, 'user_id');
     }
 
     /**

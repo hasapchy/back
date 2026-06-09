@@ -21,7 +21,8 @@ class RepositoryCacheTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Cache::flush();
+        request()->attributes->remove(ResolvedCompany::ATTRIBUTE);
+        $this->flushApplicationCache();
     }
 
     public function test_cache_key_generation_includes_company_id()
@@ -49,14 +50,14 @@ class RepositoryCacheTest extends TestCase
 
         foreach ($keys as $key) {
             $fullKey = "reference_{$key}_test_default";
-            Cache::put($fullKey, ['data'], 3600);
+            $this->putCache($fullKey, ['data'], 3600);
             $this->assertTrue(Cache::has($fullKey), "Key {$fullKey} should exist");
 
             CacheService::invalidateByLike("%{$pattern}%");
 
             $this->assertFalse(Cache::has($fullKey), "Key {$fullKey} should be invalidated by pattern %{$pattern}%");
 
-            Cache::flush();
+            $this->flushApplicationCache();
         }
     }
 
@@ -65,7 +66,7 @@ class RepositoryCacheTest extends TestCase
         $pattern = 'order_status_categories';
         $fullKey = "reference_order_status_categories_all_test_default";
 
-        Cache::put($fullKey, ['data'], 3600);
+        $this->putCache($fullKey, ['data'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         CacheService::invalidateByLike("%{$pattern}%");
@@ -78,7 +79,7 @@ class RepositoryCacheTest extends TestCase
         $pattern = 'project_status';
         $fullKey = "reference_project_statuses_all_test_default";
 
-        Cache::put($fullKey, ['data'], 3600);
+        $this->putCache($fullKey, ['data'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         CacheService::invalidateByLike("%{$pattern}%");
@@ -91,7 +92,7 @@ class RepositoryCacheTest extends TestCase
         $pattern = 'transaction_categor';
         $fullKey = "reference_transaction_categories_all_default";
 
-        Cache::put($fullKey, ['data'], 3600);
+        $this->putCache($fullKey, ['data'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         CacheService::invalidateByLike("%{$pattern}%");
@@ -104,7 +105,7 @@ class RepositoryCacheTest extends TestCase
         $pattern = 'categor';
         $fullKey = "reference_categories_all_test_default";
 
-        Cache::put($fullKey, ['data'], 3600);
+        $this->putCache($fullKey, ['data'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         CacheService::invalidateByLike("%{$pattern}%");
@@ -126,14 +127,14 @@ class RepositoryCacheTest extends TestCase
             $cacheKey = $repo->generateCacheKey($config['key'], ['test_user']);
             $fullKey = "reference_{$cacheKey}";
 
-            Cache::put($fullKey, ['test'], 3600);
+            $this->putCache($fullKey, ['test'], 3600);
             $this->assertTrue(Cache::has($fullKey), "Cache for {$repoClass} should exist");
 
             CacheService::{$config['method']}();
 
             $this->assertFalse(Cache::has($fullKey), "Cache for {$repoClass} should be invalidated");
 
-            Cache::flush();
+            $this->flushApplicationCache();
         }
     }
 
@@ -143,7 +144,7 @@ class RepositoryCacheTest extends TestCase
         $cacheKey = $repo->generateCacheKey('order_statuses_paginated', ['test_user', 20]);
         $fullKey = "paginated_{$cacheKey}_page_1";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
         $this->assertTrue(Cache::has($fullKey));
 
         CacheService::invalidateOrderStatusesCache();
@@ -163,11 +164,11 @@ class RepositoryCacheTest extends TestCase
         $cacheKey = $repo->generateCacheKey('order_statuses_all', ['test_user']);
         $fullKey = "reference_{$cacheKey}";
 
-        Cache::put($fullKey, ['test'], 3600);
+        $this->putCache($fullKey, ['test'], 3600);
 
         $otherKey = $repo->generateCacheKey('other_key', ['test_user']);
         $otherFullKey = "reference_{$otherKey}";
-        Cache::put($otherFullKey, ['test'], 3600);
+        $this->putCache($otherFullKey, ['test'], 3600);
 
         CacheService::invalidateOrderStatusesCache();
 
@@ -184,7 +185,7 @@ class RepositoryCacheTest extends TestCase
         ];
 
         foreach ($keys as $key) {
-            Cache::put($key, ['data'], 3600);
+            $this->putCache($key, ['data'], 3600);
             $this->assertTrue(Cache::has($key));
         }
 

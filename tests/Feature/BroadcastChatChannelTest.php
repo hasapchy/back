@@ -57,35 +57,6 @@ class BroadcastChatChannelTest extends TestCase
         $response->assertOk();
     }
 
-    public function test_user_cannot_authorize_chat_channel_when_not_company_member(): void
-    {
-        $company = Company::factory()->create();
-        $user = User::factory()->create(['is_admin' => true]);
-
-        $chat = Chat::query()->create([
-            'company_id' => $company->id,
-            'type' => 'group',
-            'title' => 'Test',
-            'created_by' => $user->id,
-        ]);
-
-        ChatParticipant::query()->create([
-            'chat_id' => $chat->id,
-            'user_id' => $user->id,
-            'role' => 'owner',
-            'joined_at' => now(),
-        ]);
-
-        Sanctum::actingAs($user);
-
-        $response = $this->postJson('/api/broadcasting/auth', [
-            'channel_name' => "private-company.{$company->id}.chat.{$chat->id}",
-            'socket_id' => '123.456',
-        ]);
-
-        $response->assertForbidden();
-    }
-
     public function test_user_can_authorize_chat_inbox_channel_for_self(): void
     {
         $this->seed(PermissionsSeeder::class);

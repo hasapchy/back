@@ -47,6 +47,7 @@ use App\Http\Controllers\Api\TransactionsController;
 use App\Http\Controllers\Api\TransactionTemplateController;
 use App\Http\Controllers\Api\TransfersController;
 use App\Http\Controllers\Api\UserCompanyController;
+use App\Http\Controllers\Api\UserFilterPresetsController;
 use App\Http\Controllers\Api\UserSessionsController;
 use App\Http\Controllers\Api\UsersController;
 use App\Http\Controllers\Api\WarehouseController;
@@ -85,7 +86,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::middleware('permission.scope:currency_history_update_all,currency_history_update')->put('currency-history/{currencyId}/{historyId}', [CurrencyHistoryController::class, 'update']);
     Route::middleware('permission.scope:currency_history_delete_all,currency_history_delete')->delete('currency-history/{currencyId}/{historyId}', [CurrencyHistoryController::class, 'destroy']);
 
-    Route::middleware('permission.scope:currency_history_view_all,currency_history_view,currency_history_view_own,settings_currencies_view')->get('settings/currencies', [CurrenciesController::class, 'index']);
+    Route::middleware('permission.scope:currencies_view_all,currencies_view')->get('settings/currencies', [CurrenciesController::class, 'index']);
 
     Route::middleware('permission.scope:units_view,units_create,units_update,units_delete')->get('units', [UnitsController::class, 'index']);
     Route::middleware('permission:units_create')->post('units', [UnitsController::class, 'store']);
@@ -107,6 +108,11 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
 
     Route::get('user/notification-settings', [InAppNotificationController::class, 'settings']);
     Route::put('user/notification-settings', [InAppNotificationController::class, 'updateSettings']);
+    Route::get('user/filter-presets', [UserFilterPresetsController::class, 'index']);
+    Route::post('user/filter-presets', [UserFilterPresetsController::class, 'store']);
+    Route::put('user/filter-presets/default', [UserFilterPresetsController::class, 'setDefault']);
+    Route::put('user/filter-presets/{id}', [UserFilterPresetsController::class, 'update']);
+    Route::delete('user/filter-presets/{id}', [UserFilterPresetsController::class, 'destroy']);
     Route::get('user/notifications', [InAppNotificationController::class, 'index']);
     Route::post('user/notifications/read-all', [InAppNotificationController::class, 'markAllRead']);
     Route::post('user/notifications/{id}/read', [InAppNotificationController::class, 'markRead']);
@@ -243,12 +249,10 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::get('projects/{id}', [ProjectsController::class, 'show']);
     Route::middleware('permission:projects_create')->post('projects', [ProjectsController::class, 'store']);
     Route::middleware('permission.scope:projects_update_all,projects_update')->put('projects/{id}', [ProjectsController::class, 'update']);
-    Route::middleware(['permission.scope:projects_update_all,projects_update', 'throttle:20,1'])->post('projects/{id}/upload-files', [ProjectsController::class, 'uploadFiles']);
-    Route::middleware(['permission.scope:projects_view_all,projects_view', 'throttle:20,1'])->post('projects/{id}/download-files', [ProjectsController::class, 'downloadFiles']);
-    Route::middleware(['permission.scope:projects_update_all,projects_update', 'throttle:20,1'])->post('projects/{id}/delete-file', [ProjectsController::class, 'deleteFile']);
     Route::middleware('permission.scope:projects_delete_all,projects_delete')->delete('projects/{id}', [ProjectsController::class, 'destroy']);
     Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{id}/balance-history', [ProjectsController::class, 'getBalanceHistory']);
     Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{id}/detailed-balance', [ProjectsController::class, 'getDetailedBalance']);
+    Route::middleware('permission.scope:chats_view_all,chats_view')->post('projects/{id}/chat', [ProjectsController::class, 'ensureChat']);
 
     Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{projectId}/contracts', [ProjectContractsController::class, 'index']);
     Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{projectId}/contracts/all', [ProjectContractsController::class, 'getAll']);
@@ -408,22 +412,22 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     // Task files
     Route::middleware(['permission.scope:tasks_update_all,tasks_update', 'throttle:20,1'])->post('tasks/{id}/files', [TasksController::class, 'uploadFiles']);
 
-    Route::middleware('permission.scope:drive_view_all,drive_view')->get('drive/config', [DriveController::class, 'config']);
-    Route::middleware('permission.scope:drive_view_all,drive_view')->get('drive', [DriveController::class, 'index']);
+    Route::middleware('permission.scope:drive_view_all,drive_view_own,drive_view')->get('drive/config', [DriveController::class, 'config']);
+    Route::middleware('permission.scope:drive_view_all,drive_view_own,drive_view')->get('drive', [DriveController::class, 'index']);
     Route::middleware('permission:drive_create')->post('drive/folders', [DriveController::class, 'createFolder']);
-    Route::middleware('permission.scope:drive_update_all,drive_update')->put('drive/folders/{id}', [DriveController::class, 'renameFolder']);
-    Route::middleware('permission.scope:drive_delete_all,drive_delete')->delete('drive/folders/{id}', [DriveController::class, 'deleteFolder']);
+    Route::middleware('permission.scope:drive_update_all,drive_update_own,drive_update')->put('drive/folders/{id}', [DriveController::class, 'renameFolder']);
+    Route::middleware('permission.scope:drive_delete_all,drive_delete_own,drive_delete')->delete('drive/folders/{id}', [DriveController::class, 'deleteFolder']);
     Route::middleware('permission:drive_create')->post('drive/files/upload', [DriveController::class, 'upload']);
-    Route::middleware('permission.scope:drive_view_all,drive_view')->get('drive/files/{id}/download', [DriveController::class, 'download']);
-    Route::middleware('permission.scope:drive_view_all,drive_view')->get('drive/files/{id}/preview', [DriveController::class, 'preview']);
-    Route::middleware('permission.scope:drive_update_all,drive_update')->put('drive/files/{id}', [DriveController::class, 'renameFile']);
-    Route::middleware('permission.scope:drive_delete_all,drive_delete')->delete('drive/files/{id}', [DriveController::class, 'deleteFile']);
-    Route::middleware('permission.scope:drive_update_all,drive_update')->post('drive/files/move', [DriveController::class, 'moveFiles']);
-    Route::middleware('permission:drive_share')->get('drive/permissions', [DriveController::class, 'listPermissions']);
-    Route::middleware('permission:drive_share')->post('drive/permissions', [DriveController::class, 'setPermission']);
+    Route::middleware('permission.scope:drive_view_all,drive_view_own,drive_view')->get('drive/files/{id}/download', [DriveController::class, 'download']);
+    Route::middleware('permission.scope:drive_view_all,drive_view_own,drive_view')->get('drive/files/{id}/preview', [DriveController::class, 'preview']);
+    Route::middleware('permission.scope:drive_update_all,drive_update_own,drive_update')->put('drive/files/{id}', [DriveController::class, 'renameFile']);
+    Route::middleware('permission.scope:drive_delete_all,drive_delete_own,drive_delete')->delete('drive/files/{id}', [DriveController::class, 'deleteFile']);
+    Route::middleware('permission.scope:drive_update_all,drive_update_own,drive_update')->post('drive/files/move', [DriveController::class, 'moveFiles']);
+    Route::middleware('permission.scope:drive_update_all,drive_update_own,drive_update')->get('drive/permissions', [DriveController::class, 'listPermissions']);
+    Route::middleware('permission.scope:drive_update_all,drive_update_own,drive_update')->post('drive/permissions', [DriveController::class, 'setPermission']);
+    Route::middleware('permission.scope:drive_update_all,drive_update_own,drive_update')->put('drive/permissions', [DriveController::class, 'syncPermission']);
 
     Route::prefix('v2')->group(function () {
-        Route::middleware(['permission.scope:projects_update_all,projects_update', 'throttle:20,1'])->delete('projects/{id}/files', [ProjectsController::class, 'deleteFile']);
         Route::middleware(['permission.scope:tasks_update_all,tasks_update', 'throttle:20,1'])->delete('tasks/{id}/files', [TasksController::class, 'deleteFile']);
     });
 

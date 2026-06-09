@@ -14,6 +14,7 @@ use App\Services\CacheService;
 use App\Services\InventoryLockService;
 use Illuminate\Support\Facades\DB;
 use App\Services\RoundingService;
+use App\Support\TransactionCategoryBindingKeys;
 
 class SalesRepository extends BaseRepository
 {
@@ -63,7 +64,7 @@ class SalesRepository extends BaseRepository
                     'cashRegister:id,name,currency_id,is_cash',
                     'cashRegister.currency:id,name,code',
                     'clientBalance:id,client_id,currency_id,type',
-                    'creator:id,name',
+                    'creator:id,name,surname,photo',
                     'project:id,name',
                     'products:id,sale_id,product_id,quantity,price',
                     'products.product:id,name,image,unit_id',
@@ -112,7 +113,7 @@ class SalesRepository extends BaseRepository
                 'cashRegister:id,name,currency_id,is_cash',
                 'cashRegister.currency:id,name,code',
                 'clientBalance:id,client_id,currency_id,type',
-                'creator:id,name',
+                'creator:id,name,surname,photo',
                 'project:id,name',
                 'products:id,sale_id,product_id,quantity,price',
                 'products.product:id,name,image,unit_id,type',
@@ -236,15 +237,15 @@ class SalesRepository extends BaseRepository
                 ? $price * $discount / 100
                 : CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
 
-            $price = $roundingService->roundForCompany($companyId, (float) $price);
-            $discountCalc = $roundingService->roundForCompany($companyId, (float) $discountCalc);
+            $price = $roundingService->roundTransactionAmountForCompany($companyId, (float) $price);
+            $discountCalc = $roundingService->roundTransactionAmountForCompany($companyId, (float) $discountCalc);
 
             if ($discountCalc > $price) {
                 throw new \Exception(__('api.sales.discount_exceeds_total'));
             }
 
             $totalPrice = $price - $discountCalc;
-            $totalPrice = $roundingService->roundForCompany($companyId, (float) $totalPrice);
+            $totalPrice = $roundingService->roundTransactionAmountForCompany($companyId, (float) $totalPrice);
 
             $sale = Sale::create([
                 'creator_id'      => $userId,
@@ -264,7 +265,7 @@ class SalesRepository extends BaseRepository
                 'client_balance_id' => $clientBalanceId,
                 'amount' => $totalPrice,
                 'cash_id' => $cashId,
-                'category_id' => $this->resolveTransactionCategoryBinding('order', 1),
+                'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::ORDER),
                 'date' => $date,
                 'note' => $note,
                 'creator_id' => $userId,
@@ -285,7 +286,7 @@ class SalesRepository extends BaseRepository
                     'sale_id'    => $sale->id,
                     'product_id' => $prod['product_id'],
                     'quantity'   => $prod['rounded_quantity'],
-                    'price'      => $roundingService->roundForCompany(
+                    'price'      => $roundingService->roundTransactionAmountForCompany(
                         $companyId,
                         (float) CurrencyConverter::convert(
                             $prod['price'],
@@ -389,15 +390,15 @@ class SalesRepository extends BaseRepository
                 ? $price * $discount / 100
                 : CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
 
-            $price = $roundingService->roundForCompany($companyId, (float) $price);
-            $discountCalc = $roundingService->roundForCompany($companyId, (float) $discountCalc);
+            $price = $roundingService->roundTransactionAmountForCompany($companyId, (float) $price);
+            $discountCalc = $roundingService->roundTransactionAmountForCompany($companyId, (float) $discountCalc);
 
             if ($discountCalc > $price) {
                 throw new \Exception(__('api.sales.discount_exceeds_total'));
             }
 
             $totalPrice = $price - $discountCalc;
-            $totalPrice = $roundingService->roundForCompany($companyId, (float) $totalPrice);
+            $totalPrice = $roundingService->roundTransactionAmountForCompany($companyId, (float) $totalPrice);
 
             $sale->update([
                 'client_id' => $clientId,
@@ -416,7 +417,7 @@ class SalesRepository extends BaseRepository
                 'client_balance_id' => $clientBalanceId,
                 'amount' => $totalPrice,
                 'cash_id' => $cashId,
-                'category_id' => $this->resolveTransactionCategoryBinding('order', 1),
+                'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::ORDER),
                 'date' => $date,
                 'note' => $note,
                 'creator_id' => $userId,
@@ -436,7 +437,7 @@ class SalesRepository extends BaseRepository
                     'sale_id' => $sale->id,
                     'product_id' => $prod['product_id'],
                     'quantity' => $prod['rounded_quantity'],
-                    'price' => $roundingService->roundForCompany(
+                    'price' => $roundingService->roundTransactionAmountForCompany(
                         $companyId,
                         (float) CurrencyConverter::convert(
                             $prod['price'],

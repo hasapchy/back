@@ -11,7 +11,9 @@ use App\Events\UserTyping;
 use App\Models\Chat;
 use App\Models\ChatMessage;
 use App\Models\MessageReaction;
+use App\Models\Project;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use App\Repositories\Chat\ChatMessageRepository;
 use App\Repositories\Chat\ChatParticipantRepository;
 use App\Repositories\Chat\ChatRepository;
@@ -57,10 +59,9 @@ class ChatService
 
         $chatIds = $chats->pluck('id')->map(fn($id) => (int) $id)->toArray();
 
-        // Load creators for group chats
-        $groupChats = $chats->where('type', 'group');
-        if ($groupChats->isNotEmpty()) {
-            $groupChats->load('creator:id,name,surname,email');
+        $groupLikeChats = $chats->whereIn('type', ['group', 'project']);
+        if ($groupLikeChats->isNotEmpty()) {
+            $groupLikeChats->load('creator:id,name,surname,email');
         }
 
         $participantsByChatId = $this->participants->getParticipantsByChatIds($chatIds);
@@ -98,9 +99,8 @@ class ChatService
                 'id' => (int) $p->user_id,
             ])->values()->toArray();
 
-            // Creator info for group chats
             $creator = null;
-            if ($chat->type === 'group' && $chat->created_by && $chat->relationLoaded('creator')) {
+            if ($this->isGroupLikeChatType($chat->type) && $chat->created_by && $chat->relationLoaded('creator')) {
                 $creatorUser = $chat->creator;
                 if ($creatorUser) {
                     $creator = [
@@ -115,6 +115,7 @@ class ChatService
             return [
                 'id' => (int) $chat->id,
                 'company_id' => (int) $chat->company_id,
+                'project_id' => $chat->project_id ? (int) $chat->project_id : null,
                 'type' => $chat->type,
                 'direct_key' => $chat->direct_key,
                 'title' => $chat->title,
@@ -190,7 +191,7 @@ class ChatService
         $this->participants->firstOrCreate((int) $chat->id, (int) $user->id, 'member');
 
         // Load creator for group chats
-        if ($chat->type === 'group' && $chat->created_by) {
+        if ($this->isGroupLikeChatType($chat->type) && $chat->created_by) {
             $chat->load('creator:id,name,surname,email');
         }
 
@@ -254,6 +255,113 @@ class ChatService
 
         // Инвалидируем кэш для всех участников группового чата
         $this->invalidateChatListCache($companyId, (int) $chat->id);
+
+        return $chat;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public function resolveProjectParticipantIds(int $companyId, Project $project): array
+    {
+        $project->loadMissing('users:id');
+
+        $userIds = [(int) $project->creator_id];
+        foreach ($project->users as $projectUser) {
+            $userIds[] = (int) $projectUser->id;
+        }
+
+        $userIds = array_values(array_unique($userIds));
+
+        if ($userIds === []) {
+            return [];
+        }
+
+        return DB::table('company_user')
+            ->where('company_id', $companyId)
+            ->whereIn('user_id', $userIds)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->toArray();
+    }
+
+    /**
+     * @param  array<int, int>  $userIds
+     */
+    public function syncProjectChatParticipants(int $companyId, Chat $chat, array $userIds): void
+    {
+        $userIds = array_values(array_unique(array_map('intval', $userIds)));
+
+        if ($userIds === []) {
+            return;
+        }
+
+        $removedUserIds = $this->participants->deleteExcept((int) $chat->id, $userIds);
+
+        foreach ($userIds as $userId) {
+            $role = ((int) $chat->created_by === $userId) ? 'owner' : 'member';
+            $this->participants->firstOrCreate((int) $chat->id, $userId, $role);
+        }
+
+        $this->invalidateChatListCache($companyId, (int) $chat->id);
+        $this->invalidateChatListCacheForUsers($companyId, $removedUserIds);
+    }
+
+    public function syncProjectChatFromProject(int $companyId, Project $project): void
+    {
+        $chat = $this->chats->findByProjectId((int) $project->id);
+        if (! $chat) {
+            return;
+        }
+
+        $participantIds = $this->resolveProjectParticipantIds($companyId, $project);
+        $this->applyProjectChatState($companyId, $chat, $project, $participantIds);
+    }
+
+    public function ensureProjectChat(int $companyId, Project $project, User $user): Chat
+    {
+        if ((int) $project->company_id !== $companyId) {
+            abort(403, 'Forbidden');
+        }
+
+        $participantIds = $this->resolveProjectParticipantIds($companyId, $project);
+
+        if (! in_array((int) $user->id, $participantIds, true)) {
+            abort(403, 'Forbidden');
+        }
+
+        $chat = DB::transaction(function () use ($companyId, $project, $participantIds) {
+            $chat = $this->chats->findByProjectId((int) $project->id);
+
+            if (! $chat) {
+                try {
+                    $chat = $this->chats->createProjectChat(
+                        $companyId,
+                        (int) $project->creator_id,
+                        (int) $project->id,
+                        (string) $project->name
+                    );
+                } catch (QueryException $e) {
+                    if (! $this->isUniqueConstraintViolation($e)) {
+                        throw $e;
+                    }
+
+                    $chat = $this->chats->findByProjectId((int) $project->id);
+                    if (! $chat) {
+                        throw $e;
+                    }
+                }
+            }
+
+            $this->applyProjectChatState($companyId, $chat, $project, $participantIds);
+
+            return $chat;
+        });
+
+        if ($chat->created_by) {
+            $chat->load('creator:id,name,surname,email');
+        }
 
         return $chat;
     }
@@ -544,7 +652,7 @@ class ChatService
         $userId = (int) $user->id;
         $isAuthor = (int) $message->creator_id === $userId;
         $canDeleteForEveryone = false;
-        if (!$isAuthor && $chat->type === 'group') {
+        if (!$isAuthor && $this->isGroupLikeChatType($chat->type)) {
             $participant = $this->participants->getParticipant((int) $chat->id, $userId);
             $canDeleteForEveryone = $participant && in_array($participant->role, ['admin', 'owner'], true);
         }
@@ -737,6 +845,10 @@ class ChatService
 
     public function deleteChat(int $companyId, User $user, Chat $chat): void
     {
+        if ($chat->type === 'project') {
+            abort(422, 'Cannot delete project chat');
+        }
+
         if ($chat->type === 'group' && (int) $chat->created_by !== (int) $user->id) {
             abort(403, 'Only chat creator can delete the chat');
         }
@@ -767,26 +879,55 @@ class ChatService
     protected function invalidateChatListCache(int $companyId, int $chatId): void
     {
         try {
-            // Получаем всех участников чата
             $participantUserIds = $this->participants->getParticipantsByChatIds([$chatId])
                 ->get($chatId, collect())
                 ->pluck('user_id')
+                ->map(fn ($id) => (int) $id)
                 ->unique()
                 ->toArray();
 
-            // Очищаем кэш для каждого участника
-            foreach ($participantUserIds as $userId) {
-                $cacheKey = "chats:company:{$companyId}:user:{$userId}";
-                Cache::forget($cacheKey);
-            }
+            $this->invalidateChatListCacheForUsers($companyId, $participantUserIds);
         } catch (\Exception $e) {
-            // Не прерываем выполнение если кэш недоступен
             Log::warning('Failed to invalidate chat list cache', [
                 'chat_id' => $chatId,
                 'company_id' => $companyId,
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * @param  array<int, int>  $userIds
+     */
+    protected function invalidateChatListCacheForUsers(int $companyId, array $userIds): void
+    {
+        foreach (array_unique(array_map('intval', $userIds)) as $userId) {
+            Cache::forget("chats:company:{$companyId}:user:{$userId}");
+        }
+    }
+
+    /**
+     * @param  array<int, int>  $participantIds
+     */
+    protected function applyProjectChatState(int $companyId, Chat $chat, Project $project, array $participantIds): void
+    {
+        $this->syncProjectChatParticipants($companyId, $chat, $participantIds);
+
+        if ($chat->title !== $project->name) {
+            $chat->update(['title' => $project->name]);
+        }
+    }
+
+    protected function isGroupLikeChatType(?string $type): bool
+    {
+        return in_array($type, ['group', 'project'], true);
+    }
+
+    protected function isUniqueConstraintViolation(QueryException $e): bool
+    {
+        $sqlState = $e->errorInfo[0] ?? null;
+
+        return in_array($sqlState, ['23000', '23505'], true);
     }
 }
 

@@ -11,7 +11,9 @@ use App\Models\Transaction;
 use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
 use App\Services\ClientBalanceService;
+use App\Services\TransactionCategoryBindingResolver;
 use App\Support\ClientBalanceViewAccess;
+use App\Support\TransactionCategoryBindingKeys;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -315,7 +317,11 @@ class ClientBalanceController extends BaseController
 
         $amount = abs((float) $initialBalance);
         $type = $initialBalance > 0 ? 1 : 0;
-        $categoryId = $type === 1 ? 22 : 21;
+        $companyId = (int) $client->company_id;
+        $bindingResolver = app(TransactionCategoryBindingResolver::class);
+        $categoryId = $type === 1
+            ? $bindingResolver->require($companyId, TransactionCategoryBindingKeys::ADJUSTMENT_INCOME)
+            : $bindingResolver->require($companyId, TransactionCategoryBindingKeys::ADJUSTMENT_OUTCOME);
         $systemNote = 'Начальный баланс клиента';
         if (!empty($note)) {
             $systemNote .= ': ' . $note;
