@@ -31,17 +31,18 @@ class Kernel extends ConsoleKernel
 
             // Бэкап в 08:00 (UTC+5)
         $schedule
-        ->command('db:backup')
-        ->dailyAt('03:00')
-        ->timezone('Asia/Tashkent')
-        ->withoutOverlapping()
-        ->runInBackground();
+            ->command('db:backup')
+            ->dailyAt('03:00')
+            ->timezone('Asia/Ashgabat')
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/backup_cron.log'));
 
         // Бэкап в 23:00 (UTC+5)
         $schedule
             ->command('db:backup')
             ->dailyAt('18:00')
-            ->timezone('Asia/Tashkent')
+            ->timezone('Asia/Ashgabat')
             ->withoutOverlapping()
             ->runInBackground();
 

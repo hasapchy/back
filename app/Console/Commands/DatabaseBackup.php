@@ -44,7 +44,7 @@ class DatabaseBackup extends Command
         $filepath = "{$dumpsPath}/{$filename}";
 
         $command = sprintf(
-            'mysqldump --host=%s --port=%s --user=%s --password=%s --single-transaction --routines --triggers %s | gzip > %s 2>&1',
+            'mysqldump --host=%s --port=%s --user=%s --password=%s --no-tablespaces --single-transaction --routines --triggers %s | gzip > %s 2>&1',
             escapeshellarg($host),
             escapeshellarg($port),
             escapeshellarg($username),
