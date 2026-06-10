@@ -75,7 +75,11 @@ class WarehouseMovementRepository extends BaseRepository
                 }
             }
 
-            $this->applyIdNoteSearch($items, $search, 'wh_movements.id', 'wh_movements.note');
+            $this->applyIdNoteSearch($items, $search, 'wh_movements.id', 'wh_movements.note', [
+                'line_table' => 'wh_movement_products',
+                'document_fk' => 'movement_id',
+                'document_id_column' => 'wh_movements.id',
+            ]);
 
             $items = $items->select(
                     'wh_movements.id as id',

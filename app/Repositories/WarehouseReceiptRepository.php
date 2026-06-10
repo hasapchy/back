@@ -100,7 +100,11 @@ class WarehouseReceiptRepository extends BaseRepository
 
             app(WarehouseDocumentPaymentStatusService::class)->applyReceiptPaymentStatusFilter($query, $paymentStatus);
 
-            $this->applyIdNoteSearch($query, $search, 'wh_receipts.id', 'wh_receipts.note');
+            $this->applyIdNoteSearch($query, $search, 'wh_receipts.id', 'wh_receipts.note', [
+                'line_table' => 'wh_receipt_products',
+                'document_fk' => 'receipt_id',
+                'document_id_column' => 'wh_receipts.id',
+            ]);
 
             $paginator = $query->orderBy('wh_receipts.created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int) $page);

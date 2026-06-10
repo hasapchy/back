@@ -17,6 +17,7 @@ use App\Support\TransactionCategoryBindingKeys;
 use App\Support\SimpleUser;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 abstract class BaseRepository
 {
@@ -334,8 +335,9 @@ abstract class BaseRepository
 
     /**
      * @param  Builder|\Illuminate\Database\Query\Builder  $query
+     * @param  array{line_table: string, document_fk: string, document_id_column: string}|null  $productLine
      */
-    protected function applyIdNoteSearch($query, ?string $search, string $idColumn, string $noteColumn): void
+    protected function applyIdNoteSearch($query, ?string $search, string $idColumn, string $noteColumn, ?array $productLine = null): void
     {
         $search = trim((string) ($search ?? ''));
         if ($search === '') {
@@ -345,9 +347,22 @@ abstract class BaseRepository
         $like = '%'.$search.'%';
         $likeLower = '%'.mb_strtolower($search).'%';
 
-        $query->where(function ($q) use ($like, $likeLower, $idColumn, $noteColumn) {
+        $query->where(function ($q) use ($like, $likeLower, $idColumn, $noteColumn, $productLine) {
             $q->where($idColumn, 'like', $like)
                 ->orWhereRaw('LOWER('.$noteColumn.') LIKE ?', [$likeLower]);
+
+            if ($productLine) {
+                $q->orWhereExists(function ($sub) use ($likeLower, $productLine) {
+                    $sub->select(DB::raw(1))
+                        ->from($productLine['line_table'])
+                        ->join('products', 'products.id', '=', $productLine['line_table'].'.product_id')
+                        ->whereColumn(
+                            $productLine['line_table'].'.'.$productLine['document_fk'],
+                            $productLine['document_id_column']
+                        )
+                        ->whereRaw('LOWER(products.name) LIKE ?', [$likeLower]);
+                });
+            }
         });
     }
 

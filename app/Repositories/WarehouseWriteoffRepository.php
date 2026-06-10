@@ -76,7 +76,11 @@ class WarehouseWriteoffRepository extends BaseRepository
                 }
             }
 
-            $this->applyIdNoteSearch($items, $search, 'wh_write_offs.id', 'wh_write_offs.note');
+            $this->applyIdNoteSearch($items, $search, 'wh_write_offs.id', 'wh_write_offs.note', [
+                'line_table' => 'wh_write_off_products',
+                'document_fk' => 'write_off_id',
+                'document_id_column' => 'wh_write_offs.id',
+            ]);
 
             $items = $items->select(
                 'wh_write_offs.id as id',
