@@ -18,8 +18,9 @@ class WarehouseReceiptGoodsPaymentLimitService
     {
         $landed = (float) app(ReceiptExpenseAllocationService::class)->buildLandedCostSummary($receipt)['goods_subtotal_default'];
         $debtBooked = $this->debtGoodsBookedDefault($receipt);
+        $documentAmount = (float) ($receipt->amount ?? 0);
 
-        return max($landed, $debtBooked);
+        return max($landed, $debtBooked, $documentAmount);
     }
 
     /**

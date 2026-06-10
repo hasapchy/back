@@ -9,7 +9,6 @@ use App\Models\WhReceiptExpenseAllocation;
 use App\Models\WhReceiptProduct;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class ReceiptExpenseAllocationService
 {
@@ -157,34 +156,12 @@ class ReceiptExpenseAllocationService
         $receiptId = (int) $receipt->id;
         $companyId = (int) ($receipt->warehouse?->company_id ?? 0);
 
-        Log::info('landed_cost.summary.start', [
-            'receipt_id' => $receiptId,
-            'company_id' => $companyId,
-            'warehouse_id' => $receipt->warehouse_id,
-            'products_count' => $receipt->products->count(),
-            'expense_allocations_count' => $receipt->expenseAllocations->count(),
-            'cash_id' => $receipt->cash_id,
-        ]);
-
         if ($companyId <= 0 || $receipt->products->isEmpty()) {
-            Log::warning('landed_cost.summary.empty', [
-                'receipt_id' => $receiptId,
-                'reason' => $companyId <= 0 ? 'missing_or_invalid_company_on_warehouse' : 'no_products',
-                'company_id' => $companyId,
-            ]);
-
             return $this->emptySummary();
         }
 
         $defaultCurrency = $this->findDefaultCurrencyForCompany($companyId);
         if (! $defaultCurrency) {
-            Log::warning('landed_cost.summary.empty', [
-                'receipt_id' => $receiptId,
-                'reason' => 'no_default_currency_for_company',
-                'company_id' => $companyId,
-                'hint' => 'Create a currency with is_default=1 for this company_id.',
-            ]);
-
             return $this->emptySummary();
         }
 
@@ -223,34 +200,6 @@ class ReceiptExpenseAllocationService
                 'unit_short_name' => $product?->unit?->short_name,
             ];
         }
-
-        if ($goodsSubtotal <= 0 && $receipt->products->isNotEmpty()) {
-            Log::warning('landed_cost.summary.zero_goods_subtotal', [
-                'receipt_id' => $receiptId,
-                'company_id' => $companyId,
-                'line_currency_id' => $lineCurrency->id,
-                'default_currency_id' => $defaultCurrency->id,
-                'lines_preview' => $receipt->products->map(function (WhReceiptProduct $l) {
-                    $raw = $this->lineRawSubtotalInReceiptCurrency($l);
-
-                    return [
-                        'wh_receipt_product_id' => (int) $l->id,
-                        'product_id' => (int) $l->product_id,
-                        'quantity' => (float) $l->quantity,
-                        'price' => (float) $l->price,
-                        'raw_in_receipt_currency' => $raw,
-                    ];
-                })->values()->all(),
-            ]);
-        }
-
-        Log::info('landed_cost.summary.done', [
-            'receipt_id' => $receiptId,
-            'goods_subtotal_default' => $goodsSubtotal,
-            'expenses_allocated_total' => $allocatedTotal,
-            'full_cost_default' => $rounding->roundWarehouseAmountForCompany($companyId, $goodsSubtotal + $allocatedTotal),
-            'lines_count' => count($linesOut),
-        ]);
 
         return [
             'goods_subtotal_default' => $goodsSubtotal,

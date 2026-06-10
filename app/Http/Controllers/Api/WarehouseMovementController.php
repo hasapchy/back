@@ -41,7 +41,10 @@ class WarehouseMovementController extends BaseController
         $perPage = $request->input('per_page', 20);
         $page = $request->input('page', 1);
 
-        $warehouses = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $search = $request->query('search');
+        $search = is_string($search) && trim($search) !== '' ? trim($search) : null;
+
+        $warehouses = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page, $search);
 
         return $this->successResponse([
             'items' => WarehouseMovementResource::collection($warehouses->items())->resolve(),

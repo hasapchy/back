@@ -67,7 +67,10 @@ class WarehouseWriteoffController extends BaseController
             ? $excludeReasonRaw
             : null;
 
-        $warehouses = $this->itemsRepository->getItemsWithPagination($userUuid, (int) $perPage, (int) $page, $reason, $excludeReason);
+        $search = $request->query('search');
+        $search = is_string($search) && trim($search) !== '' ? trim($search) : null;
+
+        $warehouses = $this->itemsRepository->getItemsWithPagination($userUuid, (int) $perPage, (int) $page, $reason, $excludeReason, $search);
 
         return $this->successResponse([
             'items' => WarehouseWriteoffResource::collection($warehouses->items())->resolve(),

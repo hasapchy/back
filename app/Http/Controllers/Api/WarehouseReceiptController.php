@@ -42,6 +42,9 @@ class WarehouseReceiptController extends BaseController
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
+        $search = $request->filled('search') ? trim((string) $request->input('search')) : null;
+        $search = $search !== '' ? $search : null;
+
         $warehouses = $this->itemsRepository->getItemsWithPagination(
             $userUuid,
             (int) $request->input('per_page', 20),
@@ -56,6 +59,7 @@ class WarehouseReceiptController extends BaseController
             app(WarehouseDocumentPaymentStatusService::class)->normalizeReceiptPaymentStatusFilter(
                 $request->filled('payment_status') ? (string) $request->input('payment_status') : null
             ),
+            $search,
         );
 
         return $this->successResponse([

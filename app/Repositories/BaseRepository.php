@@ -333,6 +333,25 @@ abstract class BaseRepository
     }
 
     /**
+     * @param  Builder|\Illuminate\Database\Query\Builder  $query
+     */
+    protected function applyIdNoteSearch($query, ?string $search, string $idColumn, string $noteColumn): void
+    {
+        $search = trim((string) ($search ?? ''));
+        if ($search === '') {
+            return;
+        }
+
+        $like = '%'.$search.'%';
+        $likeLower = '%'.mb_strtolower($search).'%';
+
+        $query->where(function ($q) use ($like, $likeLower, $idColumn, $noteColumn) {
+            $q->where($idColumn, 'like', $like)
+                ->orWhereRaw('LOWER('.$noteColumn.') LIKE ?', [$likeLower]);
+        });
+    }
+
+    /**
      * @param  float  $amount
      * @param  string  $sourceType
      * @return float

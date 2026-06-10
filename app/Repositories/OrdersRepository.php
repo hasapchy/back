@@ -21,6 +21,7 @@ use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use App\Services\InventoryLockService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Services\RoundingService;
 use App\Services\Timeline\OrderTimelineSummaryLogger;
 use App\Http\Resources\OrderResource;

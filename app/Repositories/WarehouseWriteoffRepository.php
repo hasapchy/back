@@ -34,16 +34,18 @@ class WarehouseWriteoffRepository extends BaseRepository
      * @param  int  $page  Номер страницы
      * @param  string|null  $reason  Фильтр по типу списания (значение WhWriteoffReason)
      * @param  string|null  $excludeReason  Исключить записи с указанной причиной (если задан $reason, параметр не применяется)
+     * @param  string|null  $search  Поисковый запрос
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, ?string $reason = null, ?string $excludeReason = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, ?string $reason = null, ?string $excludeReason = null, ?string $search = null)
     {
         $companyId = $this->getCurrentCompanyId();
         $reasonSegment = $reason !== null && $reason !== '' ? 'reason:'.$reason : 'reason:none';
         $excludeSegment = $excludeReason !== null && $excludeReason !== '' ? 'exclude:'.$excludeReason : 'exclude:none';
-        $cacheKey = $this->generateCacheKey('warehouse_writeoffs_paginated', [$userUuid, $perPage, $companyId, $reasonSegment, $excludeSegment]);
+        $searchSegment = trim((string) ($search ?? '')) !== '' ? trim((string) $search) : 'search:none';
+        $cacheKey = $this->generateCacheKey('warehouse_writeoffs_paginated', [$userUuid, $perPage, $companyId, $reasonSegment, $excludeSegment, $searchSegment]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $companyId, $reason, $excludeReason) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $companyId, $reason, $excludeReason, $search) {
             $items = WhWriteoff::leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id')
                 ->leftJoin('users', 'wh_write_offs.creator_id', '=', 'users.id');
 
@@ -73,6 +75,8 @@ class WarehouseWriteoffRepository extends BaseRepository
                     $items->where('wh_write_offs.reason', '!=', $excludeReasonEnum->value);
                 }
             }
+
+            $this->applyIdNoteSearch($items, $search, 'wh_write_offs.id', 'wh_write_offs.note');
 
             $items = $items->select(
                 'wh_write_offs.id as id',

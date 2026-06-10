@@ -24,12 +24,14 @@ class WarehouseMovementRepository extends BaseRepository
      * @param int $userUuid ID пользователя
      * @param int $perPage Количество записей на страницу
      * @param int $page Номер страницы
+     * @param string|null $search Поисковый запрос
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, ?string $search = null)
     {
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('warehouse_movements_paginated', [$userUuid, $perPage, $companyId]);
+        $searchSegment = trim((string) ($search ?? '')) !== '' ? trim((string) $search) : 'search:none';
+        $cacheKey = $this->generateCacheKey('warehouse_movements_paginated', [$userUuid, $perPage, $companyId, $searchSegment]);
         Log::channel('warehouse_movements')->info('getItemsWithPagination.enter', [
             'user_uuid' => $userUuid,
             'page' => $page,
@@ -38,7 +40,7 @@ class WarehouseMovementRepository extends BaseRepository
             'cache_key' => $cacheKey,
         ]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cacheKey) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cacheKey, $search) {
             $companyId = $this->getCurrentCompanyId();
             $applyWarehouseUserFilter = $this->shouldApplyUserFilter('warehouses');
 
@@ -72,6 +74,8 @@ class WarehouseMovementRepository extends BaseRepository
                         ->whereIn('wh_movements.wh_to', $warehouseIds);
                 }
             }
+
+            $this->applyIdNoteSearch($items, $search, 'wh_movements.id', 'wh_movements.note');
 
             $items = $items->select(
                     'wh_movements.id as id',

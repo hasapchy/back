@@ -25,7 +25,6 @@ use App\Services\WarehouseReceiptGoodsPaymentLimitService;
 use Illuminate\Database\Eloquent\Builder;
 use App\Support\TransactionCategoryBindingKeys;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class WarehouseReceiptRepository extends BaseRepository
 {
@@ -44,6 +43,7 @@ class WarehouseReceiptRepository extends BaseRepository
      * @param  string  $dateFilter  Период: all_time, today, custom и т.д.
      * @param  string|null  $startDate  Начало периода при dateFilter=custom
      * @param  string|null  $endDate  Конец периода при dateFilter=custom
+     * @param  string|null  $search  Поисковый запрос
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<WhReceipt>
      */
     public function getItemsWithPagination(
@@ -58,6 +58,7 @@ class WarehouseReceiptRepository extends BaseRepository
         ?string $startDate = null,
         ?string $endDate = null,
         ?string $paymentStatus = null,
+        ?string $search = null,
     ) {
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
@@ -73,11 +74,12 @@ class WarehouseReceiptRepository extends BaseRepository
             $startDate,
             $endDate,
             $paymentStatus,
+            trim((string) ($search ?? '')) !== '' ? trim((string) $search) : 'search:none',
             $currentUser?->id,
             $companyId,
         ]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $clientId, $status, $warehouseId, $productId, $dateFilter, $startDate, $endDate, $paymentStatus) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $clientId, $status, $warehouseId, $productId, $dateFilter, $startDate, $endDate, $paymentStatus, $search) {
             $query = $this->buildBaseQuery($userUuid);
             if ($clientId) {
                 $query->where('wh_receipts.supplier_id', $clientId);
@@ -97,6 +99,8 @@ class WarehouseReceiptRepository extends BaseRepository
             }
 
             app(WarehouseDocumentPaymentStatusService::class)->applyReceiptPaymentStatusFilter($query, $paymentStatus);
+
+            $this->applyIdNoteSearch($query, $search, 'wh_receipts.id', 'wh_receipts.note');
 
             $paginator = $query->orderBy('wh_receipts.created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int) $page);
@@ -298,11 +302,6 @@ class WarehouseReceiptRepository extends BaseRepository
                 ]);
                 $this->createTransactionForSource($debtTransactionData, \App\Models\WhReceipt::class, $receipt->id, true);
             }
-
-            Log::info('wh_receipt_created', [
-                'receipt_id' => $receipt->id,
-                'debt_amount_default' => $totalInDefault,
-            ]);
 
             $this->invalidateCaches();
             WarehouseTimelineCache::forgetReceipt((int) $receipt->id);
