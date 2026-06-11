@@ -6,4 +6,5 @@ return [
     'overlap' => 'This employee already has an active salary for this payment type. Close the current one first.',
     'inactive_locked' => 'Inactive salary cannot be updated or deleted.',
     'operation_failed' => 'Salary operation failed.',
+    'payment_type_forbidden' => 'You do not have access to this payment type.',
 ];

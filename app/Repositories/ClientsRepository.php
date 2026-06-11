@@ -214,7 +214,7 @@ class ClientsRepository extends BaseRepository
             implode(',', $balanceTypeFilter),
         ]);
 
-        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter, $search, $onlyWithBalance, $currencyId, $balanceDirection, $balanceTypeFilter) {
+        return CacheService::remember($cacheKey, function () use ($currentUser, $companyId, $typeFilter, $search, $onlyWithBalance, $currencyId, $balanceDirection, $balanceTypeFilter) {
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
@@ -248,7 +248,8 @@ class ClientsRepository extends BaseRepository
 
             $direction = in_array($balanceDirection, ['positive', 'negative'], true) ? $balanceDirection : null;
             if ($onlyWithBalance || $direction !== null) {
-                $query->whereHas('balances', function ($bq) use ($currencyId, $direction, $onlyWithBalance, $balanceTypeFilter) {
+                $allowedBalanceTypes = ClientBalanceViewAccess::getAllowedBalanceTypes($currentUser, $companyId);
+                $query->whereHas('balances', function ($bq) use ($currencyId, $direction, $onlyWithBalance, $balanceTypeFilter, $allowedBalanceTypes) {
                     if ($direction === 'positive') {
                         $bq->where('balance', '>', 0);
                     } elseif ($direction === 'negative') {
@@ -259,8 +260,16 @@ class ClientsRepository extends BaseRepository
                     if ((int) $currencyId > 0) {
                         $bq->where('currency_id', (int) $currencyId);
                     }
-                    if (! empty($balanceTypeFilter)) {
-                        $bq->whereIn('type', $balanceTypeFilter);
+                    $typesForQuery = $balanceTypeFilter;
+                    if ($allowedBalanceTypes !== []) {
+                        $typesForQuery = $balanceTypeFilter !== []
+                            ? array_values(array_intersect($balanceTypeFilter, $allowedBalanceTypes))
+                            : $allowedBalanceTypes;
+                    }
+                    if ($typesForQuery !== []) {
+                        $bq->whereIn('type', $typesForQuery);
+                    } elseif ($allowedBalanceTypes !== [] || $balanceTypeFilter !== []) {
+                        $bq->whereRaw('1 = 0');
                     }
                 });
             }

@@ -26,6 +26,7 @@ class ProjectReferenceResource extends JsonResource
             'creator' => $creator ? [
                 'id' => data_get($creator, 'id'),
                 'name' => data_get($creator, 'name'),
+                'surname' => data_get($creator, 'surname'),
                 'photo' => data_get($creator, 'photo'),
             ] : null,
             'creator_id' => data_get($this->resource, 'creator_id'),

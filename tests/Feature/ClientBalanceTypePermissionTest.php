@@ -156,4 +156,67 @@ class ClientBalanceTypePermissionTest extends TestCase
 
         $response->assertStatus(422);
     }
+
+    public function test_mutual_settlements_only_with_balance_respects_allowed_balance_types(): void
+    {
+        foreach ([
+            'mutual_settlements_view_all',
+            'mutual_settlements_view_company',
+        ] as $permissionName) {
+            Permission::query()->firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => 'api',
+            ]);
+        }
+
+        $role = Role::query()->create([
+            'name' => 'mutual_settlements_cash_only_'.uniqid('', true),
+            'guard_name' => 'api',
+        ]);
+        $role->givePermissionTo([
+            'mutual_settlements_view_all',
+            'mutual_settlements_view_company',
+            ClientBalanceViewAccess::PERM_VIEW,
+            ClientBalanceViewAccess::PERM_VIEW_CASH,
+        ]);
+        $this->regularUser->companyRoles()->syncWithoutDetaching([
+            $role->id => ['company_id' => $this->company->id],
+        ]);
+
+        $currency = Currency::factory()->create([
+            'company_id' => $this->company->id,
+            'is_default' => true,
+            'status' => true,
+        ]);
+
+        $client = Client::factory()->create([
+            'company_id' => $this->company->id,
+            'status' => true,
+            'client_type' => 'company',
+        ]);
+
+        ClientBalance::query()->create([
+            'client_id' => $client->id,
+            'currency_id' => $currency->id,
+            'type' => ClientBalanceViewAccess::TYPE_NON_CASH,
+            'balance' => 5000,
+            'is_default' => true,
+        ]);
+
+        $query = http_build_query([
+            'for_mutual_settlements' => 1,
+            'only_with_balance' => 1,
+            'currency_id' => $currency->id,
+        ]);
+
+        $response = $this->actingAsApi($this->regularUser)
+            ->getJson('/api/clients/all?'.$query);
+
+        if ($response->status() === 500) {
+            $this->fail('Server error: '.$response->getContent());
+        }
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'data');
+    }
 }

@@ -622,6 +622,10 @@ class UsersController extends BaseController
                 'error' => __('salary.inactive_locked'),
                 'code' => 'salary_inactive_locked',
             ], 422),
+            'salary_payment_type_forbidden' => response()->json([
+                'error' => __('salary.payment_type_forbidden'),
+                'code' => 'salary_payment_type_forbidden',
+            ], 403),
             default => response()->json([
                 'error' => __('salary.operation_failed'),
             ], 422),

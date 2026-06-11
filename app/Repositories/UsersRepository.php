@@ -32,6 +32,7 @@ use App\Models\Currency;
 use App\Models\ClientsPhone;
 use App\Models\ClientsEmail;
 use App\Services\ClientBalanceService;
+use App\Support\ClientBalanceViewAccess;
 use App\Services\Timeline\TimelineCache;
 
 class UsersRepository extends BaseRepository
@@ -824,7 +825,7 @@ class UsersRepository extends BaseRepository
         $companyId = $companyId ?? $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('user_salaries', [$userId, $companyId]);
 
-        return CacheService::remember($cacheKey, function () use ($userId, $companyId) {
+        $salaries = CacheService::remember($cacheKey, function () use ($userId, $companyId) {
             $query = EmployeeSalary::where('user_id', $userId)
                 ->with(['currency:id,code,name']);
 
@@ -834,6 +835,15 @@ class UsersRepository extends BaseRepository
 
             return $query->orderBy('start_date', 'desc')->get();
         }, $this->getCacheTTL('user_data'));
+
+        $allowedTypes = ClientBalanceViewAccess::getAllowedBalanceTypes(auth('api')->user(), $companyId);
+        if ($allowedTypes === []) {
+            return $salaries;
+        }
+
+        return $salaries->filter(
+            fn (EmployeeSalary $salary) => in_array((int) $salary->payment_type, $allowedTypes, true)
+        )->values();
     }
 
     /**
@@ -852,6 +862,10 @@ class UsersRepository extends BaseRepository
             $startDate = $data['start_date'];
             $endDate = $data['end_date'] ?? null;
             $paymentType = $data['payment_type'] ?? false;
+            $allowedTypes = ClientBalanceViewAccess::getAllowedBalanceTypes(auth('api')->user(), $companyId);
+            if ($allowedTypes !== [] && ! in_array($paymentType ? 1 : 0, $allowedTypes, true)) {
+                throw new \DomainException('salary_payment_type_forbidden');
+            }
 
             if ($endDate === null) {
                 $activeSalary = EmployeeSalary::where('user_id', $userId)
@@ -932,6 +946,10 @@ class UsersRepository extends BaseRepository
             $newStartDate = $data['start_date'] ?? $salary->start_date;
             $newEndDate = array_key_exists('end_date', $data) ? $data['end_date'] : $salary->end_date;
             $newPaymentType = array_key_exists('payment_type', $data) ? $data['payment_type'] : $salary->payment_type;
+            $allowedTypes = ClientBalanceViewAccess::getAllowedBalanceTypes(auth('api')->user(), $salary->company_id);
+            if ($allowedTypes !== [] && ! in_array($newPaymentType ? 1 : 0, $allowedTypes, true)) {
+                throw new \DomainException('salary_payment_type_forbidden');
+            }
 
             if (array_key_exists('end_date', $data) && $newEndDate === null) {
                 $activeSalary = EmployeeSalary::where('user_id', $salary->user_id)

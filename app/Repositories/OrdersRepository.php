@@ -1081,9 +1081,10 @@ class OrdersRepository extends BaseRepository
                 }
 
                 $q = $this->calculateProductQuantity($product, $product_object, $roundingService, $companyId);
+                $requestUnitPrice = (float) ($product['price'] ?? 0);
                 $unitPrices = $this->resolveOrderLineUnitPrices(
                     $p_id,
-                    (float) ($product['price'] ?? 0),
+                    $requestUnitPrice,
                     $project_id,
                     $productPricesData,
                     $documentCurrency,
@@ -2252,36 +2253,6 @@ class OrdersRepository extends BaseRepository
         string $rateDate,
         RoundingService $roundingService
     ): array {
-        $wholesaleDef = null;
-        if ($projectId) {
-            if ($productPricesData !== null) {
-                $pp = $productPricesData->get($productId);
-            } else {
-                $pp = ProductPrice::where('product_id', $productId)->first();
-            }
-            if ($pp && (float) $pp->wholesale_price > 0) {
-                $wholesaleDef = (float) $pp->wholesale_price;
-            }
-        }
-
-        if ($wholesaleDef !== null) {
-            $defUnit = (float) $wholesaleDef;
-            $origUnit = (float) CurrencyConverter::convert(
-                $defUnit,
-                $defaultCurrency,
-                $documentCurrency,
-                null,
-                $companyId,
-                $rateDate
-            );
-
-            return [
-                'def_unit' => $defUnit,
-                'orig_unit' => $origUnit,
-                'orig_currency_id' => $documentCurrency->id,
-            ];
-        }
-
         $origUnit = (float) $requestUnitPrice;
         $defUnit = (float) CurrencyConverter::convert(
             $origUnit,

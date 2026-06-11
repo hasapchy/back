@@ -12,6 +12,7 @@ use App\Models\SalaryMonthlyReportLine;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Repositories\TransactionsRepository;
+use App\Support\ClientBalanceViewAccess;
 use App\Support\TransactionCategoryBindingKeys;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -398,7 +399,12 @@ class SalaryAccrualService
             $balanceOptions = [];
             $defaultClientBalanceId = null;
             if ($includeBalanceOptions && $client && $client->relationLoaded('balances') && $client->balances->isNotEmpty()) {
-                $balancesMatchingPayment = $client->balances->filter(
+                $visibleBalances = ClientBalanceViewAccess::filterBalancesForUser(
+                    $client->balances,
+                    auth('api')->user(),
+                    $companyId
+                );
+                $balancesMatchingPayment = $visibleBalances->filter(
                     fn ($b) => (int) $b->type === $paymentTypeValue
                 );
                 foreach ($balancesMatchingPayment as $balanceRow) {
@@ -798,13 +804,19 @@ class SalaryAccrualService
      */
     public function listAllSalaryReportBatches(int $companyId): array
     {
-        return SalaryMonthlyReport::query()
+        $query = SalaryMonthlyReport::query()
             ->where('company_id', $companyId)
             ->withCount('lines')
             ->with($this->salaryReportBatchRelations())
             ->orderByDesc('date')
-            ->orderByDesc('id')
-            ->get()
+            ->orderByDesc('id');
+
+        $allowedTypes = ClientBalanceViewAccess::getAllowedBalanceTypes(auth('api')->user(), $companyId);
+        if ($allowedTypes !== []) {
+            $query->whereIn('payment_type', $allowedTypes);
+        }
+
+        return $query->get()
             ->map(fn (SalaryMonthlyReport $r) => $this->mapSalaryReportToListItem($r))
             ->values()
             ->all();
@@ -818,15 +830,21 @@ class SalaryAccrualService
         $monthStart = Carbon::parse($yearMonth.'-01')->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth();
 
-        return SalaryMonthlyReport::query()
+        $query = SalaryMonthlyReport::query()
             ->where('company_id', $companyId)
             ->where('date', '>=', $monthStart->toDateString())
             ->where('date', '<=', $monthEnd->toDateString())
             ->withCount('lines')
             ->with($this->salaryReportBatchRelations())
             ->orderByDesc('date')
-            ->orderByDesc('id')
-            ->get()
+            ->orderByDesc('id');
+
+        $allowedTypes = ClientBalanceViewAccess::getAllowedBalanceTypes(auth('api')->user(), $companyId);
+        if ($allowedTypes !== []) {
+            $query->whereIn('payment_type', $allowedTypes);
+        }
+
+        return $query->get()
             ->map(fn (SalaryMonthlyReport $r) => $this->mapSalaryReportToListItem($r))
             ->values()
             ->all();
@@ -846,6 +864,13 @@ class SalaryAccrualService
                 'lines' => fn ($q) => $q->orderBy('employee_name')->with('currency:id,code'),
             ])
             ->firstOrFail();
+
+        $allowedTypes = ClientBalanceViewAccess::getAllowedBalanceTypes(auth('api')->user(), $companyId);
+        if ($allowedTypes !== []
+            && $report->payment_type !== null
+            && ! in_array((int) $report->payment_type, $allowedTypes, true)) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException();
+        }
 
         $linesOut = [];
         foreach ($report->lines as $l) {

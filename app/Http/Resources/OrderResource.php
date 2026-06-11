@@ -103,6 +103,7 @@ class OrderResource extends JsonResource
             'creator' => $creator ? [
                 'id' => $creator->id,
                 'name' => $creator->name,
+                'surname' => $creator->surname,
                 'photo' => $creator->photo,
             ] : null,
             'cash_register' => $cashRegister ? [

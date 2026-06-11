@@ -38,4 +38,5 @@ class ClientBalanceViewAccessTest extends TestCase
 
         $this->assertSame([ClientBalanceViewAccess::TYPE_NON_CASH], $allowed);
     }
+
 }

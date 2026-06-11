@@ -96,6 +96,14 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'clients_verify_balance' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/clients_verify_balance.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
+            'replace_placeholders' => true,
+        ],
+
         'auth' => [
             'driver' => 'daily',
             'path' => storage_path('logs/auth.log'),

@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Currency;
 use App\Models\Unit;
+use App\Services\AppVersionPresenter;
 use App\Services\CacheService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -86,10 +88,13 @@ class AppController extends BaseController
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getVersions(): JsonResponse
+    public function getVersions(Request $request): JsonResponse
     {
-        $items = CacheService::getReferenceData('app_versions', function () {
-            return (array) config('app_versions.versions', []);
+        $platform = (string) $request->query('platform', '');
+        $cacheKey = 'app_versions_'.($platform !== '' ? $platform : 'web');
+
+        $items = CacheService::getReferenceData($cacheKey, function () use ($platform) {
+            return app(AppVersionPresenter::class)->presentAll($platform !== '' ? $platform : null);
         });
 
         return $this->successResponse($items);
