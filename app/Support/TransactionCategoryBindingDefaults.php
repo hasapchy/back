@@ -27,6 +27,8 @@ class TransactionCategoryBindingDefaults
             TransactionCategoryBindingKeys::CASH_TRANSFER_OUTCOME => 17,
             TransactionCategoryBindingKeys::CASH_TRANSFER_INCOME => 18,
             TransactionCategoryBindingKeys::WAREHOUSE_WRITEOFF_SUPPLIER_RETURN => 4,
+            TransactionCategoryBindingKeys::WAREHOUSE_RETURN_PAYABLE_REDUCTION => 4,
+            TransactionCategoryBindingKeys::WAREHOUSE_RETURN_SUPPLIER_CREDIT => 4,
         ];
     }
 }

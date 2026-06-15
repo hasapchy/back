@@ -28,6 +28,7 @@
     "Subscribe":  "Subscribe",
     "Logout":  "Logout",
     "warehouse_receipt.cash_register_forbidden":  "You do not have access to this cash register.",
+    "cash_registers.not_participates_in_transfers":  "This cash register does not participate in transfers.",
     "warehouse_receipt.delete_failed":  "Failed to delete warehouse receipt.",
     "Нельзя удалить баланс, если по нему есть транзакции. Удалите сначала все транзакции этого баланса.":  "Нельзя удалить баланс, если по нему есть транзакции. Удалите сначала все транзакции этого баланса.",
     "Dashboard":  "Dashboard",

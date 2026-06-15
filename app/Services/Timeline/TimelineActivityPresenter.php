@@ -3,6 +3,7 @@
 namespace App\Services\Timeline;
 
 use App\Support\ActivityLog\ActivityPropertiesNormalizer;
+use App\Support\Timeline\TimelineHiddenChangeFields;
 use App\Models\CashRegister;
 use App\Models\Category;
 use App\Models\Client;
@@ -232,6 +233,19 @@ class TimelineActivityPresenter
      */
     private function extractDescriptionParams(Activity $log, string $key): array
     {
+        if (str_ends_with($key, '.products_updated')) {
+            $props = $log->properties;
+            $all = is_object($props) && method_exists($props, 'toArray')
+                ? $props->toArray()
+                : (is_array($props) ? $props : []);
+
+            return [
+                'added' => implode(', ', array_map('strval', $all['added'] ?? [])),
+                'removed' => implode(', ', array_map('strval', $all['removed'] ?? [])),
+                'updated' => implode(', ', array_map('strval', $all['updated'] ?? [])),
+            ];
+        }
+
         if ($key === 'activity_log.order.products_updated') {
             $props = $log->properties;
             $all = is_object($props) && method_exists($props, 'toArray')
@@ -341,6 +355,9 @@ class TimelineActivityPresenter
         $processedOld = [];
 
         foreach ($attributes as $key => $value) {
+            if (TimelineHiddenChangeFields::shouldSkip((string) $key)) {
+                continue;
+            }
             if (in_array($key, ['product_id', 'unit_id'], true)) {
                 continue;
             }
@@ -545,25 +562,21 @@ class TimelineActivityPresenter
     }
 
     /**
-     * @return array{id: int, name: string}|null
+     * @return array{id: int, name: string, surname: string, photo: string|null}|null
      */
     private function getUserForActivity(Activity $log, string $modelClass): ?array
     {
         if ($log->causer instanceof User) {
-            return [
-                'id' => $log->causer->id,
-                'name' => $log->causer->name,
-            ];
+            return TimelineUserFormatter::toArray($log->causer);
         }
 
         if ($log->causer_id) {
             try {
-                $user = User::query()->select(['id', 'name'])->find($log->causer_id);
+                $user = User::query()
+                    ->select(explode(',', TimelineUserFormatter::SELECT_COLUMNS))
+                    ->find($log->causer_id);
                 if ($user instanceof User) {
-                    return [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                    ];
+                    return TimelineUserFormatter::toArray($user);
                 }
             } catch (\Exception $e) {
             }
@@ -575,12 +588,11 @@ class TimelineActivityPresenter
                 if ($subject instanceof Model) {
                     $creatorId = $subject->getAttribute('creator_id');
                     if ($creatorId) {
-                        $user = User::query()->select(['id', 'name'])->find($creatorId);
+                        $user = User::query()
+                            ->select(explode(',', TimelineUserFormatter::SELECT_COLUMNS))
+                            ->find($creatorId);
                         if ($user instanceof User) {
-                            return [
-                                'id' => $user->id,
-                                'name' => $user->name,
-                            ];
+                            return TimelineUserFormatter::toArray($user);
                         }
                     }
                 }

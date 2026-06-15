@@ -12,6 +12,8 @@ use App\Models\Currency;
 use App\Models\Transaction;
 use App\Models\WhPurchase;
 use App\Models\WhReceipt;
+use App\Models\WhWriteoff;
+use App\Enums\WhWriteoffReason;
 use App\Services\CacheService;
 use App\Services\CashRegisterDeletionGuard;
 use App\Services\CurrencyConverter;
@@ -22,6 +24,9 @@ use App\Services\ReceiptExpenseAllocationService;
 use App\Services\Timeline\TimelineCache;
 use App\Services\ClientBalanceService;
 use App\Services\WarehouseDocumentPaymentStatusService;
+use App\Services\WarehouseReturnSupplierSettlementService;
+use App\Services\FinancialAccountService;
+use App\Services\ClientBalanceMovementService;
 use App\Support\TransactionCategoryBindingKeys;
 use App\Support\TransactionCategoryTypeGuard;
 use Illuminate\Support\Facades\DB;
@@ -48,7 +53,7 @@ class TransactionsRepository extends BaseRepository
      * @param  array|null  $category_ids  Массив ID категорий транзакций
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null, $contract_id = null, $warehouse_receipt_id = null, ?array $exportIds = null, ?int $exportLimit = null)
+    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null, $contract_id = null, $warehouse_receipt_id = null, $warehouse_writeoff_id = null, ?array $exportIds = null, ?int $exportLimit = null)
     {
         $companyId = $this->getCurrentCompanyId();
 
@@ -65,9 +70,9 @@ class TransactionsRepository extends BaseRepository
         $showDeletedKey = $showDeleted ? '1' : '0';
         $sourcePermissionsKey = $this->getSourcePermissionsKey($currentUser);
         $categoryIdsKey = $category_ids ? md5(implode(',', $category_ids)) : 'null';
-        $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $categoryIdsKey, $showDeletedKey, $sourcePermissionsKey, $currentUser?->id, $this->getCurrentCompanyId(), $contract_id, $warehouse_receipt_id]);
+        $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $categoryIdsKey, $showDeletedKey, $sourcePermissionsKey, $currentUser?->id, $this->getCurrentCompanyId(), $contract_id, $warehouse_receipt_id, $warehouse_writeoff_id]);
 
-        $runQuery = function () use ($perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $showDeleted, $currentUser, $userUuid, $contract_id, $warehouse_receipt_id, $exportIds, $exportLimit) {
+        $runQuery = function () use ($perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $showDeleted, $currentUser, $userUuid, $contract_id, $warehouse_receipt_id, $warehouse_writeoff_id, $exportIds, $exportLimit) {
             $searchTrimmed = is_string($search) ? trim($search) : '';
             $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
 
@@ -122,6 +127,10 @@ class TransactionsRepository extends BaseRepository
                 ->when($warehouse_receipt_id, function ($query, $warehouse_receipt_id) {
                     return $query->where('source_type', 'App\\Models\\WhReceipt')
                         ->where('source_id', $warehouse_receipt_id);
+                })
+                ->when($warehouse_writeoff_id, function ($query, $warehouse_writeoff_id) {
+                    return $query->where('source_type', WhWriteoff::class)
+                        ->where('source_id', $warehouse_writeoff_id);
                 })
                 ->when($hasSearch, function ($query) use ($searchTrimmed) {
                     $searchLower = mb_strtolower($searchTrimmed);
@@ -282,9 +291,9 @@ class TransactionsRepository extends BaseRepository
      * @param  int  $limit
      * @return array
      */
-    public function getItemsForExport($userUuid, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null, $contract_id = null, $warehouse_receipt_id = null, ?array $ids = null, int $limit = 10000): array
+    public function getItemsForExport($userUuid, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null, $contract_id = null, $warehouse_receipt_id = null, $warehouse_writeoff_id = null, ?array $ids = null, int $limit = 10000): array
     {
-        $result = $this->getItemsWithPagination($userUuid, 10, 1, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $contract_id, $warehouse_receipt_id, $ids, $limit);
+        $result = $this->getItemsWithPagination($userUuid, 10, 1, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $contract_id, $warehouse_receipt_id, $warehouse_writeoff_id, $ids, $limit);
 
         return $result->items ?? [];
     }
@@ -502,6 +511,8 @@ class TransactionsRepository extends BaseRepository
         );
 
         $this->assertWarehouseGoodsPaymentCap($data, (float) $defAmount, null);
+        $this->assertGeneratedReturnBindingAllowed($data, $companyId);
+        $this->assertWarehouseWriteoffAllowsTransactionMutation($data, null);
 
         if (empty($data['is_adjustment']) && isset($data['type'], $data['category_id'])) {
             TransactionCategoryTypeGuard::assertMatch((int) $data['type'], (int) $data['category_id']);
@@ -634,6 +645,9 @@ class TransactionsRepository extends BaseRepository
             $this->syncLinkedPurchaseCompletionAfterPaymentChange($transaction);
 
             TimelineCache::forget('transaction', (int) $transaction->id);
+
+            $this->syncFinancialAccountProjection($transaction);
+            $this->syncClientBalanceProjection($transaction);
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -735,6 +749,9 @@ class TransactionsRepository extends BaseRepository
 
         TimelineCache::forget('transaction', (int) $id);
 
+        $this->syncFinancialAccountProjection($transaction);
+        $this->syncClientBalanceProjection($transaction);
+
         return true;
     }
 
@@ -756,6 +773,10 @@ class TransactionsRepository extends BaseRepository
         if (isset($data['category_id'])) {
             TransactionCategoryTypeGuard::assertMatch((int) $transaction->type, (int) $data['category_id']);
         }
+
+        $companyId = (int) $this->getCurrentCompanyId();
+        $this->assertGeneratedReturnBindingAllowed($data, $companyId);
+        $this->assertWarehouseWriteoffAllowsTransactionMutation($data, $transaction);
 
         DB::beginTransaction();
 
@@ -1072,6 +1093,9 @@ class TransactionsRepository extends BaseRepository
 
             TimelineCache::forget('transaction', (int) $id);
 
+            $this->syncFinancialAccountProjection($transaction);
+            $this->syncClientBalanceProjection($transaction);
+
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1234,10 +1258,40 @@ class TransactionsRepository extends BaseRepository
 
             app(ReceiptExpenseAllocationService::class)->removeForTransactionId((int) $id);
 
+            $transaction->is_deleted = true;
+            $this->syncFinancialAccountProjection($transaction);
+            $this->syncClientBalanceProjection($transaction);
+
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
+        }
+    }
+
+    /**
+     * @param  Transaction  $transaction
+     * @return void
+     */
+    private function syncFinancialAccountProjection(Transaction $transaction): void
+    {
+        try {
+            app(FinancialAccountService::class)->syncTransaction($transaction);
+        } catch (\Throwable $exception) {
+            FinancialAccountService::logProjectionError($transaction, $exception);
+        }
+    }
+
+    /**
+     * @param  Transaction  $transaction
+     * @return void
+     */
+    private function syncClientBalanceProjection(Transaction $transaction): void
+    {
+        try {
+            app(ClientBalanceMovementService::class)->syncTransaction($transaction);
+        } catch (\Throwable $exception) {
+            ClientBalanceMovementService::logProjectionError($transaction, $exception);
         }
     }
 
@@ -2032,6 +2086,82 @@ class TransactionsRepository extends BaseRepository
         }
         if (str_contains($sourceType, 'WhReceipt')) {
             $service->syncReceiptPaidAmount($sourceId);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function assertGeneratedReturnBindingAllowed(array $data, int $companyId): void
+    {
+        if (! empty($data['allow_generated_return_binding'])) {
+            return;
+        }
+
+        $categoryId = (int) ($data['category_id'] ?? 0);
+        if ($categoryId <= 0 || $companyId <= 0) {
+            return;
+        }
+
+        if (app(WarehouseReturnSupplierSettlementService::class)->isGeneratedReturnBindingCategory($companyId, $categoryId)) {
+            throw new \RuntimeException((string) __('warehouse_return.generated_transaction_forbidden'));
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function assertWarehouseWriteoffAllowsTransactionMutation(array $data, ?Transaction $existing): void
+    {
+        $sourceType = (string) ($data['source_type'] ?? $existing?->source_type ?? '');
+        $sourceId = (int) ($data['source_id'] ?? $existing?->source_id ?? 0);
+
+        if ($sourceId <= 0 || ! is_a($sourceType, WhWriteoff::class, true)) {
+            return;
+        }
+
+            $writeoff = WhWriteoff::query()->find($sourceId);
+        if (! $writeoff instanceof WhWriteoff || $writeoff->reason !== WhWriteoffReason::ReturnSupplier) {
+            return;
+        }
+
+        $writeoff->loadMissing('writeOffProducts');
+
+        $isDebt = (bool) ($data['is_debt'] ?? $existing?->is_debt ?? false);
+        $companyId = (int) $this->getCurrentCompanyId();
+        $categoryId = (int) ($data['category_id'] ?? $existing?->category_id ?? 0);
+
+        if ($isDebt && $categoryId > 0
+            && app(WarehouseReturnSupplierSettlementService::class)->isGeneratedReturnBindingCategory($companyId, $categoryId)
+            && empty($data['allow_generated_return_binding'])) {
+            throw new \RuntimeException((string) __('warehouse_return.generated_transaction_forbidden'));
+        }
+
+        if (! $isDebt && (int) ($data['type'] ?? $existing?->type ?? -1) === 1) {
+            $excludeId = $existing ? (int) $existing->id : null;
+            $manualTotal = app(WarehouseReturnSupplierSettlementService::class)->sumManualCashDefaultForWriteoff($writeoff, $companyId);
+            $newAmount = (float) ($data['orig_amount'] ?? $data['amount'] ?? $existing?->orig_amount ?? 0);
+            if ($existing && ! isset($data['orig_amount']) && ! isset($data['amount'])) {
+                $newAmount = 0.0;
+            }
+            $projectedTotal = $manualTotal + $newAmount - ($existing && ! $existing->is_debt ? (float) $existing->orig_amount : 0.0);
+
+            $receipt = WhReceipt::query()->with(['products', 'warehouse:id,company_id'])->find((int) $writeoff->source_receipt_id);
+            if ($receipt instanceof WhReceipt) {
+                $products = $writeoff->writeOffProducts->map(static fn ($p) => [
+                    'quantity' => (float) $p->quantity,
+                    'source_receipt_product_id' => $p->source_receipt_product_id,
+                ])->all();
+                $lines = $receipt->products->keyBy('id');
+                $returnAmount = app(WarehouseReturnSupplierSettlementService::class)
+                    ->calculateReturnAmountDefault($products, $lines, $companyId ?: null);
+                $portions = app(WarehouseReturnSupplierSettlementService::class)
+                    ->calculateFifoPortions($receipt, $returnAmount, (int) $writeoff->id);
+
+                if ($projectedTotal > $portions['paid_portion'] + 0.01) {
+                    throw new \RuntimeException((string) __('warehouse_return.cash_exceeds_refund_debt'));
+                }
+            }
         }
     }
 

@@ -100,4 +100,64 @@ class TimelineActivityPresenterI18nTest extends TestCase
         $this->assertSame('50', $item['description_params']['counted']);
         $this->assertSame('3', $item['description_params']['with_discrepancy']);
     }
+
+    public function test_order_changes_exclude_def_and_rep_fields(): void
+    {
+        $log = new Activity([
+            'log_name' => 'order',
+            'event' => 'updated',
+            'description' => 'activity_log.order.updated',
+            'properties' => new Collection([
+                'attributes' => [
+                    'price' => '400.00000',
+                    'def_price' => '400.00000',
+                    'rep_total_price' => '21.00000',
+                ],
+                'old' => [
+                    'price' => '320.00000',
+                    'def_price' => '320.00000',
+                    'rep_total_price' => '20.00000',
+                ],
+            ]),
+        ]);
+        $log->subject = new Order(['id' => 1]);
+
+        $item = app(TimelineActivityPresenter::class)->processActivityLog($log, Order::class);
+
+        $this->assertNotNull($item['changes']);
+        $this->assertArrayHasKey('price', $item['changes']['attributes']);
+        $this->assertArrayNotHasKey('def_price', $item['changes']['attributes']);
+        $this->assertArrayNotHasKey('rep_total_price', $item['changes']['attributes']);
+        $this->assertArrayNotHasKey('def_price', $item['changes']['old']);
+        $this->assertArrayNotHasKey('rep_total_price', $item['changes']['old']);
+    }
+
+    public function test_order_changes_exclude_orig_fields(): void
+    {
+        $log = new Activity([
+            'log_name' => 'order',
+            'event' => 'updated',
+            'description' => 'activity_log.order.updated',
+            'properties' => new Collection([
+                'attributes' => [
+                    'price' => '400.00000',
+                    'orig_price' => '400.00000',
+                    'orig_currency_id' => 1,
+                ],
+                'old' => [
+                    'price' => '320.00000',
+                    'orig_price' => '320.00000',
+                    'orig_currency_id' => 1,
+                ],
+            ]),
+        ]);
+        $log->subject = new Order(['id' => 1]);
+
+        $item = app(TimelineActivityPresenter::class)->processActivityLog($log, Order::class);
+
+        $this->assertNotNull($item['changes']);
+        $this->assertArrayHasKey('price', $item['changes']['attributes']);
+        $this->assertArrayNotHasKey('orig_price', $item['changes']['attributes']);
+        $this->assertArrayNotHasKey('orig_currency_id', $item['changes']['attributes']);
+    }
 }

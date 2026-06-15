@@ -20,6 +20,7 @@ use App\Models\Traits\HasManyToManyUsers;
  * @property int $sort_order Порядок сортировки
  * @property bool $is_cash Наличная касса
  * @property bool $is_working_minus Разрешено ли уходить в минус
+ * @property bool $participates_in_transfers Участвует в трансферах
  * @property string|null $icon CSS класс иконки кассы
  * @property string $icon_size Размер иконки кассы
  * @property string|null $color Акцентный цвет (#RRGGBB)
@@ -48,6 +49,7 @@ class CashRegister extends Model
         'sort_order',
         'is_cash',
         'is_working_minus',
+        'participates_in_transfers',
         'icon',
         'icon_size',
         'color',
@@ -88,6 +90,7 @@ class CashRegister extends Model
         'balance' => 'decimal:5',
         'is_cash' => 'boolean',
         'is_working_minus' => 'boolean',
+        'participates_in_transfers' => 'boolean',
         'sort_order' => 'integer',
     ];
 

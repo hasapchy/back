@@ -11,6 +11,11 @@ class ActivityPropertiesNormalizer
 
     private const PROTECTED_DESCRIPTION_KEYS = [
         'activity_log.order.products_updated',
+        'activity_log.wh_receipt.products_updated',
+        'activity_log.wh_writeoff.products_updated',
+        'activity_log.wh_movement.products_updated',
+        'activity_log.wh_purchase.products_updated',
+        'activity_log.sale.products_updated',
         'activity_log.inventory.items_counted',
         'activity_log.project_contract.returned_signed',
         'activity_log.project_contract.returned_unsigned',

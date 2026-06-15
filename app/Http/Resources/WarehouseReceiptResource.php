@@ -6,7 +6,9 @@ use App\Enums\WhReceiptStatus;
 use App\Models\WhReceipt;
 use App\Services\ReceiptExpenseAllocationService;
 use App\Services\UnitStockPresentationService;
+use App\Services\WarehouseDocumentPaymentStatusService;
 use App\Services\WarehouseReceiptGoodsPaymentLimitService;
+use App\Services\WarehouseReturnSupplierSettlementService;
 
 class WarehouseReceiptResource extends BaseDomainResource
 {
@@ -60,6 +62,17 @@ class WarehouseReceiptResource extends BaseDomainResource
             ];
             $limitService = app(WarehouseReceiptGoodsPaymentLimitService::class);
             $data['goods_payment_remaining_default'] = $limitService->remainingDefault($receipt, null);
+            $paymentService = app(WarehouseDocumentPaymentStatusService::class);
+            $data['return_adjusted_amount'] = $paymentService->sumPayableReductionDefaultForReceipt((int) $receipt->id);
+            $data['effective_remaining'] = $paymentService->effectiveRemainingDefault($receipt);
+            $data['returned_goods_amount'] = (float) ($receipt->returned_goods_amount ?? app(WarehouseReturnSupplierSettlementService::class)
+                ->sumReturnAmountDefaultForReceipt((int) $receipt->id));
+            $data['net_goods_amount'] = (float) ($receipt->net_goods_amount ?? max(
+                0.0,
+                app(WarehouseReceiptGoodsPaymentLimitService::class)->goodsTotalDefault($receipt) - $data['returned_goods_amount']
+            ));
+            $data['linked_returns'] = app(WarehouseReturnSupplierSettlementService::class)
+                ->linkedReturnsForReceipt((int) $receipt->id);
         } else {
             $data['products'] = WarehouseReceiptProductResource::collection($receipt->products)->resolve();
         }

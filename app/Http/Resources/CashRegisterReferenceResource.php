@@ -23,6 +23,7 @@ class CashRegisterReferenceResource extends JsonResource
             'balance' => data_get($this->resource, 'balance'),
             'is_cash' => data_get($this->resource, 'is_cash'),
             'is_working_minus' => data_get($this->resource, 'is_working_minus'),
+            'participates_in_transfers' => data_get($this->resource, 'participates_in_transfers'),
             'sort_order' => data_get($this->resource, 'sort_order'),
             'currency_id' => data_get($this->resource, 'currency_id'),
             'creator_id' => data_get($this->resource, 'creator_id'),

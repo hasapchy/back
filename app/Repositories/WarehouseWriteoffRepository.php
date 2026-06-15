@@ -5,7 +5,6 @@ namespace App\Repositories;
 use App\Enums\WhWriteoffReason;
 use App\Http\Resources\WarehouseWriteoffProductResource;
 use App\Http\Resources\WarehouseWriteoffResource;
-use App\Models\CashRegister;
 use App\Models\User;
 use App\Models\WarehouseStock;
 use App\Models\WhReceipt;
@@ -13,17 +12,19 @@ use App\Models\WhReceiptProduct;
 use App\Models\WhUser;
 use App\Models\WhWriteoff;
 use App\Models\WhWriteoffProduct;
+use App\Repositories\Concerns\LogsTimelineProductLineChanges;
 use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
+use App\Services\Timeline\ProductLinesTimelineDiff;
 use App\Services\CacheService;
 use App\Services\UnitStockPresentationService;
 use App\Services\InventoryLockService;
-use App\Services\RoundingService;
+use App\Services\WarehouseReturnSupplierSettlementService;
 use App\Services\Timeline\WarehouseTimelineCache;
-use App\Support\TransactionCategoryBindingKeys;
 use Illuminate\Support\Facades\DB;
 
 class WarehouseWriteoffRepository extends BaseRepository
 {
+    use LogsTimelineProductLineChanges;
     use ResolvesWarehouseLineOrigDisplay;
 
     /**
@@ -198,7 +199,7 @@ class WarehouseWriteoffRepository extends BaseRepository
             }
         }
 
-        return [
+        $result = [
             'id' => (int) $row->id,
             'warehouse_id' => (int) $row->warehouse_id,
             'source_receipt_id' => $row->source_receipt_id ? (int) $row->source_receipt_id : null,
@@ -210,7 +211,32 @@ class WarehouseWriteoffRepository extends BaseRepository
             'created_at' => $row->created_at,
             'updated_at' => $row->updated_at,
             'products' => $products,
+            'unpaid_portion' => null,
+            'paid_portion' => null,
+            'cash_return_remaining_default' => null,
         ];
+
+        if ($row->reason === WhWriteoffReason::ReturnSupplier && $row->source_receipt_id) {
+            $writeoff = WhWriteoff::query()->with('writeOffProducts')->find($row->id);
+            $receipt = WhReceipt::query()->with(['products', 'warehouse:id,company_id'])->find((int) $row->source_receipt_id);
+            if ($writeoff && $receipt) {
+                $settlement = app(WarehouseReturnSupplierSettlementService::class);
+                $productPayload = $writeoff->writeOffProducts->map(static fn ($p) => [
+                    'quantity' => (float) $p->quantity,
+                    'source_receipt_product_id' => $p->source_receipt_product_id,
+                ])->all();
+                $lines = $receipt->products->keyBy('id');
+                $companyId = (int) ($receipt->warehouse?->company_id ?? 0);
+                $returnAmount = $settlement->calculateReturnAmountDefault($productPayload, $lines, $companyId ?: null);
+                $portions = $settlement->calculateFifoPortions($receipt, $returnAmount, (int) $writeoff->id);
+                $manualCashTotal = $settlement->sumManualCashDefaultForWriteoff($writeoff, $companyId);
+                $result['unpaid_portion'] = $portions['unpaid_portion'];
+                $result['paid_portion'] = $portions['paid_portion'];
+                $result['cash_return_remaining_default'] = max(0.0, $portions['paid_portion'] - $manualCashTotal);
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -259,7 +285,8 @@ class WarehouseWriteoffRepository extends BaseRepository
                 $this->updateStock($warehouse_id, $product_id, $quantity);
             }
 
-            $this->syncReturnSupplierTransaction($writeoff, $products);
+            app(WarehouseReturnSupplierSettlementService::class)
+                ->syncSettlement($writeoff->fresh(), $products);
 
             CacheService::invalidateWarehouseWriteoffsCache();
             CacheService::invalidateWarehouseStocksCache();
@@ -284,7 +311,7 @@ class WarehouseWriteoffRepository extends BaseRepository
         $reason = WhWriteoffReason::from((string) $data['reason']);
         $note = $data['note'];
         $sourceReceiptId = isset($data['source_receipt_id']) ? (int) $data['source_receipt_id'] : null;
-        $products = $this->normalizeProductsForCreateOrUpdate($warehouse_id, $reason, $sourceReceiptId, $data['products']);
+        $products = $this->normalizeProductsForCreateOrUpdate($warehouse_id, $reason, $sourceReceiptId, $data['products'], (int) $writeoff_id);
 
         app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
 
@@ -345,7 +372,15 @@ class WarehouseWriteoffRepository extends BaseRepository
                 $deletedProduct->delete();
             }
 
-            $this->syncReturnSupplierTransaction($writeoff, $products);
+            $this->logTimelineProductLineChanges(
+                $writeoff,
+                $existingProducts,
+                $products,
+                [ProductLinesTimelineDiff::class, 'writeoffLineHasChanges'],
+            );
+
+            app(WarehouseReturnSupplierSettlementService::class)
+                ->syncSettlement($writeoff->fresh(), $products);
 
             CacheService::invalidateWarehouseWriteoffsCache();
             CacheService::invalidateWarehouseStocksCache();
@@ -454,90 +489,6 @@ class WarehouseWriteoffRepository extends BaseRepository
     }
 
     /**
-     * @param  array<int, array{product_id: int, quantity: float, price: float, source_receipt_product_id: int|null}>  $products
-     */
-    private function syncReturnSupplierTransaction(WhWriteoff $writeoff, array $products): void
-    {
-        $activeTransactions = $writeoff->transactions()
-            ->where('is_deleted', false)
-            ->orderBy('id')
-            ->get();
-
-        if ($writeoff->reason !== WhWriteoffReason::ReturnSupplier || ! $writeoff->source_receipt_id) {
-            app(TransactionsRepository::class)->deleteLinkedTransactions($activeTransactions);
-            return;
-        }
-
-        $receipt = WhReceipt::query()->find((int) $writeoff->source_receipt_id);
-        if (! $receipt || ! $receipt->supplier_id || ! $receipt->cash_id) {
-            return;
-        }
-        $cashRegister = CashRegister::query()->find((int) $receipt->cash_id);
-        if (! $cashRegister || ! $cashRegister->currency_id) {
-            return;
-        }
-
-        $receiptLines = WhReceiptProduct::query()
-            ->where('receipt_id', (int) $writeoff->source_receipt_id)
-            ->get()
-            ->keyBy('id');
-
-        $amount = 0.0;
-        foreach ($products as $product) {
-            $receiptLine = $receiptLines->get((int) ($product['source_receipt_product_id'] ?? 0));
-            if (! $receiptLine instanceof WhReceiptProduct) {
-                continue;
-            }
-            $amount += $receiptLine->documentCurrencyUnitPrice() * (float) ($product['quantity'] ?? 0);
-        }
-
-        $amount = app(RoundingService::class)->roundWarehouseAmountForCompany($this->getCurrentCompanyId(), $amount);
-
-        $txData = [
-            'type' => 1,
-            'creator_id' => (int) (auth('api')->id() ?: $writeoff->creator_id),
-            'amount' => $amount,
-            'orig_amount' => $amount,
-            'currency_id' => (int) $cashRegister->currency_id,
-            'cash_id' => (int) $receipt->cash_id,
-            'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::WAREHOUSE_WRITEOFF_SUPPLIER_RETURN),
-            'client_id' => (int) $receipt->supplier_id,
-            'client_balance_id' => $receipt->client_balance_id ? (int) $receipt->client_balance_id : null,
-            'project_id' => null,
-            'note' => $writeoff->note,
-            'date' => $writeoff->date ?? now(),
-            'source_type' => WhWriteoff::class,
-            'source_id' => (int) $writeoff->id,
-        ];
-
-        $debtData = $txData;
-        $debtData['is_debt'] = true;
-
-        $paymentData = $txData;
-        $paymentData['is_debt'] = false;
-
-        $debtTx = $activeTransactions->firstWhere('is_debt', true);
-        $paymentTx = $activeTransactions->firstWhere('is_debt', false);
-
-        if ($debtTx) {
-            app(TransactionsRepository::class)->updateItem((int) $debtTx->id, $debtData);
-        } else {
-            app(TransactionsRepository::class)->createItem($debtData, false, false);
-        }
-
-        if ($paymentTx) {
-            app(TransactionsRepository::class)->updateItem((int) $paymentTx->id, $paymentData);
-        } else {
-            app(TransactionsRepository::class)->createItem($paymentData, false, false);
-        }
-
-        $obsoleteTransactions = $activeTransactions
-            ->reject(fn ($tx) => ($debtTx && (int) $tx->id === (int) $debtTx->id) || ($paymentTx && (int) $tx->id === (int) $paymentTx->id))
-            ->values();
-        app(TransactionsRepository::class)->deleteLinkedTransactions($obsoleteTransactions);
-    }
-
-    /**
      * @param  array<int, array{product_id: int, quantity: float, source_receipt_product_id?: int|null}>  $products
      * @return array<int, array{product_id: int, quantity: float, price: float, source_receipt_product_id: int|null}>
      */
@@ -545,7 +496,8 @@ class WarehouseWriteoffRepository extends BaseRepository
         int $warehouseId,
         WhWriteoffReason $reason,
         ?int $sourceReceiptId,
-        array $products
+        array $products,
+        ?int $excludeWriteoffId = null
     ): array {
         $products = array_values(array_filter(
             $products,
@@ -573,15 +525,20 @@ class WarehouseWriteoffRepository extends BaseRepository
 
         $receipt = WhReceipt::query()
             ->with(['products:id,receipt_id,product_id,quantity,price,orig_unit_price'])
+            ->lockForUpdate()
             ->find($sourceReceiptId);
         if (! $receipt) {
             throw new \RuntimeException(__('SOURCE_RECEIPT_NOT_FOUND'));
         }
 
+        $settlement = app(WarehouseReturnSupplierSettlementService::class);
+        $settlement->assertReceiptEligibleForReturn($receipt);
+        $settlement->assertReturnQuantitiesWithinLimits($receipt, $products, $excludeWriteoffId);
+
         $lineById = $receipt->products->keyBy('id');
         $lineByProductId = $receipt->products
             ->groupBy('product_id')
-            ->map(static fn($items) => $items->first());
+            ->map(static fn ($items) => $items->first());
 
         return array_map(function (array $product) use ($lineById, $lineByProductId): array {
             $productId = (int) $product['product_id'];
@@ -601,9 +558,6 @@ class WarehouseWriteoffRepository extends BaseRepository
             }
             if ((int) $receiptLine->product_id !== $productId) {
                 throw new \RuntimeException(__('SOURCE_RECEIPT_PRODUCT_MISMATCH'));
-            }
-            if ($quantity > (float) $receiptLine->quantity) {
-                throw new \RuntimeException(__('RETURN_QUANTITY_EXCEEDS_RECEIPT'));
             }
 
             return array_merge([

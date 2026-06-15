@@ -174,6 +174,7 @@ class CashRegistersRepository extends BaseRepository
             $item->creator_id = auth('api')->id();
             $item->is_cash = (bool) ($data['is_cash'] ?? true);
             $item->is_working_minus = (bool) ($data['is_working_minus'] ?? false);
+            $item->participates_in_transfers = (bool) ($data['participates_in_transfers'] ?? true);
             $item->sort_order = (int) $data['sort_order'];
             $item->icon = $data['icon'] ?? null;
             $item->icon_size = $data['icon_size'];
@@ -214,6 +215,10 @@ class CashRegistersRepository extends BaseRepository
 
             if (array_key_exists('is_working_minus', $data)) {
                 $item->is_working_minus = (bool) $data['is_working_minus'];
+            }
+
+            if (array_key_exists('participates_in_transfers', $data)) {
+                $item->participates_in_transfers = (bool) $data['participates_in_transfers'];
             }
 
             if (array_key_exists('icon', $data)) {

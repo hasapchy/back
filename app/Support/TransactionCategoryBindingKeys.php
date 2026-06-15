@@ -21,6 +21,8 @@ class TransactionCategoryBindingKeys
     public const CASH_TRANSFER_OUTCOME = 'cash.transfer.outcome';
     public const CASH_TRANSFER_INCOME = 'cash.transfer.income';
     public const WAREHOUSE_WRITEOFF_SUPPLIER_RETURN = 'warehouse.writeoff.supplier.return';
+    public const WAREHOUSE_RETURN_PAYABLE_REDUCTION = 'warehouse.return.payable_reduction';
+    public const WAREHOUSE_RETURN_SUPPLIER_CREDIT = 'warehouse.return.supplier_credit';
 
     /**
      * @return array<int, string>
@@ -45,6 +47,8 @@ class TransactionCategoryBindingKeys
             self::CASH_TRANSFER_OUTCOME,
             self::CASH_TRANSFER_INCOME,
             self::WAREHOUSE_WRITEOFF_SUPPLIER_RETURN,
+            self::WAREHOUSE_RETURN_PAYABLE_REDUCTION,
+            self::WAREHOUSE_RETURN_SUPPLIER_CREDIT,
         ];
     }
 
@@ -65,7 +69,9 @@ class TransactionCategoryBindingKeys
             self::TRANSACTION_DEFAULT_INCOME,
             self::PRESET_EMPLOYEE_PENALTY,
             self::CASH_TRANSFER_INCOME,
-            self::WAREHOUSE_WRITEOFF_SUPPLIER_RETURN => 1,
+            self::WAREHOUSE_WRITEOFF_SUPPLIER_RETURN,
+            self::WAREHOUSE_RETURN_PAYABLE_REDUCTION,
+            self::WAREHOUSE_RETURN_SUPPLIER_CREDIT => 1,
             self::WAREHOUSE_PURCHASE,
             self::WAREHOUSE_RECEIPT,
             self::ADJUSTMENT_OUTCOME,

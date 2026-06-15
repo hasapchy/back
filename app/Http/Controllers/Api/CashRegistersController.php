@@ -170,6 +170,7 @@ class CashRegistersController extends BaseController
             'users' => $validatedData['users'],
             'is_cash' => $validatedData['is_cash'] ?? true,
             'is_working_minus' => $validatedData['is_working_minus'] ?? false,
+            'participates_in_transfers' => $validatedData['participates_in_transfers'] ?? true,
             'sort_order' => $validatedData['sort_order'],
             'icon' => $validatedData['icon'] ?? null,
             'icon_size' => $validatedData['icon_size'],
@@ -211,6 +212,10 @@ class CashRegistersController extends BaseController
 
         if (array_key_exists('is_working_minus', $validatedData)) {
             $payload['is_working_minus'] = $validatedData['is_working_minus'];
+        }
+
+        if (array_key_exists('participates_in_transfers', $validatedData)) {
+            $payload['participates_in_transfers'] = $validatedData['participates_in_transfers'];
         }
 
         if (array_key_exists('icon', $validatedData)) {

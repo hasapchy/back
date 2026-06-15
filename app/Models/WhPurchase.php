@@ -79,8 +79,6 @@ class WhPurchase extends Model implements SupportsTimeline
                 'note',
                 'amount',
                 'paid_amount',
-                'orig_amount',
-                'orig_currency_id',
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()

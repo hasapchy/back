@@ -4,13 +4,16 @@ namespace App\Services;
 
 use App\Models\Client;
 use App\Models\ClientBalance;
-use App\Models\Currency;
 use App\Models\Transaction;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class ClientBalanceVerificationService
 {
+    public function __construct(
+        private readonly ClientBalanceLedgerResolver $ledgerResolver,
+    ) {}
+
     /**
      * @param  int  $clientId
      * @param  int|null  $balanceId
@@ -156,14 +159,14 @@ class ClientBalanceVerificationService
         foreach ($transactions as $transaction) {
             $transactionsTotal++;
 
-            if (! $this->shouldAffectClientBalance($transaction)) {
+            if (! $this->ledgerResolver->shouldAffectClientBalance($transaction)) {
                 $transactionsSkipped++;
                 $ledger[] = $this->ledgerRow($transaction, 0.0, null, 'skipped');
 
                 continue;
             }
 
-            $targetBalance = $this->resolveBalanceForTransaction($client, $transaction, $balances);
+            $targetBalance = $this->ledgerResolver->resolveBalanceForTransaction($client, $transaction, $balances);
             if (! $targetBalance) {
                 $transactionsSkipped++;
                 $issues[] = [
@@ -176,7 +179,7 @@ class ClientBalanceVerificationService
                 continue;
             }
 
-            $amount = $this->resolveAmountForBalance($transaction, $targetBalance, $client->company_id);
+            $amount = $this->ledgerResolver->resolveAmountForBalance($transaction, $targetBalance, $client->company_id);
             $delta = ClientBalanceService::balanceDelta($amount, (int) $transaction->type, (bool) $transaction->is_debt);
             $simulated[$targetBalance->id] = ($simulated[$targetBalance->id] ?? 0.0) + $delta;
             $transactionsApplied++;
@@ -260,7 +263,7 @@ class ClientBalanceVerificationService
             ]);
 
         foreach ($transactions as $transaction) {
-            if (! $this->shouldAffectClientBalance($transaction)) {
+            if (! $this->ledgerResolver->shouldAffectClientBalance($transaction)) {
                 $ledger[] = $this->ledgerRow($transaction, 0.0, (int) $transaction->client_balance_id, 'skipped');
 
                 continue;
@@ -278,7 +281,7 @@ class ClientBalanceVerificationService
                 continue;
             }
 
-            $amount = $this->resolveAmountForBalance($transaction, $balance, $client->company_id);
+            $amount = $this->ledgerResolver->resolveAmountForBalance($transaction, $balance, $client->company_id);
             $delta = ClientBalanceService::balanceDelta($amount, (int) $transaction->type, (bool) $transaction->is_debt);
             $simulated[$balance->id] += $delta;
 
@@ -314,111 +317,6 @@ class ClientBalanceVerificationService
             'issues' => $issues,
             'ledger' => $ledger,
         ];
-    }
-
-    /**
-     * @param  Transaction  $transaction
-     * @return bool
-     */
-    private function shouldAffectClientBalance(Transaction $transaction): bool
-    {
-        if (! $transaction->client_id) {
-            return false;
-        }
-
-        return ! ($transaction->source_type === 'App\\Models\\Order' && ! empty($transaction->project_id));
-    }
-
-    /**
-     * @param  Client  $client
-     * @param  Transaction  $transaction
-     * @param  Collection<int, ClientBalance>  $balances
-     * @return ClientBalance|null
-     */
-    private function resolveBalanceForTransaction(Client $client, Transaction $transaction, Collection $balances): ?ClientBalance
-    {
-        $currencyId = (int) $transaction->currency_id;
-
-        $balance = $balances
-            ->where('currency_id', $currencyId)
-            ->where('is_default', true)
-            ->first();
-
-        if (! $balance) {
-            $balance = $balances
-                ->where('currency_id', $currencyId)
-                ->sortBy('id')
-                ->first();
-        }
-
-        if ($balance) {
-            return $balance;
-        }
-
-        return $balances->where('is_default', true)->first()
-            ?? $balances->sortBy('id')->first();
-    }
-
-    /**
-     * @param  Transaction  $transaction
-     * @param  ClientBalance  $balance
-     * @param  int|null  $companyId
-     * @return float
-     */
-    private function resolveAmountForBalance(Transaction $transaction, ClientBalance $balance, ?int $companyId): float
-    {
-        $amount = (float) $transaction->orig_amount;
-        if ($amount == 0.0) {
-            return 0.0;
-        }
-
-        if ((int) $balance->currency_id === (int) $transaction->currency_id) {
-            return $amount;
-        }
-
-        $balanceCurrency = Currency::find($balance->currency_id);
-        $transactionCurrency = $transaction->currency;
-        if (! $balanceCurrency || ! $transactionCurrency) {
-            return $amount;
-        }
-
-        $transactionDate = $transaction->created_at ? $transaction->created_at->toDateString() : null;
-        $cashCurrency = $transaction->cashRegister ? $transaction->cashRegister->currency : null;
-        $exchangeRate = $transaction->exchange_rate;
-
-        if ($exchangeRate !== null && $exchangeRate > 0 && $cashCurrency) {
-            $amountInCashCurrency = $amount * $exchangeRate;
-
-            if ($cashCurrency->id === $balanceCurrency->id) {
-                $convertedAmount = $amountInCashCurrency;
-            } else {
-                $convertedAmount = CurrencyConverter::convert(
-                    $amountInCashCurrency,
-                    $cashCurrency,
-                    $balanceCurrency,
-                    null,
-                    $companyId,
-                    $transactionDate ?? now()
-                );
-            }
-        } else {
-            $convertedAmount = CurrencyConverter::convert(
-                $amount,
-                $transactionCurrency,
-                $balanceCurrency,
-                null,
-                $companyId,
-                $transactionDate ?? now()
-            );
-        }
-
-        $roundingService = new RoundingService;
-
-        return $roundingService->roundForModule(
-            $companyId,
-            $convertedAmount,
-            RoundingModuleRegistry::CLIENT_BALANCE
-        );
     }
 
     /**

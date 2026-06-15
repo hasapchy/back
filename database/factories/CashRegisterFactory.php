@@ -27,6 +27,7 @@ class CashRegisterFactory extends Factory
             'currency_id' => Currency::factory(),
             'company_id' => null,
             'is_cash' => true,
+            'participates_in_transfers' => true,
             'icon' => 'fa-solid fa-cash-register',
             'color' => null,
         ];

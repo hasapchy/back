@@ -8,6 +8,7 @@ use App\Models\OrderProduct;
 use App\Models\OrderTempProduct;
 use App\Models\ProjectContract;
 use App\Models\Transaction;
+use App\Models\WhPurchase;
 use App\Models\WhReceipt;
 use App\Support\ActivityLog\ActivityPropertiesNormalizer;
 use ReflectionMethod;
@@ -16,22 +17,18 @@ use Tests\TestCase;
 
 class ActivityLogNoiseReductionTest extends TestCase
 {
-    public function test_order_product_does_not_log_events(): void
+    public function test_order_product_does_not_use_activity_log_trait(): void
     {
-        $model = new OrderProduct;
+        $traits = class_uses_recursive(OrderProduct::class);
 
-        $this->assertFalse($model->shouldLogEvent('created'));
-        $this->assertFalse($model->shouldLogEvent('updated'));
-        $this->assertFalse($model->shouldLogEvent('deleted'));
+        $this->assertNotContains(\Spatie\Activitylog\Traits\LogsActivity::class, $traits);
     }
 
-    public function test_order_temp_product_does_not_log_events(): void
+    public function test_order_temp_product_does_not_use_activity_log_trait(): void
     {
-        $model = new OrderTempProduct;
+        $traits = class_uses_recursive(OrderTempProduct::class);
 
-        $this->assertFalse($model->shouldLogEvent('created'));
-        $this->assertFalse($model->shouldLogEvent('updated'));
-        $this->assertFalse($model->shouldLogEvent('deleted'));
+        $this->assertNotContains(\Spatie\Activitylog\Traits\LogsActivity::class, $traits);
     }
 
     public function test_inventory_item_does_not_log_events(): void
@@ -97,6 +94,40 @@ class ActivityLogNoiseReductionTest extends TestCase
         $attributes = $property->getValue();
 
         $this->assertNotContains('creator_id', $attributes);
+    }
+
+    public function test_wh_receipt_log_attributes_exclude_orig_fields(): void
+    {
+        $options = (new WhReceipt)->getActivitylogOptions();
+        $attributes = $options->logAttributes ?? [];
+
+        $this->assertContains('amount', $attributes);
+        $this->assertNotContains('orig_amount', $attributes);
+        $this->assertNotContains('orig_currency_id', $attributes);
+    }
+
+    public function test_wh_purchase_log_attributes_exclude_orig_fields(): void
+    {
+        $options = (new WhPurchase)->getActivitylogOptions();
+        $attributes = $options->logAttributes ?? [];
+
+        $this->assertContains('amount', $attributes);
+        $this->assertNotContains('orig_amount', $attributes);
+        $this->assertNotContains('orig_currency_id', $attributes);
+    }
+
+    public function test_order_log_attributes_exclude_def_and_rep_fields(): void
+    {
+        $reflection = new \ReflectionClass(Order::class);
+        $property = $reflection->getProperty('logAttributes');
+        $property->setAccessible(true);
+
+        /** @var list<string> $attributes */
+        $attributes = $property->getValue();
+
+        $this->assertContains('price', $attributes);
+        $this->assertNotContains('def_price', $attributes);
+        $this->assertNotContains('rep_total_price', $attributes);
     }
 
     /**

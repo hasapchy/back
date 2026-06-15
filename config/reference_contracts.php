@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'cache_version' => '1.9',
+    'cache_version' => '1.10',
     'feature_flag' => 'reference_wave1',
 
     'canary' => [
@@ -56,7 +56,7 @@ return [
 
     'reference_top_level_keys' => [
         'warehouses' => ['id', 'name', 'users'],
-        'cash_registers' => ['balance', 'color', 'created_at', 'creator', 'creator_id', 'currency', 'currency_id', 'icon', 'icon_size', 'id', 'is_cash', 'is_working_minus', 'name', 'sort_order', 'updated_at', 'users'],
+        'cash_registers' => ['balance', 'color', 'created_at', 'creator', 'creator_id', 'currency', 'currency_id', 'icon', 'icon_size', 'id', 'is_cash', 'is_working_minus', 'name', 'participates_in_transfers', 'sort_order', 'updated_at', 'users'],
         'categories' => ['creator', 'creator_id', 'id', 'name', 'parent_id', 'parent_name', 'users'],
         'order_statuses' => ['category', 'category_id', 'created_at', 'id', 'is_active', 'kanban_outcome', 'name', 'updated_at'],
         'project_statuses' => ['color', 'created_at', 'creator_id', 'id', 'is_visible', 'kanban_outcome', 'name', 'updated_at', 'user'],

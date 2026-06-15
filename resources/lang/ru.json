@@ -210,6 +210,7 @@
     "warehouse_line.orig_quantity_inconsistent_with_base": "Количество в базовой единице не совпадает с количеством в единице ввода.",
     "warehouse_receipt.cash_register_not_found": "Касса не найдена.",
     "warehouse_receipt.cash_register_forbidden": "У вас нет доступа к этой кассе.",
+    "cash_registers.not_participates_in_transfers": "Касса не участвует в трансферах.",
     "warehouse_receipt.simple_incompatible_with_legacy": "Простой приход несовместим с устаревшим режимом остатка.",
     "warehouse_receipt.not_found": "Оприходование не найдено",
     "warehouse_receipt.created_success": "Оприходование создано",

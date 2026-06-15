@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Enums\WhReceiptStatus;
+use App\Enums\WhWriteoffReason;
 use App\Models\CashRegister;
 use App\Models\Currency;
 use App\Models\ProductPrice;
@@ -12,7 +13,9 @@ use App\Models\WhReceipt;
 use App\Models\WhReceiptProduct;
 use App\Models\WhPurchase;
 use App\Models\WhPurchaseProduct;
+use App\Models\WhWriteoff;
 use App\Models\WhUser;
+use App\Repositories\Concerns\LogsTimelineProductLineChanges;
 use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
 use App\Services\WarehouseDocumentPaymentStatusService;
@@ -28,6 +31,7 @@ use Illuminate\Support\Facades\DB;
 
 class WarehouseReceiptRepository extends BaseRepository
 {
+    use LogsTimelineProductLineChanges;
     use ResolvesWarehouseLineOrigDisplay;
 
     /**
@@ -59,6 +63,7 @@ class WarehouseReceiptRepository extends BaseRepository
         ?string $endDate = null,
         ?string $paymentStatus = null,
         ?string $search = null,
+        bool $eligibleForReturn = false,
     ) {
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
@@ -75,11 +80,12 @@ class WarehouseReceiptRepository extends BaseRepository
             $endDate,
             $paymentStatus,
             trim((string) ($search ?? '')) !== '' ? trim((string) $search) : 'search:none',
+            $eligibleForReturn ? 'eligible:1' : 'eligible:0',
             $currentUser?->id,
             $companyId,
         ]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $clientId, $status, $warehouseId, $productId, $dateFilter, $startDate, $endDate, $paymentStatus, $search) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $clientId, $status, $warehouseId, $productId, $dateFilter, $startDate, $endDate, $paymentStatus, $search, $eligibleForReturn) {
             $query = $this->buildBaseQuery($userUuid);
             if ($clientId) {
                 $query->where('wh_receipts.supplier_id', $clientId);
@@ -99,6 +105,13 @@ class WarehouseReceiptRepository extends BaseRepository
             }
 
             app(WarehouseDocumentPaymentStatusService::class)->applyReceiptPaymentStatusFilter($query, $paymentStatus);
+
+            if ($eligibleForReturn) {
+                $query->whereNull('wh_receipts.purchase_id')
+                    ->whereNotNull('wh_receipts.supplier_id')
+                    ->whereNotNull('wh_receipts.cash_id')
+                    ->whereIn('wh_receipts.status', [WhReceiptStatus::Approved, WhReceiptStatus::Completed]);
+            }
 
             $this->applyIdNoteSearch($query, $search, 'wh_receipts.id', 'wh_receipts.note', [
                 'line_table' => 'wh_receipt_products',
@@ -421,7 +434,6 @@ class WarehouseReceiptRepository extends BaseRepository
                     throw new \RuntimeException((string) __('warehouse_receipt.completion_via_update_forbidden'));
                 }
                 $receipt->status = $incomingStatus;
-                $receipt->saveQuietly();
             }
 
             $old_total_amount = $receipt->amount;
@@ -502,6 +514,8 @@ class WarehouseReceiptRepository extends BaseRepository
                     $deletedProduct->delete();
                 }
             }
+
+            $this->logTimelineProductLineChanges($receipt, $existingProducts, $products);
 
             app(ReceiptExpenseAllocationService::class)->syncAllForReceipt((int) $receipt_id);
 
@@ -602,10 +616,6 @@ class WarehouseReceiptRepository extends BaseRepository
             if ($note !== null) {
                 $receipt->note = $note;
             }
-            if (($date !== null && $date !== '') || $note !== null) {
-                $receipt->saveQuietly();
-            }
-
             app(ReceiptExpenseAllocationService::class)->syncAllForReceipt($receipt_id);
 
             $receiptForSummary = $receipt->fresh([
@@ -639,7 +649,7 @@ class WarehouseReceiptRepository extends BaseRepository
             }
 
             $receipt->status = WhReceiptStatus::Completed;
-            $receipt->saveQuietly();
+            $receipt->save();
 
             $this->syncLinkedPurchaseCompletion($receipt->purchase_id);
 
@@ -719,6 +729,15 @@ class WarehouseReceiptRepository extends BaseRepository
      */
     private function deleteReceiptCore(WhReceipt $receipt, bool $syncPurchaseCompletion = true): void
     {
+        $hasLinkedReturns = WhWriteoff::query()
+            ->where('source_receipt_id', (int) $receipt->id)
+            ->where('reason', WhWriteoffReason::ReturnSupplier)
+            ->exists();
+
+        if ($hasLinkedReturns) {
+            throw new \RuntimeException((string) __('warehouse_return.receipt_has_linked_returns'));
+        }
+
         $reverseStock = in_array($receipt->status, [WhReceiptStatus::Approved, WhReceiptStatus::Completed], true);
         $purchaseId = $receipt->purchase_id !== null ? (int) $receipt->purchase_id : null;
         $this->reverseReceiptStockAndDeleteLines($receipt, $reverseStock);
@@ -932,7 +951,7 @@ class WarehouseReceiptRepository extends BaseRepository
             return;
         }
         $receipt->status = WhReceiptStatus::Draft;
-        $receipt->saveQuietly();
+        $receipt->save();
     }
 
     /**

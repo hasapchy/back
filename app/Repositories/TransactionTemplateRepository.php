@@ -21,7 +21,7 @@ class TransactionTemplateRepository extends BaseRepository
             'currency:id,code,name',
             'category:id,name,type',
             'project:id,name',
-            'client:id,client_type,first_name,last_name,patronymic,balance,is_supplier,is_conflict,position',
+            'client:id,client_type,first_name,last_name,patronymic,is_supplier,is_conflict,position',
         ];
     }
 

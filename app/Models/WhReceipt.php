@@ -89,8 +89,6 @@ class WhReceipt extends Model implements SupportsTimeline
                 'cash_id',
                 'amount',
                 'paid_amount',
-                'orig_amount',
-                'orig_currency_id',
                 'date',
                 'status',
             ])

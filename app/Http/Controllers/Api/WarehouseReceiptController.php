@@ -60,6 +60,7 @@ class WarehouseReceiptController extends BaseController
                 $request->filled('payment_status') ? (string) $request->input('payment_status') : null
             ),
             $search,
+            filter_var($request->input('eligible_for_return'), FILTER_VALIDATE_BOOLEAN),
         );
 
         return $this->successResponse([

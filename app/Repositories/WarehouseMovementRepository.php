@@ -7,8 +7,10 @@ use App\Models\WarehouseStock;
 use App\Models\WhMovement;
 use App\Models\WhMovementProduct;
 use App\Models\WhUser;
+use App\Repositories\Concerns\LogsTimelineProductLineChanges;
 use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
+use App\Services\Timeline\ProductLinesTimelineDiff;
 use App\Services\Timeline\WarehouseTimelineCache;
 use App\Services\InventoryLockService;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +18,7 @@ use Illuminate\Support\Facades\Log;
 
 class WarehouseMovementRepository extends BaseRepository
 {
+    use LogsTimelineProductLineChanges;
     use ResolvesWarehouseLineOrigDisplay;
 
     /**
@@ -231,6 +234,13 @@ class WarehouseMovementRepository extends BaseRepository
                 $this->updateStock($warehouse_to_id, $deletedProductId, -$deletedProduct->quantity);
                 $deletedProduct->delete();
             }
+
+            $this->logTimelineProductLineChanges(
+                $movement,
+                $existingProducts,
+                $products,
+                [ProductLinesTimelineDiff::class, 'movementLineHasChanges'],
+            );
 
             CacheService::invalidateWarehouseMovementsCache();
             CacheService::invalidateWarehouseStocksCache();

@@ -7,6 +7,7 @@ use App\Models\ClientBalance;
 use App\Models\ClientsEmail;
 use App\Models\ClientsPhone;
 use App\Models\Currency;
+use App\Models\ClientBalanceMovement;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\CacheService;
@@ -655,7 +656,12 @@ class ClientsRepository extends BaseRepository
                 $total = $transactionsQuery->count();
                 $transactions = $transactionsQuery->skip(($page - 1) * $perPage)->take($perPage)->get();
 
-                $transactions = $transactions->flatMap(function ($item) use ($defaultCurrencySymbol) {
+                $movementsByTransaction = $this->mapClientBalanceMovementsByTransaction(
+                    $transactions->pluck('id')->map(fn ($id) => (int) $id)->all(),
+                    $balanceId ? (int) $balanceId : null,
+                );
+
+                $transactions = $transactions->flatMap(function ($item) use ($defaultCurrencySymbol, $movementsByTransaction) {
                         $source = 'transaction';
                         if ($item->source_type === 'App\\Models\\Sale') {
                             $source = 'sale';
@@ -822,6 +828,7 @@ class ClientsRepository extends BaseRepository
                     });
 
                 $history = $transactions
+                    ->map(fn (array $row) => $this->enrichBalanceHistoryRow($row, $movementsByTransaction))
                     ->sortByDesc('date')
                     ->values()
                     ->all();
@@ -842,6 +849,49 @@ class ClientsRepository extends BaseRepository
                 throw $e;
             }
         }, $this->getCacheTTL('reference', true));
+    }
+
+    /**
+     * @param  array<int>  $transactionIds
+     * @param  int|null  $balanceId
+     * @return \Illuminate\Support\Collection<int, ClientBalanceMovement>
+     */
+    private function mapClientBalanceMovementsByTransaction(array $transactionIds, ?int $balanceId): \Illuminate\Support\Collection
+    {
+        if ($transactionIds === []) {
+            return collect();
+        }
+
+        $query = ClientBalanceMovement::query()
+            ->active()
+            ->whereIn('transaction_id', $transactionIds);
+
+        if ($balanceId) {
+            $query->where('client_balance_id', $balanceId);
+        }
+
+        return $query->get()->keyBy('transaction_id');
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  \Illuminate\Support\Collection<int, ClientBalanceMovement>  $movementsByTransaction
+     * @return array<string, mixed>
+     */
+    private function enrichBalanceHistoryRow(array $row, \Illuminate\Support\Collection $movementsByTransaction): array
+    {
+        $transactionId = (int) ($row['source_id'] ?? 0);
+        $movement = $movementsByTransaction->get($transactionId);
+
+        $row['transaction_id'] = $transactionId;
+
+        if ($movement) {
+            $row['ledger_at'] = $movement->ledger_at;
+            $row['delta'] = round((float) $movement->delta, 5);
+            $row['balance_after'] = round((float) $movement->balance_after, 5);
+        }
+
+        return $row;
     }
 
     /**

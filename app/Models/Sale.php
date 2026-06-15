@@ -17,6 +17,8 @@ use App\Models\ClientBalance;
 use App\Contracts\SupportsTimeline;
 use App\Services\CacheService;
 use App\Services\TransactionDeletionService;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 
 /**
@@ -49,7 +51,7 @@ use App\Services\TransactionDeletionService;
  */
 class Sale extends Model implements SupportsTimeline
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'cash_id',
@@ -69,6 +71,41 @@ class Sale extends Model implements SupportsTimeline
         'price' => 'decimal:5',
         'discount' => 'decimal:5',
     ];
+
+    /**
+     * @return LogOptions
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('sale')
+            ->logOnly([
+                'client_id',
+                'warehouse_id',
+                'cash_id',
+                'price',
+                'discount',
+                'date',
+                'note',
+                'project_id',
+                'client_balance_id',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));
+    }
+
+    /**
+     * @param  string  $eventName
+     * @return string
+     */
+    public function getDescriptionForEvent(string $eventName): string
+    {
+        return match ($eventName) {
+            'created', 'updated', 'deleted' => "activity_log.sale.{$eventName}",
+            default => 'activity_log.sale.default',
+        };
+    }
 
     protected static function booted()
     {

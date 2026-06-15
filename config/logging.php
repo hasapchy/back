@@ -88,6 +88,14 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'sales_migrate_to_orders' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/sales_migrate_to_orders.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
+            'replace_placeholders' => true,
+        ],
+
         'projects_recalculate_balance' => [
             'driver' => 'daily',
             'path' => storage_path('logs/projects_recalculate_balance.log'),
@@ -99,6 +107,22 @@ return [
         'clients_verify_balance' => [
             'driver' => 'daily',
             'path' => storage_path('logs/clients_verify_balance.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
+            'replace_placeholders' => true,
+        ],
+
+        'financial_projection' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/financial_projection.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
+            'replace_placeholders' => true,
+        ],
+
+        'financial_sync' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/financial_sync.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => 30,
             'replace_placeholders' => true,

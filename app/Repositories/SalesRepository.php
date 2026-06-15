@@ -9,15 +9,19 @@ use App\Models\SalesProduct;
 use App\Models\Transaction;
 use App\Models\WarehouseStock;
 use App\Models\CashRegister;
+use App\Repositories\Concerns\LogsTimelineProductLineChanges;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use App\Services\InventoryLockService;
+use App\Services\Timeline\TimelineCache;
 use Illuminate\Support\Facades\DB;
 use App\Services\RoundingService;
 use App\Support\TransactionCategoryBindingKeys;
 
 class SalesRepository extends BaseRepository
 {
+    use LogsTimelineProductLineChanges;
+
     /**
      * Получить продажи с пагинацией и фильтрацией
      *
@@ -300,6 +304,7 @@ class SalesRepository extends BaseRepository
             $this->clearSalesCache();
             CacheService::invalidateClientsCache();
             $this->invalidateClientBalanceCache($clientId);
+            TimelineCache::forget('sale', (int) $sale->id);
 
             return $sale;
         });
@@ -432,25 +437,36 @@ class SalesRepository extends BaseRepository
                 $this->createTransactionForSource($transactionData, Sale::class, $sale->id, true);
             }
 
+            $incomingForDiff = [];
             foreach ($products as $prod) {
+                $storedPrice = $roundingService->roundTransactionAmountForCompany(
+                    $companyId,
+                    (float) CurrencyConverter::convert(
+                        $prod['price'],
+                        $fromCurrency,
+                        $defaultCurrency
+                    )
+                );
                 SalesProduct::create([
                     'sale_id' => $sale->id,
                     'product_id' => $prod['product_id'],
                     'quantity' => $prod['rounded_quantity'],
-                    'price' => $roundingService->roundTransactionAmountForCompany(
-                        $companyId,
-                        (float) CurrencyConverter::convert(
-                            $prod['price'],
-                            $fromCurrency,
-                            $defaultCurrency
-                        )
-                    ),
+                    'price' => $storedPrice,
                 ]);
+                $incomingForDiff[] = [
+                    'product_id' => $prod['product_id'],
+                    'quantity' => $prod['rounded_quantity'],
+                    'price' => $storedPrice,
+                ];
             }
+
+            $sale->refresh();
+            $this->logTimelineProductLineChanges($sale, $oldProducts, $incomingForDiff);
 
             $this->clearSalesCache();
             CacheService::invalidateClientsCache();
             $this->invalidateClientBalanceCache($clientId);
+            TimelineCache::forget('sale', (int) $sale->id);
 
             return true;
         });
@@ -494,6 +510,7 @@ class SalesRepository extends BaseRepository
             $sale->delete();
 
             $this->clearSalesCache();
+            TimelineCache::forget('sale', (int) $id);
 
             return true;
         });

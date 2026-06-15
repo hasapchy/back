@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Log;
 use App\Services\OrderPaymentStatusService;
 use App\Services\OrderProductsPresenter;
 use App\Services\RoundingService;
-use App\Services\Timeline\OrderTimelineSummaryLogger;
+use App\Services\Timeline\TimelineEventWriter;
 use App\Http\Resources\OrderResource;
 use App\Support\TransactionCategoryBindingKeys;
 
@@ -1042,11 +1042,10 @@ class OrdersRepository extends BaseRepository
             }
 
             if ($productsChanged) {
-                app(OrderTimelineSummaryLogger::class)->logProductsUpdated(
+                app(TimelineEventWriter::class)->logProductsSummary(
                     $order,
                     $productSummary,
                     (int) (auth('api')->id() ?? 0) ?: null,
-                    (int) $companyId
                 );
             }
 

@@ -267,6 +267,14 @@ class CacheService
     }
 
     /**
+     * Invalidate financial accounts projection cache
+     */
+    public static function invalidateFinancialAccountsCache(?int $companyId = null): void
+    {
+        self::invalidateByLike('%financial_account%', $companyId);
+    }
+
+    /**
      * Invalidate projects cache
      */
     public static function invalidateProjectsCache(): void

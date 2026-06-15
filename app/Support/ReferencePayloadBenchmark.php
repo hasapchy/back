@@ -197,6 +197,7 @@ final class ReferencePayloadBenchmark
             'company_id' => 1,
             'is_cash' => true,
             'is_working_minus' => false,
+            'participates_in_transfers' => true,
             'icon' => 'fa-solid fa-cash-register',
         ]);
         $cashRegister->exists = true;

@@ -5,6 +5,8 @@ namespace App\Repositories;
 use App\Models\Comment;
 use App\Models\TimelineReadState;
 use App\Services\CacheService;
+use App\Services\Timeline\TimelineEntityRegistry;
+use App\Services\Timeline\TimelineUserFormatter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -65,7 +67,7 @@ class CommentsRepository extends BaseRepository
                     'creator_id' => $userId,
                     'commentable_type' => $modelClass,
                     'commentable_id' => $id,
-                ])->load(['creator:id,name,email']);
+                ])->load(['creator:'.TimelineUserFormatter::SELECT_COLUMNS]);
 
                 $this->invalidateCommentsCache($type, $id);
 
@@ -77,10 +79,7 @@ class CommentsRepository extends BaseRepository
                     'created_at' => $comment->created_at,
                     'updated_at' => $comment->updated_at,
                     'creator_id' => $comment->creator_id,
-                    'user' => [
-                        'id' => $comment->creator->id,
-                        'name' => $comment->creator->name,
-                    ],
+                    'user' => TimelineUserFormatter::toArray($comment->creator),
                 ];
             });
         } catch (\Throwable $e) {
@@ -177,22 +176,11 @@ class CommentsRepository extends BaseRepository
      */
     public function resolveType(string $type): string
     {
-        return match ($type) {
-            'order' => \App\Models\Order::class,
-            'sale' => \App\Models\Sale::class,
-            'transaction' => \App\Models\Transaction::class,
-            'client' => \App\Models\Client::class,
-            'product' => \App\Models\Product::class,
-            'project' => \App\Models\Project::class,
-            'task' => \App\Models\Task::class,
-            'project_contract' => \App\Models\ProjectContract::class,
-            'lead' => \App\Models\Lead::class,
-            'wh_receipt' => \App\Models\WhReceipt::class,
-            'wh_writeoff' => \App\Models\WhWriteoff::class,
-            'wh_movement' => \App\Models\WhMovement::class,
-            'wh_purchase' => \App\Models\WhPurchase::class,
-            default => throw new \InvalidArgumentException("Unknown commentable type: $type"),
-        };
+        try {
+            return TimelineEntityRegistry::modelClassFromApiType($type);
+        } catch (\InvalidArgumentException $e) {
+            throw new \InvalidArgumentException("Unknown commentable type: $type", 0, $e);
+        }
     }
 
     /**
@@ -203,22 +191,11 @@ class CommentsRepository extends BaseRepository
      */
     public function apiTypeFromModelClass(string $modelClass): string
     {
-        return match ($modelClass) {
-            \App\Models\Order::class => 'order',
-            \App\Models\Sale::class => 'sale',
-            \App\Models\Transaction::class => 'transaction',
-            \App\Models\Client::class => 'client',
-            \App\Models\Product::class => 'product',
-            \App\Models\Project::class => 'project',
-            \App\Models\Task::class => 'task',
-            \App\Models\ProjectContract::class => 'project_contract',
-            \App\Models\Lead::class => 'lead',
-            \App\Models\WhReceipt::class => 'wh_receipt',
-            \App\Models\WhWriteoff::class => 'wh_writeoff',
-            \App\Models\WhMovement::class => 'wh_movement',
-            \App\Models\WhPurchase::class => 'wh_purchase',
-            default => throw new \InvalidArgumentException("Unknown commentable model class: {$modelClass}"),
-        };
+        try {
+            return TimelineEntityRegistry::apiTypeFromModelClass($modelClass);
+        } catch (\InvalidArgumentException $e) {
+            throw new \InvalidArgumentException("Unknown commentable model class: {$modelClass}", 0, $e);
+        }
     }
 
     /**

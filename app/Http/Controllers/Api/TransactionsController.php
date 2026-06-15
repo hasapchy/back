@@ -77,7 +77,8 @@ class TransactionsController extends BaseController
             $params['is_debt'],
             $params['category_ids'],
             $params['contract_id'],
-            $params['warehouse_receipt_id']
+            $params['warehouse_receipt_id'],
+            $params['warehouse_writeoff_id']
         );
 
         $response = [
@@ -174,6 +175,7 @@ class TransactionsController extends BaseController
             'order_id' => $request->query('order_id'),
             'contract_id' => $request->query('contract_id'),
             'warehouse_receipt_id' => $request->query('warehouse_receipt_id'),
+            'warehouse_writeoff_id' => $request->query('warehouse_writeoff_id'),
             'search' => $request->query('search'),
             'transaction_type' => $request->query('transaction_type'),
             'source' => $request->query('source'),

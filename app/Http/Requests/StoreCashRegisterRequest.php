@@ -59,6 +59,7 @@ class StoreCashRegisterRequest extends FormRequest
             'users.*' => 'exists:users,id',
             'is_cash' => 'nullable|boolean',
             'is_working_minus' => 'nullable|boolean',
+            'participates_in_transfers' => 'nullable|boolean',
             'sort_order' => 'nullable|integer|min:0',
             'icon' => ['nullable', 'string', 'max:100', Rule::in($this->allowedIcons())],
             'icon_size' => ['nullable', 'string', Rule::in($this->allowedIconSizes())],

@@ -167,7 +167,7 @@ class WarehouseDocumentPaymentStatusService
     }
 
     /**
-     * @return array{payment_status: string|null, payment_status_text: string|null, paid_amount: float, total_amount: float}
+     * @return array{payment_status: string|null, payment_status_text: string|null, paid_amount: float, total_amount: float, return_adjusted_amount?: float, effective_remaining?: float}
      */
     public function enrichReceipt(WhReceipt $receipt): array
     {
@@ -175,11 +175,127 @@ class WarehouseDocumentPaymentStatusService
             return $this->resolveNotApplicable();
         }
 
-        $total = (float) ($receipt->amount ?? 0);
+        $receipt->loadMissing('warehouse:id,company_id');
+        $companyId = (int) ($receipt->warehouse?->company_id ?? 0);
+        $goodsTotal = app(WarehouseReceiptGoodsPaymentLimitService::class)->goodsTotalDefault($receipt);
         $paid = (float) ($receipt->paid_amount ?? 0);
         $symbol = $receipt->origCurrency?->code ?? null;
+        $payableReduction = $this->sumPayableReductionDefaultForReceipt((int) $receipt->id);
+        $rounding = new RoundingService;
+        $effectiveRemaining = max(
+            0.0,
+            $rounding->roundWarehouseAmountForCompany($companyId ?: null, $goodsTotal - $paid - $payableReduction)
+        );
+        $returnedGoodsAmount = app(WarehouseReturnSupplierSettlementService::class)
+            ->sumReturnAmountDefaultForReceipt((int) $receipt->id);
+        $netGoodsAmount = max(
+            0.0,
+            $rounding->roundWarehouseAmountForCompany($companyId ?: null, $goodsTotal - $returnedGoodsAmount)
+        );
 
-        return $this->resolveStatus($paid, $total, $symbol);
+        $payload = $this->resolveReceiptPaymentStatusWithReturns(
+            $paid,
+            $goodsTotal,
+            $effectiveRemaining,
+            $returnedGoodsAmount,
+            $symbol
+        );
+        $payload['return_adjusted_amount'] = $payableReduction;
+        $payload['effective_remaining'] = $effectiveRemaining;
+        $payload['returned_goods_amount'] = $returnedGoodsAmount;
+        $payload['net_goods_amount'] = $netGoodsAmount;
+
+        return $payload;
+    }
+
+    /**
+     * @return array{payment_status: string, payment_status_text: string, paid_amount: float, total_amount: float}
+     */
+    private function resolveReceiptPaymentStatusWithReturns(
+        float $paid,
+        float $goodsTotal,
+        float $effectiveRemaining,
+        float $returnedGoodsAmount,
+        ?string $currencySymbol
+    ): array {
+        if ($returnedGoodsAmount <= 1e-9) {
+            return $this->resolveStatus($paid, $goodsTotal, $currencySymbol);
+        }
+
+        $paid = max(0.0, $paid);
+        $goodsTotal = max(0.0, $goodsTotal);
+        $symbol = trim((string) ($currencySymbol ?? ''));
+
+        if ($effectiveRemaining <= 1e-9) {
+            return [
+                'payment_status' => 'paid',
+                'payment_status_text' => (string) __('warehouse_return.receipt_settled_with_returns', [
+                    'amount' => $this->formatAmountWithSymbol($returnedGoodsAmount, $symbol),
+                ]),
+                'paid_amount' => $paid,
+                'total_amount' => $goodsTotal,
+            ];
+        }
+
+        if ($paid <= 1e-9) {
+            return [
+                'payment_status' => 'unpaid',
+                'payment_status_text' => (string) __('warehouse_return.receipt_to_pay_after_returns', [
+                    'amount' => $this->formatAmountWithSymbol($effectiveRemaining, $symbol),
+                ]),
+                'paid_amount' => $paid,
+                'total_amount' => $goodsTotal,
+            ];
+        }
+
+        return [
+            'payment_status' => 'partially_paid',
+            'payment_status_text' => (string) __('warehouse_return.receipt_partial_with_returns', [
+                'paid' => $this->formatAmountWithSymbol($paid, $symbol),
+                'remaining' => $this->formatAmountWithSymbol($effectiveRemaining, $symbol),
+            ]),
+            'paid_amount' => $paid,
+            'total_amount' => $goodsTotal,
+        ];
+    }
+
+    /**
+     * @return string
+     */
+    private function formatAmountWithSymbol(float $amount, string $symbol): string
+    {
+        $formatted = number_format($amount, 2, '.', ' ');
+
+        return $symbol !== '' ? $formatted.' '.$symbol : $formatted;
+    }
+
+    /**
+     * @return float
+     */
+    public function sumPayableReductionDefaultForReceipt(int $receiptId, ?int $excludeWriteoffId = null): float
+    {
+        return app(WarehouseReturnSupplierSettlementService::class)
+            ->sumPayableReductionDefaultForReceipt($receiptId, $excludeWriteoffId);
+    }
+
+    /**
+     * @return float
+     */
+    public function effectiveRemainingDefault(WhReceipt $receipt): float
+    {
+        if ($receipt->purchase_id !== null) {
+            return 0.0;
+        }
+
+        $receipt->loadMissing('warehouse:id,company_id');
+        $companyId = (int) ($receipt->warehouse?->company_id ?? 0);
+        $total = app(WarehouseReceiptGoodsPaymentLimitService::class)->goodsTotalDefault($receipt);
+        $paid = (float) ($receipt->paid_amount ?? 0);
+        $payableReduction = $this->sumPayableReductionDefaultForReceipt((int) $receipt->id);
+        $rounding = new RoundingService;
+        $raw = $total - $paid - $payableReduction;
+
+        return max(0.0, $rounding->roundWarehouseAmountForCompany($companyId ?: null, $raw));
     }
 
     /**
@@ -353,6 +469,22 @@ class WarehouseDocumentPaymentStatusService
         $model->setAttribute('payment_status_text', $payload['payment_status_text']);
         $model->setAttribute('paid_amount', $payload['paid_amount']);
         $model->setAttribute('total_amount', $payload['total_amount']);
+        if (array_key_exists('return_adjusted_amount', $payload)) {
+            $model->setAttribute('return_adjusted_amount', $payload['return_adjusted_amount']);
+            $model->makeVisible(['return_adjusted_amount']);
+        }
+        if (array_key_exists('effective_remaining', $payload)) {
+            $model->setAttribute('effective_remaining', $payload['effective_remaining']);
+            $model->makeVisible(['effective_remaining']);
+        }
+        if (array_key_exists('returned_goods_amount', $payload)) {
+            $model->setAttribute('returned_goods_amount', $payload['returned_goods_amount']);
+            $model->makeVisible(['returned_goods_amount']);
+        }
+        if (array_key_exists('net_goods_amount', $payload)) {
+            $model->setAttribute('net_goods_amount', $payload['net_goods_amount']);
+            $model->makeVisible(['net_goods_amount']);
+        }
         $model->makeVisible(['payment_status', 'payment_status_text', 'paid_amount', 'total_amount']);
     }
 }

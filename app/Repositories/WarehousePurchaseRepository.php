@@ -9,6 +9,7 @@ use App\Models\WhPurchase;
 use App\Models\WhPurchaseProduct;
 use App\Services\WarehouseDocumentPaymentStatusService;
 use App\Services\WarehousePurchaseGoodsPaymentLimitService;
+use App\Repositories\Concerns\LogsTimelineProductLineChanges;
 use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
 use App\Services\RoundingService;
@@ -22,6 +23,7 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class WarehousePurchaseRepository extends BaseRepository
 {
+    use LogsTimelineProductLineChanges;
     use ResolvesWarehouseLineOrigDisplay;
 
     /**
@@ -235,6 +237,7 @@ class WarehousePurchaseRepository extends BaseRepository
             $amountOrig = 0.0;
             if (isset($data['products']) && is_array($data['products'])) {
                 $products = $this->mergePurchaseProductLines($data['products']);
+                $existingProducts = WhPurchaseProduct::query()->where('purchase_id', $purchase->id)->get();
                 WhPurchaseProduct::query()->where('purchase_id', $purchase->id)->delete();
                 foreach ($products as $product) {
                     $quantity = $rounding->roundQuantityForCompany($companyId, (float) $product['quantity']);
@@ -246,6 +249,8 @@ class WarehousePurchaseRepository extends BaseRepository
                         'quantity' => $quantity,
                     ], $this->resolveWarehouseLineOrigDisplay($product), $lineOrig));
                 }
+
+                $this->logTimelineProductLineChanges($purchase, $existingProducts, $products);
             } else {
                 $amountOrig = (float) WhPurchaseProduct::query()
                     ->where('purchase_id', $purchase->id)

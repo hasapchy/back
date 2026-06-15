@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Rules\CashRegisterAccessRule;
+use App\Rules\CashRegisterTransferParticipantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
@@ -27,8 +28,8 @@ class StoreTransferRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'cash_id_from' => ['required', 'integer', new CashRegisterAccessRule()],
-            'cash_id_to' => ['required', 'integer', 'different:cash_id_from', new CashRegisterAccessRule()],
+            'cash_id_from' => ['required', 'integer', new CashRegisterAccessRule(), new CashRegisterTransferParticipantRule()],
+            'cash_id_to' => ['required', 'integer', 'different:cash_id_from', new CashRegisterAccessRule(), new CashRegisterTransferParticipantRule()],
             'amount' => 'required|numeric|min:0.01',
             'note' => 'nullable|sometimes|string',
             'exchange_rate' => 'nullable|sometimes|numeric|min:0.00001',

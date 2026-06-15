@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\CurrencyHistoryController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\DriveController;
 use App\Http\Controllers\Api\FcmStorageController;
+use App\Http\Controllers\Api\FinancialAccountsController;
 use App\Http\Controllers\Api\InAppNotificationController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\InvoiceController;
@@ -175,7 +176,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::middleware('permission.scope:warehouse_receipts_view_all,warehouse_receipts_view_own')->get('warehouse_receipts', [WarehouseReceiptController::class, 'index']);
     Route::middleware('permission.scope:warehouse_receipts_view_all,warehouse_receipts_view_own')->get('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'show']);
     Route::middleware('permission:warehouse_receipts_create')->post('warehouse_receipts', [WarehouseReceiptController::class, 'store']);
-    Route::middleware(['permission.scope:warehouse_receipts_update_all,warehouse_receipts_update_own', 'time.restriction:WhReceipt'])->put('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'update']);
+    Route::middleware('permission.scope:warehouse_receipts_update_all,warehouse_receipts_update_own')->put('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'update']);
     Route::middleware(['permission.scope:warehouse_receipts_delete_all,warehouse_receipts_delete_own', 'time.restriction:WhReceipt'])->delete('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'destroy']);
     Route::middleware('permission.scope:warehouse_purchases_view_all,warehouse_purchases_view_own')->get('warehouse_purchases', [WarehousePurchaseController::class, 'index']);
     Route::middleware('permission.scope:warehouse_purchases_view_all,warehouse_purchases_view_own')->get('warehouse_purchases/{id}', [WarehousePurchaseController::class, 'show']);
@@ -187,12 +188,12 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::middleware('permission.scope:warehouse_writeoffs_view_all,warehouse_writeoffs_view_own')->get('warehouse_writeoffs', [WarehouseWriteoffController::class, 'index']);
     Route::middleware('permission.scope:warehouse_writeoffs_view_all,warehouse_writeoffs_view_own')->get('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'show']);
     Route::middleware('permission:warehouse_writeoffs_create')->post('warehouse_writeoffs', [WarehouseWriteoffController::class, 'store']);
-    Route::middleware(['permission.scope:warehouse_writeoffs_update_all,warehouse_writeoffs_update_own', 'time.restriction:WhWriteoff'])->put('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'update']);
+    Route::middleware('permission.scope:warehouse_writeoffs_update_all,warehouse_writeoffs_update_own')->put('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'update']);
     Route::middleware(['permission.scope:warehouse_writeoffs_delete_all,warehouse_writeoffs_delete_own', 'time.restriction:WhWriteoff'])->delete('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'destroy']);
 
     Route::middleware('permission.scope:warehouse_movements_view_all,warehouse_movements_view_own')->get('warehouse_movements', [WarehouseMovementController::class, 'index']);
     Route::middleware('permission:warehouse_movements_create')->post('warehouse_movements', [WarehouseMovementController::class, 'store']);
-    Route::middleware(['permission.scope:warehouse_movements_update_all,warehouse_movements_update_own', 'time.restriction:WhMovement'])->put('warehouse_movements/{id}', [WarehouseMovementController::class, 'update']);
+    Route::middleware('permission.scope:warehouse_movements_update_all,warehouse_movements_update_own')->put('warehouse_movements/{id}', [WarehouseMovementController::class, 'update']);
     Route::middleware(['permission.scope:warehouse_movements_delete_all,warehouse_movements_delete_own', 'time.restriction:WhMovement'])->delete('warehouse_movements/{id}', [WarehouseMovementController::class, 'destroy']);
 
     Route::get('categories', [CategoriesController::class, 'index']);
@@ -243,6 +244,11 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::middleware('permission.scope:cash_registers_update_all,cash_registers_update')->put('cash_registers/{id}', [CashRegistersController::class, 'update']);
     Route::middleware('permission.scope:cash_registers_delete_all,cash_registers_delete')->delete('cash_registers/{id}', [CashRegistersController::class, 'destroy']);
 
+    Route::middleware('permission:financial_accounts_view')->get('financial/accounts', [FinancialAccountsController::class, 'index']);
+    Route::middleware('permission:financial_accounts_view')->get('financial/accounts/{id}', [FinancialAccountsController::class, 'show']);
+    Route::middleware('permission:financial_accounts_view')->get('financial/accounts/{id}/history', [FinancialAccountsController::class, 'history']);
+    Route::middleware('permission:financial_accounts_view')->get('financial/accounts/{id}/balance-at', [FinancialAccountsController::class, 'balanceAt']);
+
     Route::get('projects', [ProjectsController::class, 'index']);
     Route::get('projects/all', [ProjectsController::class, 'all']);
     Route::get('projects/{id}', [ProjectsController::class, 'show']);
@@ -267,7 +273,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::middleware('permission.scope:project_statuses_delete_all,project_statuses_delete')->delete('project-statuses/{id}', [ProjectStatusController::class, 'destroy']);
     Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions', [TransactionsController::class, 'index']);
     Route::middleware('permission:transactions_create')->post('transactions', [TransactionsController::class, 'store']);
-    Route::middleware(['permission.scope:transactions_update_all,transactions_update', 'time.restriction:Transaction'])->put('transactions/{id}', [TransactionsController::class, 'update']);
+    Route::middleware('permission.scope:transactions_update_all,transactions_update')->put('transactions/{id}', [TransactionsController::class, 'update']);
     Route::middleware(['permission.scope:transactions_delete_all,transactions_delete', 'time.restriction:Transaction'])->delete('transactions/{id}', [TransactionsController::class, 'destroy']);
     Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions/total', [TransactionsController::class, 'getTotalByOrderId']);
     Route::middleware('permission:transactions_export')->get('transactions/export', [TransactionsController::class, 'export']);
@@ -294,14 +300,14 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::put('recurring-transactions/{id}', [RecurringTransactionsController::class, 'update']);
     Route::delete('recurring-transactions/{id}', [RecurringTransactionsController::class, 'destroy']);
 
-    Route::middleware('permission.scope:transfers_view_all,transfers_view')->get('transfers', [TransfersController::class, 'index']);
+    Route::middleware('permission.scope:transfers_view_all,transfers_view_own')->get('transfers', [TransfersController::class, 'index']);
     Route::middleware('permission:transfers_create')->post('transfers', [TransfersController::class, 'store']);
-    Route::middleware(['permission:transfers_update', 'time.restriction:CashTransfer'])->put('transfers/{id}', [TransfersController::class, 'update']);
-    Route::middleware(['permission:transfers_delete', 'time.restriction:CashTransfer'])->delete('transfers/{id}', [TransfersController::class, 'destroy']);
+    Route::middleware('permission.scope:transfers_update_all,transfers_update_own')->put('transfers/{id}', [TransfersController::class, 'update']);
+    Route::middleware(['permission.scope:transfers_delete_all,transfers_delete_own', 'time.restriction:CashTransfer'])->delete('transfers/{id}', [TransfersController::class, 'destroy']);
 
     Route::middleware('permission.scope:sales_view_all,sales_view')->get('sales', [SaleController::class, 'index']);
     Route::middleware(['permission:sales_create'])->post('sales', [SaleController::class, 'store']);
-    Route::middleware(['permission:sales_update', 'time.restriction:Sale'])->put('sales/{id}', [SaleController::class, 'update']);
+    Route::middleware('permission:sales_update')->put('sales/{id}', [SaleController::class, 'update']);
     Route::middleware(['permission.scope:sales_delete_all,sales_delete', 'time.restriction:Sale'])->delete('sales/{id}', [SaleController::class, 'destroy']);
     Route::middleware('permission.scope:sales_view_all,sales_view')->get('sales/{id}', [SaleController::class, 'show']);
 

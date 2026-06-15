@@ -93,7 +93,7 @@ class TimelineBuilder
                     'comments.creator_id',
                     'comments.created_at',
                 ])
-                ->with(['creator:id,name,email'])
+                ->with(['creator:'.TimelineUserFormatter::SELECT_COLUMNS])
                 ->whereIn('comments.id', $commentIds)
                 ->get();
 
@@ -114,7 +114,7 @@ class TimelineBuilder
                     'activity_log.log_name',
                     'activity_log.event',
                 ])
-                ->with(['causer:id,name', 'subject'])
+                ->with(['causer:'.TimelineUserFormatter::SELECT_COLUMNS, 'subject'])
                 ->whereIn('activity_log.id', $activityIds)
                 ->get();
 
@@ -135,7 +135,7 @@ class TimelineBuilder
                     'activity_log.log_name',
                     'activity_log.event',
                 ])
-                ->with(['causer:id,name', 'subject'])
+                ->with(['causer:'.TimelineUserFormatter::SELECT_COLUMNS, 'subject'])
                 ->whereIn('activity_log.id', $orderTxnActivityIds)
                 ->get();
 
@@ -220,7 +220,7 @@ class TimelineBuilder
             'type' => 'comment',
             'id' => $comment->id,
             'body' => $comment->body,
-            'user' => $comment->creator,
+            'user' => TimelineUserFormatter::toArray($comment->creator),
             'created_at' => $comment->created_at,
             'viewed_by' => $viewedBy,
         ];
@@ -232,7 +232,7 @@ class TimelineBuilder
      */
     public function buildCommentItemForEntity(SupportsTimeline $model, Comment $comment, ?int $companyId): array
     {
-        $comment->loadMissing(['creator:id,name,email']);
+        $comment->loadMissing(['creator:'.TimelineUserFormatter::SELECT_COLUMNS]);
         $readStates = $this->loadReadStates($model, $companyId);
 
         return $this->mapCommentToTimelineItem($comment, $readStates);

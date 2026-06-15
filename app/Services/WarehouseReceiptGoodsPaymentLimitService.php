@@ -90,8 +90,10 @@ class WarehouseReceiptGoodsPaymentLimitService
         $paid = $excludeTransactionId !== null
             ? $this->paidGoodsCashDefault((int) $receipt->id, $excludeTransactionId)
             : (float) ($receipt->paid_amount ?? 0);
+        $payableReduction = app(WarehouseDocumentPaymentStatusService::class)
+            ->sumPayableReductionDefaultForReceipt((int) $receipt->id);
         $rounding = new RoundingService;
-        $raw = $total - $paid;
+        $raw = $total - $paid - $payableReduction;
 
         return max(0.0, $rounding->roundWarehouseAmountForCompany($companyId ?: null, $raw));
     }
