@@ -329,6 +329,7 @@ class UsersController extends BaseController
      */
     protected function userResponse(User $user): JsonResponse
     {
+        $user->loadMissing('creator:id,name,surname,photo');
         $companyId = $this->getCurrentCompanyId();
         $permissions = $companyId ? $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray() : $user->getAllPermissions()->pluck('name')->toArray();
         $roles = $companyId ? $user->getRolesForCompany((int)$companyId)->pluck('name')->toArray() : $user->roles->pluck('name')->toArray();
@@ -352,7 +353,7 @@ class UsersController extends BaseController
     {
         $user = $request->user()->load(['clientAccounts' => function ($query) {
             $query->where('status', 'active')
-                ->select('id', 'employee_id', 'client_type', 'first_name', 'balance', 'status', 'company_id');
+                ->select('id', 'employee_id', 'client_type', 'first_name', 'status', 'company_id');
         }]);
 
         return $this->successResponse(new UserResource($user));

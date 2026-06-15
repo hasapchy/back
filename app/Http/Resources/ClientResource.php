@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Currency;
+use App\Support\ClientBalancePayload;
 use App\Support\ClientBalanceViewAccess;
 use App\Support\ResolvedCompany;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -15,13 +16,13 @@ class ClientResource extends JsonResource
     public function toArray($request): array
     {
         $user = auth('api')->user();
+        $companyId = ResolvedCompany::fromRequest($request);
         $balances = ClientBalanceViewAccess::filterBalancesForUser(
             $this->balances ?? collect(),
             $user,
-            ResolvedCompany::fromRequest($request)
+            $companyId
         );
-        $visibleDefault = $balances->firstWhere('is_default', true) ?? $balances->first();
-        $balanceValue = $visibleDefault ? (float) $visibleDefault->balance : 0.0;
+        $balanceValue = ClientBalanceViewAccess::visibleDefaultBalanceValue($this->resource, $user, $companyId);
 
         return [
             'id' => $this->id,
@@ -61,25 +62,8 @@ class ClientResource extends JsonResource
                 'id' => $phone->id,
                 'phone' => $phone->phone,
             ])->all(),
-            'balances' => $balances->map(fn($balance) => [
-                'id' => $balance->id,
-                'currency_id' => $balance->currency_id,
-                'type' => (int) $balance->type,
-                'currency' => [
-                    'id' => $balance->currency->id,
-                    'code' => $balance->currency->code,
-                    'code' => $balance->currency->code,
-                    'name' => $balance->currency->name,
-                ],
-                'balance' => (float) $balance->balance,
-                'is_default' => $balance->is_default,
-                'note' => $balance->note,
-                'users' => ($balance->users ?? collect())->map(fn ($u) => [
-                    'id' => $u->id,
-                    'name' => trim(($u->name ?? '') . ' ' . ($u->surname ?? '')),
-                ])->values()->all(),
-            ])->values()->all(),
-            'currency_symbol' => $visibleDefault?->currency?->code
+            'balances' => ClientBalancePayload::collection($balances),
+            'currency_symbol' => ($balances->firstWhere('is_default', true) ?? $balances->first())?->currency?->code
                 ?? Currency::where('is_default', true)->value('code'),
         ];
     }

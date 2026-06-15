@@ -200,6 +200,7 @@ class ClientControllerTest extends TestCase
     {
         $client = Client::factory()->create([
             'first_name' => 'Old Name',
+            'client_type' => 'company',
             'company_id' => $this->company->id,
         ]);
 
@@ -224,6 +225,7 @@ class ClientControllerTest extends TestCase
     {
         $phone = '9'.substr((string) mt_rand(100000000, 999999999), 0, 9);
         $client = Client::factory()->create([
+            'client_type' => 'company',
             'is_supplier' => false,
             'is_conflict' => true,
             'status' => false,
@@ -232,7 +234,7 @@ class ClientControllerTest extends TestCase
 
         $updateData = [
             'first_name' => $client->first_name,
-            'client_type' => $client->client_type,
+            'client_type' => 'company',
             'phones' => [$phone],
             'discount_type' => 'fixed',
             'is_supplier' => 'true',
@@ -253,6 +255,7 @@ class ClientControllerTest extends TestCase
     public function test_update_client_normalizes_empty_strings_to_null(): void
     {
         $client = Client::factory()->create([
+            'client_type' => 'company',
             'last_name' => 'Last Name',
             'patronymic' => 'Patronymic',
             'company_id' => $this->company->id,
@@ -260,7 +263,7 @@ class ClientControllerTest extends TestCase
 
         $updateData = [
             'first_name' => $client->first_name,
-            'client_type' => $client->client_type,
+            'client_type' => 'company',
             'phones' => ['1234567890'],
             'discount_type' => 'fixed',
             'last_name' => '',
@@ -318,8 +321,20 @@ class ClientControllerTest extends TestCase
     public function test_destroy_client_successfully(): void
     {
         $client = Client::factory()->create([
-            'balance' => 0,
             'company_id' => $this->company->id,
+        ]);
+        $currency = Currency::where('company_id', $this->company->id)->where('is_default', true)->first()
+            ?? Currency::factory()->create([
+                'company_id' => $this->company->id,
+                'is_default' => true,
+                'status' => true,
+            ]);
+        ClientBalance::query()->create([
+            'client_id' => $client->id,
+            'currency_id' => $currency->id,
+            'type' => 1,
+            'balance' => 0,
+            'is_default' => true,
         ]);
 
         $response = $this->actingAsApi($this->adminUser)
@@ -342,8 +357,20 @@ class ClientControllerTest extends TestCase
     public function test_destroy_client_with_non_zero_balance_fails(): void
     {
         $client = Client::factory()->create([
-            'balance' => 100.50,
             'company_id' => $this->company->id,
+        ]);
+        $currency = Currency::where('company_id', $this->company->id)->where('is_default', true)->first()
+            ?? Currency::factory()->create([
+                'company_id' => $this->company->id,
+                'is_default' => true,
+                'status' => true,
+            ]);
+        ClientBalance::query()->create([
+            'client_id' => $client->id,
+            'currency_id' => $currency->id,
+            'type' => 1,
+            'balance' => 100.50,
+            'is_default' => true,
         ]);
 
         $response = $this->actingAsApi($this->adminUser)
@@ -362,7 +389,6 @@ class ClientControllerTest extends TestCase
             'employee_id' => $employee->id,
             'client_type' => 'employee',
             'company_id' => $this->company->id,
-            'balance' => 0,
         ]);
 
         $response = $this->actingAsApi($this->adminUser)
@@ -590,4 +616,56 @@ class ClientControllerTest extends TestCase
         $nonCashResponse->assertJsonCount(1, 'data');
         $nonCashResponse->assertJsonPath('data.0.id', $client->id);
     }
+
+    public function test_search_returns_balance_from_client_balances(): void
+    {
+        $currency = Currency::where('company_id', $this->company->id)->where('is_default', true)->first()
+            ?? Currency::factory()->create([
+                'company_id' => $this->company->id,
+                'is_default' => true,
+                'status' => true,
+            ]);
+
+        $client = Client::factory()->create([
+            'first_name' => 'BalanceSearch',
+            'last_name' => 'Client',
+            'status' => true,
+            'company_id' => $this->company->id,
+        ]);
+
+        ClientBalance::query()->create([
+            'client_id' => $client->id,
+            'currency_id' => $currency->id,
+            'type' => 1,
+            'balance' => 321.75,
+            'is_default' => true,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/clients/search?search_request=BalanceSearch');
+
+        $response->assertStatus(200);
+        $response->assertJsonFragment([
+            'id' => $client->id,
+            'balance' => 321.75,
+        ]);
+    }
+
+    public function test_all_and_search_forbidden_without_clients_view_permission(): void
+    {
+        $user = User::factory()->create([
+            'is_admin' => false,
+            'is_active' => true,
+        ]);
+        $user->companies()->attach($this->company->id);
+
+        $this->actingAsApi($user)
+            ->getJson('/api/clients/all')
+            ->assertForbidden();
+
+        $this->actingAsApi($user)
+            ->getJson('/api/clients/search?search_request=test')
+            ->assertForbidden();
+    }
+
 }

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Transaction;
 use App\Models\WhPurchase;
 use App\Models\WhReceipt;
+use App\Repositories\WarehouseReceiptRepository;
 use App\Support\TransactionCategoryBindingKeys;
 
 class WarehouseDocumentPaymentStatusService
@@ -149,6 +150,8 @@ class WarehouseDocumentPaymentStatusService
         $paid = $this->sumPaidDefaultFromTransactions(WhReceipt::class, $receiptId, $categoryId);
 
         WhReceipt::query()->where('id', $receiptId)->update(['paid_amount' => $paid]);
+
+        app(WarehouseReceiptRepository::class)->tryAutoCompleteReceipt($receiptId);
     }
 
     /**

@@ -140,6 +140,7 @@ class ProjectContractsRepository extends BaseRepository
     {
         $collection = collect($contracts);
 
+        /** @var object{client_id: int|null, client_first_name: string|null, client_last_name: string|null, client_type: string|null, client_name: string|null, client: mixed} $contract */
         foreach ($collection as $contract) {
             $first = trim((string) ($contract->client_first_name ?? ''));
             $last = trim((string) ($contract->client_last_name ?? ''));
@@ -166,6 +167,7 @@ class ProjectContractsRepository extends BaseRepository
     {
         $collection = collect($contracts);
 
+        /** @var object{cash_id: int|null, cash_register_name: string|null, cash_register_icon: string|null, cash_register_is_cash: bool|null, cash_register: mixed} $contract */
         foreach ($collection as $contract) {
             $contract->cash_register = ($contract->cash_id ?? null)
                 ? [
@@ -398,70 +400,6 @@ class ProjectContractsRepository extends BaseRepository
     protected function applyCompanyFilter($query, $companyId = null)
     {
         return $query;
-    }
-
-    /**
-     * Получить контракты проекта с пагинацией
-     *
-     * @param  int  $projectId  ID проекта
-     * @param  int  $perPage  Количество записей на страницу
-     * @param  int  $page  Номер страницы
-     * @param  string|null  $search  Поисковый запрос
-     * @return LengthAwarePaginator
-     */
-    public function getItemsWithPagination($projectId, $perPage = 20, $page = 1, $search = null)
-    {
-        $cacheKey = $this->generateCacheKey('project_contracts_paginated', [$projectId, $perPage, $page, $search]);
-
-        return CacheService::getPaginatedData($cacheKey, function () use ($projectId, $perPage, $search, $page) {
-            $query = $this->getBaseQuery()
-                ->where('project_contracts.project_id', $projectId);
-
-            $this->applyCompanyFilter($query);
-
-            if ($search) {
-                $searchTrimmed = trim((string) $search);
-                $searchLower = mb_strtolower($searchTrimmed);
-                $query->where(function ($q) use ($searchTrimmed, $searchLower) {
-                    $q->where('project_contracts.number', 'like', "%{$searchTrimmed}%")
-                        ->orWhere('project_contracts.amount', 'like', "%{$searchTrimmed}%")
-                        ->orWhereExists(function ($sub) use ($searchTrimmed) {
-                            $sub->select(DB::raw(1))
-                                ->from('projects')
-                                ->whereColumn('projects.id', 'project_contracts.project_id')
-                                ->whereExists(function ($clientSub) use ($searchTrimmed) {
-                                    $clientSub->select(DB::raw(1))
-                                        ->from('clients')
-                                        ->whereColumn('clients.id', 'projects.client_id')
-                                        ->where(function ($cq) use ($searchTrimmed) {
-                                            $this->applyClientSearchConditions($cq, $searchTrimmed, 'clients');
-                                        });
-                                });
-                        })
-                        ->orWhereExists(function ($phoneSub) use ($searchLower) {
-                            $phoneSub->select(DB::raw(1))
-                                ->from('clients_phones')
-                                ->join('projects', 'projects.client_id', '=', 'clients_phones.client_id')
-                                ->whereColumn('projects.id', 'project_contracts.project_id')
-                                ->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
-                        })
-                        ->orWhereExists(function ($emailSub) use ($searchLower) {
-                            $emailSub->select(DB::raw(1))
-                                ->from('clients_emails')
-                                ->join('projects', 'projects.client_id', '=', 'clients_emails.client_id')
-                                ->whereColumn('projects.id', 'project_contracts.project_id')
-                                ->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
-                        });
-                });
-            }
-
-            $paginator = $query->orderBy('project_contracts.id', 'desc')
-                ->paginate($perPage, ['*'], 'page', (int) $page);
-            $this->enrichContractsWithPaymentStatus($paginator->getCollection());
-            $this->normalizeContractCreators($paginator->getCollection());
-
-            return $paginator;
-        }, (int) $page);
     }
 
     /**

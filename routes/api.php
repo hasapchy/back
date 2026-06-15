@@ -30,7 +30,6 @@ use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderStatusCategoryController;
 use App\Http\Controllers\Api\OrderStatusController;
-use App\Http\Controllers\Api\OrderTransactionController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProjectContractsController;
 use App\Http\Controllers\Api\ProjectsController;
@@ -254,7 +253,6 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{id}/detailed-balance', [ProjectsController::class, 'getDetailedBalance']);
     Route::middleware('permission.scope:chats_view_all,chats_view')->post('projects/{id}/chat', [ProjectsController::class, 'ensureChat']);
 
-    Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{projectId}/contracts', [ProjectContractsController::class, 'index']);
     Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{projectId}/contracts/all', [ProjectContractsController::class, 'getAll']);
     Route::middleware('permission.scope:projects_update_all,projects_update')->post('projects/{projectId}/contracts', [ProjectContractsController::class, 'store']);
     Route::middleware('permission.scope:contracts_view_all,contracts_view_own')->get('contracts', [ProjectContractsController::class, 'getAllContracts']);
@@ -314,10 +312,6 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::middleware('permission.scope:orders_update_all,orders_update,orders_simple_update_all,orders_simple_update')->put('orders/{id}', [OrderController::class, 'update']);
     Route::middleware('permission.scope:orders_delete_all,orders_delete,orders_simple_delete_all,orders_simple_delete')->delete('orders/{id}', [OrderController::class, 'destroy']);
     Route::middleware('permission.scope:orders_view_all,orders_view,orders_simple_view_all,orders_simple_view')->get('orders/{id}', [OrderController::class, 'show']);
-
-    Route::middleware('permission.scope:orders_update_all,orders_update,orders_simple_update_all,orders_simple_update')->post('orders/{orderId}/transactions', [OrderTransactionController::class, 'linkTransaction']);
-    Route::middleware('permission.scope:orders_update_all,orders_update,orders_simple_update_all,orders_simple_update')->delete('orders/{orderId}/transactions/{transactionId}', [OrderTransactionController::class, 'unlinkTransaction']);
-    Route::middleware('permission.scope:orders_view_all,orders_view,orders_simple_view_all,orders_simple_view')->get('orders/{orderId}/transactions', [OrderTransactionController::class, 'getOrderTransactions']);
 
     Route::get('order_statuses', [OrderStatusController::class, 'index']);
     Route::get('order_statuses/all', [OrderStatusController::class, 'all']);

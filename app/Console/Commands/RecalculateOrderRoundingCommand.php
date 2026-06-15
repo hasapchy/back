@@ -23,7 +23,7 @@ class RecalculateOrderRoundingCommand extends Command
                             {--chunk=500 : Размер пакета при пересчёте по компании}
                             {--dry-run : Показать изменения без сохранения}';
 
-    protected $description = 'Пересчитать orders.total_price по price/discount с округлением итога и синхронизировать долговую транзакцию (строки заказа не изменяются)';
+    protected $description = 'Пересчитать orders.def_total_price по def_price/def_discount с округлением итога и синхронизировать долговую транзакцию (строки заказа не изменяются)';
 
     /**
      * @return int
@@ -332,9 +332,9 @@ class RecalculateOrderRoundingCommand extends Command
                 'display_decimals' => (int) ($company?->display_decimals ?? 0),
             ],
             'sum_lines_price' => round($sumLines, 5),
-            'order_price' => (float) $order->price,
-            'order_discount' => (float) $order->discount,
-            'order_total_price' => (float) $order->total_price,
+            'order_def_price' => (float) $order->def_price,
+            'order_def_discount' => (float) $order->def_discount,
+            'order_def_total_price' => (float) $order->def_total_price,
             'project_id' => $order->project_id,
         ];
     }

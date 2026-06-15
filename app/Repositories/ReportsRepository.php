@@ -308,7 +308,7 @@ class ReportsRepository extends BaseRepository
         string $currencyMode = 'report',
         ?int $projectId = null
     ): array {
-        return $this->getSourceReport(Order::class, 'orders', 'total_price', $dateFilterType, $startDate, $endDate, $currencyMode, $projectId);
+        return $this->getSourceReport(Order::class, 'orders', 'def_total_price', $dateFilterType, $startDate, $endDate, $currencyMode, $projectId);
     }
 
     /**

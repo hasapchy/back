@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\CacheService;
 use App\Services\Chat\ChatService;
 use App\Services\ProjectBudgetService;
+use App\Support\ProjectBalanceCalculator;
 use App\Services\Timeline\TimelineCache;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -35,7 +36,7 @@ class ProjectsRepository extends BaseRepository
     private function getBaseRelations(): array
     {
         return [
-            'client:id,first_name,last_name,balance,client_type',
+            'client:id,first_name,last_name,client_type',
             'client.phones:id,client_id,phone',
             'client.emails:id,client_id,email',
             'currency:id,name,code',
@@ -112,38 +113,7 @@ class ProjectsRepository extends BaseRepository
                 ]));
 
             $query = $this->addCompanyFilterDirect($query, 'projects');
-
-            if ($search) {
-                $searchTrimmed = trim((string) $search);
-                $searchLower = mb_strtolower($searchTrimmed);
-                $query->where(function ($q) use ($searchTrimmed, $searchLower) {
-                    $q->where('projects.id', 'like', "%{$searchTrimmed}%")
-                        ->orWhereRaw('LOWER(projects.name) LIKE ?', ["%{$searchLower}%"]);
-
-                    $q->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
-                        $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
-                    })
-                        ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
-                            $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
-                        })
-                        ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
-                            $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
-                        });
-                });
-            }
-
-            if ($dateFilter && $dateFilter !== 'all_time') {
-                $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'projects.date');
-            }
-
-            if ($statusId) {
-                $query->where('projects.status_id', $statusId);
-            }
-
-            if ($clientId) {
-                $query->where('projects.client_id', $clientId);
-            }
-
+            $this->applyProjectListFilters($query, $search, $dateFilter, $startDate, $endDate, $clientId, $statusId);
             $this->applyOwnFilter($query, 'projects', 'projects', 'creator_id', $currentUser);
 
             $paginated = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int) $page);
@@ -180,34 +150,7 @@ class ProjectsRepository extends BaseRepository
             ->leftJoin('project_statuses', 'projects.status_id', '=', 'project_statuses.id');
 
         $query = $this->addCompanyFilterDirect($query, 'projects');
-
-        if ($search) {
-            $searchTrimmed = trim((string) $search);
-            $searchLower = mb_strtolower($searchTrimmed);
-            $query->where(function ($q) use ($searchTrimmed, $searchLower) {
-                $q->where('projects.id', 'like', "%{$searchTrimmed}%")
-                    ->orWhereRaw('LOWER(projects.name) LIKE ?', ["%{$searchLower}%"]);
-
-                $q->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
-                    $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
-                })
-                    ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
-                        $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
-                    })
-                    ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
-                        $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
-                    });
-            });
-        }
-
-        if ($dateFilter && $dateFilter !== 'all_time') {
-            $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'projects.date');
-        }
-
-        if ($clientId) {
-            $query->where('projects.client_id', $clientId);
-        }
-
+        $this->applyProjectListFilters($query, $search, $dateFilter, $startDate, $endDate, $clientId);
         $this->applyOwnFilter($query, 'projects', 'projects', 'creator_id', $currentUser);
 
         return $query
@@ -330,7 +273,6 @@ class ProjectsRepository extends BaseRepository
             }
             $item->client_id = $data['client_id'];
             $item->description = $data['description'] ?? null;
-            $item->status_id = $data['status_id'] ?? $item->status_id;
 
             $item->save();
 
@@ -377,7 +319,7 @@ class ProjectsRepository extends BaseRepository
                 'projects.updated_at',
             ])
                 ->with([
-                    'client:id,first_name,last_name,balance,client_type',
+                    'client:id,first_name,last_name,client_type',
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
                     'creator:id,name,surname,photo',
@@ -442,9 +384,9 @@ class ProjectsRepository extends BaseRepository
 
         return CacheService::remember($cacheKey, function () use ($projectId, $page, $perPage, $filters) {
             $project = Project::find($projectId);
-            $currencyContext = $this->resolveProjectCurrencyContext($project);
-            $isProjectReportCurrency = $currencyContext['is_project_report_currency'];
-            $isProjectDefaultCurrency = $currencyContext['is_project_default_currency'];
+            $currencyContext = app(ProjectBalanceCalculator::class)->resolveCurrencyContext($project);
+            $isProjectReportCurrency = $currencyContext['is_report_currency'];
+            $isProjectDefaultCurrency = $currencyContext['is_default_currency'];
 
             $query = $this->projectBalanceTransactionsQuery($projectId);
             $this->applyProjectBalanceHistoryFilters($query, $filters);
@@ -479,8 +421,9 @@ class ProjectsRepository extends BaseRepository
                 $transactions = $query->get();
             }
 
-            $transactionsResult = $transactions->map(function ($item) use ($isProjectReportCurrency, $isProjectDefaultCurrency) {
-                $balanceAmount = $this->computeProjectBalanceSignedAmount(
+            $balanceCalculator = app(ProjectBalanceCalculator::class);
+            $transactionsResult = $transactions->map(function ($item) use ($isProjectReportCurrency, $isProjectDefaultCurrency, $balanceCalculator) {
+                $balanceAmount = $balanceCalculator->computeSignedAmount(
                     $item,
                     $isProjectReportCurrency,
                     $isProjectDefaultCurrency
@@ -644,7 +587,6 @@ class ProjectsRepository extends BaseRepository
 
             return [
                 'total_balance' => $stats['balance'],
-                'real_balance' => $stats['balance'],
                 'total_income' => $stats['income'],
                 'total_expense' => $stats['expense'],
             ];
@@ -652,73 +594,53 @@ class ProjectsRepository extends BaseRepository
     }
 
     /**
-     * @param  Project|null  $project
-     * @return array{is_project_report_currency: bool, is_project_default_currency: bool}
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  string|null  $search
+     * @param  string  $dateFilter
+     * @param  string|null  $startDate
+     * @param  string|null  $endDate
+     * @param  int|null  $clientId
+     * @param  int|null  $statusId
      */
-    private function resolveProjectCurrencyContext(?Project $project): array
-    {
-        $projectCurrency = $project && $project->currency_id ? Currency::find($project->currency_id) : null;
-        $companyId = $project?->company_id;
-        $defaultCurrency = Currency::where('is_default', true)
-            ->where(function ($q) use ($companyId) {
-                $q->where('company_id', $companyId)->orWhereNull('company_id');
-            })
-            ->first();
-        $reportCurrency = Currency::where('is_report', true)
-            ->where(function ($q) use ($companyId) {
-                $q->where('company_id', $companyId)->orWhereNull('company_id');
-            })
-            ->first();
+    private function applyProjectListFilters(
+        $query,
+        $search,
+        string $dateFilter = 'all_time',
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?int $clientId = null,
+        ?int $statusId = null,
+    ): void {
+        if ($search) {
+            $searchTrimmed = trim((string) $search);
+            $searchLower = mb_strtolower($searchTrimmed);
+            $query->where(function ($q) use ($searchTrimmed, $searchLower) {
+                $q->where('projects.id', 'like', "%{$searchTrimmed}%")
+                    ->orWhereRaw('LOWER(projects.name) LIKE ?', ["%{$searchLower}%"]);
 
-        return [
-            'is_project_report_currency' => $projectCurrency && $reportCurrency && $projectCurrency->id === $reportCurrency->id,
-            'is_project_default_currency' => $projectCurrency && $defaultCurrency && $projectCurrency->id === $defaultCurrency->id,
-        ];
-    }
-
-    /**
-     * @param  Transaction  $item
-     * @param  bool  $isProjectReportCurrency
-     * @param  bool  $isProjectDefaultCurrency
-     * @return array{source: string, base_amount: float, signed_amount: float, amount_field: string}
-     */
-    private function computeProjectBalanceSignedAmount(
-        Transaction $item,
-        bool $isProjectReportCurrency,
-        bool $isProjectDefaultCurrency
-    ): array {
-        $sourceMap = [
-            'App\\Models\\Sale' => 'sale',
-            'App\\Models\\Order' => 'order',
-            'App\\Models\\WhReceipt' => 'receipt',
-        ];
-        $source = $sourceMap[$item->source_type] ?? 'transaction';
-
-        if ($isProjectReportCurrency) {
-            $amount = $item->rep_amount ?? $item->orig_amount;
-            $amountField = $item->rep_amount !== null ? 'rep_amount' : 'orig_amount';
-        } elseif ($isProjectDefaultCurrency) {
-            $amount = $item->def_amount ?? $item->orig_amount;
-            $amountField = $item->def_amount !== null ? 'def_amount' : 'orig_amount';
-        } else {
-            $amount = $item->orig_amount;
-            $amountField = 'orig_amount';
+                $q->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
+                    $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
+                })
+                    ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
+                        $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                    })
+                    ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
+                        $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
+                    });
+            });
         }
 
-        $baseAmount = (float) $amount;
-        $signedAmount = match ($source) {
-            'receipt' => -$baseAmount,
-            'transaction' => $item->type == 1 ? +$baseAmount : -$baseAmount,
-            'sale' => +$baseAmount,
-            'order' => -$baseAmount,
-        };
+        if ($dateFilter && $dateFilter !== 'all_time') {
+            $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'projects.date');
+        }
 
-        return [
-            'source' => $source,
-            'base_amount' => $baseAmount,
-            'signed_amount' => (float) $signedAmount,
-            'amount_field' => $amountField,
-        ];
+        if ($clientId) {
+            $query->where('projects.client_id', $clientId);
+        }
+
+        if ($statusId) {
+            $query->where('projects.status_id', $statusId);
+        }
     }
 
     /**
@@ -758,13 +680,7 @@ class ProjectsRepository extends BaseRepository
      */
     public function invalidateProjectCache($projectId): void
     {
-        CacheService::forget("project_item_{$projectId}");
-        CacheService::invalidateByLike("%project_balance_history%_{$projectId}_%");
-        CacheService::forget("project_balance_{$projectId}");
-        CacheService::forget("project_total_balance_{$projectId}");
-        CacheService::forget("project_real_balance_{$projectId}");
-        CacheService::forget("project_detailed_balance_{$projectId}");
-        CacheService::forget("project_item_relations_{$projectId}_null");
+        CacheService::invalidateProjectCache((int) $projectId);
     }
 
     /**

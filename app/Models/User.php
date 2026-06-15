@@ -133,6 +133,14 @@ class User extends Authenticatable
     }
 
     /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<User, $this>
+     */
+    public function creator()
+    {
+        return $this->belongsTo(self::class, 'creator_id');
+    }
+
+    /**
      * Компании, к которым принадлежит пользователь
      */
     public function companies()

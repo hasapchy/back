@@ -32,7 +32,6 @@ class ListFilterPresetFields
                 'projectFilter',
                 'clientFilter',
                 'categoryFilter',
-                'paidOrdersFilter',
             ],
             ListFilterPresetSource::Projects => [
                 'statusFilter',
@@ -75,7 +74,6 @@ class ListFilterPresetFields
                 'projectFilter' => '',
                 'clientFilter' => '',
                 'categoryFilter' => '',
-                'paidOrdersFilter' => false,
             ],
             ListFilterPresetSource::Projects => [
                 'statusFilter' => '',

@@ -11,9 +11,9 @@ use App\Models\WhReceipt;
 use App\Repositories\OrdersRepository;
 use App\Repositories\ProjectsRepository;
 use App\Repositories\TransactionsRepository;
+use App\Support\ProjectBalanceCalculator;
 use App\Support\ResolvedCompany;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 use Psr\Log\LoggerInterface;
 
 class ProjectBalanceService
@@ -25,6 +25,7 @@ class ProjectBalanceService
         private readonly OrdersRepository $ordersRepository,
         private readonly TransactionsRepository $transactionsRepository,
         private readonly RoundingService $roundingService,
+        private readonly ProjectBalanceCalculator $balanceCalculator,
     ) {}
 
     /**
@@ -142,25 +143,26 @@ class ProjectBalanceService
         $issues = [];
         $fixesApplied = 0;
 
-        $expectedTotal = $this->resolveExpectedOrderTotal($order, $companyId);
-        $storedTotal = $this->resolveStoredOrderTotal($order);
+        $expectedDefTotal = $this->resolveExpectedOrderTotal($order, $companyId);
+        $storedDefTotal = $this->resolveStoredOrderTotal($order);
+        $expectedDocumentTotal = (float) ($order->total_price ?? 0);
 
-        $hasTotalMismatch = ! $this->amountsEqual($storedTotal, $expectedTotal);
+        $hasTotalMismatch = ! $this->amountsEqual($storedDefTotal, $expectedDefTotal);
 
         if ($hasTotalMismatch) {
             $issues[] = [
                 'type' => 'order_total_price_mismatch',
                 'order_id' => $order->id,
-                'stored_total' => $storedTotal,
-                'expected_total' => $expectedTotal,
+                'stored_total' => $storedDefTotal,
+                'expected_total' => $expectedDefTotal,
             ];
         }
 
         $debtTransaction = $this->findOrderDebtTransaction((int) $order->id);
 
         if (! $order->client_id) {
-            if ($hasTotalMismatch && ! $dryRun && Schema::hasColumn('orders', 'total_price')) {
-                $order->total_price = $expectedTotal;
+            if ($hasTotalMismatch && ! $dryRun) {
+                $order->def_total_price = $expectedDefTotal;
                 $order->save();
                 $fixesApplied++;
             }
@@ -177,15 +179,15 @@ class ProjectBalanceService
             return ['issues' => $issues, 'fixes_applied' => $fixesApplied];
         }
 
-        if (! $debtTransaction && $expectedTotal > 0.00001) {
+        if (! $debtTransaction && $expectedDocumentTotal > 0.00001) {
             $issues[] = [
                 'type' => 'order_tx_missing',
                 'order_id' => $order->id,
-                'expected_total' => $expectedTotal,
+                'expected_total' => $expectedDocumentTotal,
             ];
         } elseif ($debtTransaction) {
             $txAmount = (float) $debtTransaction->orig_amount;
-            $needsAmountFix = ! $this->amountsEqual($txAmount, $expectedTotal);
+            $needsAmountFix = ! $this->amountsEqual($txAmount, $expectedDocumentTotal);
             $needsProjectFix = (int) ($debtTransaction->project_id ?? 0) !== $projectId;
 
             if ($needsAmountFix || $needsProjectFix) {
@@ -194,7 +196,7 @@ class ProjectBalanceService
                     'order_id' => $order->id,
                     'transaction_id' => $debtTransaction->id,
                     'tx_amount' => $txAmount,
-                    'expected_total' => $expectedTotal,
+                    'expected_total' => $expectedDocumentTotal,
                     'project_id' => (int) ($debtTransaction->project_id ?? 0),
                     'expected_project_id' => $projectId,
                 ];
@@ -383,32 +385,7 @@ class ProjectBalanceService
      */
     private function resolveAmountContext(Project $project, ?int $companyId): array
     {
-        $projectCurrency = $project->currency_id ? Currency::find($project->currency_id) : null;
-        $defaultCurrency = $this->resolveDefaultCurrency($companyId);
-        $reportCurrency = Currency::query()
-            ->where('is_report', true)
-            ->where(function ($query) use ($companyId) {
-                $query->where('company_id', $companyId)->orWhereNull('company_id');
-            })
-            ->first();
-
-        $isReportCurrency = $projectCurrency && $reportCurrency && $projectCurrency->id === $reportCurrency->id;
-        $isDefaultCurrency = $projectCurrency && $defaultCurrency && $projectCurrency->id === $defaultCurrency->id;
-
-        $amountField = 'orig_amount';
-        if ($isReportCurrency) {
-            $amountField = 'rep_amount';
-        } elseif ($isDefaultCurrency) {
-            $amountField = 'def_amount';
-        }
-
-        return [
-            'amount_field' => $amountField,
-            'is_report_currency' => $isReportCurrency,
-            'is_default_currency' => $isDefaultCurrency,
-            'default_currency' => $defaultCurrency,
-            'report_currency' => $reportCurrency,
-        ];
+        return $this->balanceCalculator->resolveCurrencyContext($project, $companyId);
     }
 
     /**
@@ -475,11 +452,7 @@ class ProjectBalanceService
      */
     private function resolveStoredBalanceAmount(Transaction $transaction, string $amountField): float
     {
-        return match ($amountField) {
-            'rep_amount' => (float) ($transaction->rep_amount ?? $transaction->orig_amount),
-            'def_amount' => (float) ($transaction->def_amount ?? $transaction->orig_amount),
-            default => (float) $transaction->orig_amount,
-        };
+        return $this->balanceCalculator->resolveStoredBalanceAmount($transaction, $amountField);
     }
 
     /**
@@ -489,19 +462,7 @@ class ProjectBalanceService
      */
     private function resolveBalanceContribution(Transaction $transaction, float $amount): float
     {
-        $source = match ($transaction->source_type) {
-            'App\\Models\\Sale' => 'sale',
-            Order::class => 'order',
-            WhReceipt::class => 'receipt',
-            default => 'transaction',
-        };
-
-        return match ($source) {
-            'receipt' => -$amount,
-            'transaction' => $transaction->type == 1 ? +$amount : -$amount,
-            'sale' => +$amount,
-            'order' => -$amount,
-        };
+        return $this->balanceCalculator->resolveBalanceContribution($transaction, $amount);
     }
 
     /**
@@ -520,8 +481,8 @@ class ProjectBalanceService
      */
     private function resolveExpectedOrderTotal(Order $order, ?int $companyId): float
     {
-        $price = (float) ($order->price ?? 0);
-        $discount = (float) ($order->discount ?? 0);
+        $price = (float) ($order->def_price ?? 0);
+        $discount = (float) ($order->def_discount ?? 0);
 
         if (! $companyId) {
             return max(0.0, $price - $discount);
@@ -542,11 +503,11 @@ class ProjectBalanceService
      */
     private function resolveStoredOrderTotal(Order $order): float
     {
-        if (Schema::hasColumn('orders', 'total_price') && $order->total_price !== null && $order->total_price !== '') {
-            return (float) $order->total_price;
+        if ($order->def_total_price !== null && $order->def_total_price !== '') {
+            return (float) $order->def_total_price;
         }
 
-        return max(0.0, (float) ($order->price ?? 0) - (float) ($order->discount ?? 0));
+        return max(0.0, (float) ($order->def_price ?? 0) - (float) ($order->def_discount ?? 0));
     }
 
     /**
@@ -561,20 +522,6 @@ class ProjectBalanceService
             ->where('type', 1)
             ->where('is_debt', true)
             ->where('is_deleted', false)
-            ->first();
-    }
-
-    /**
-     * @param  int|null  $companyId
-     * @return Currency|null
-     */
-    private function resolveDefaultCurrency(?int $companyId): ?Currency
-    {
-        return Currency::query()
-            ->where('is_default', true)
-            ->where(function ($query) use ($companyId) {
-                $query->where('company_id', $companyId)->orWhereNull('company_id');
-            })
             ->first();
     }
 

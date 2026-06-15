@@ -81,8 +81,11 @@ final class BatchEntityActions
             throw new UnprocessableEntityHttpException(__('api.batch.client_delete_related_orders'));
         }
 
-        $balance = DB::table('clients')->where('id', $id)->value('balance');
-        if ($balance > 0 || $balance < 0) {
+        $hasNonZeroBalance = DB::table('client_balances')
+            ->where('client_id', $id)
+            ->where('balance', '!=', 0)
+            ->exists();
+        if ($hasNonZeroBalance) {
             throw new UnprocessableEntityHttpException(__('api.batch.client_delete_non_zero_balance'));
         }
 

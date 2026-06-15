@@ -6,15 +6,21 @@ use App\Models\CashRegister;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\Currency;
+use App\Models\Order;
 use App\Models\Project;
 use App\Models\ProjectContract;
 use App\Models\Transaction;
 use App\Models\TransactionCategory;
 use App\Models\User;
+use App\Services\ProjectBalanceService;
+use App\Support\TransactionCategoryBindingKeys;
+use Tests\Support\Concerns\SeedsTransactionCategoryBindings;
 use Tests\TestCase;
 
 class ProjectBalanceTest extends TestCase
 {
+    use SeedsTransactionCategoryBindings;
+
     protected User $adminUser;
 
     protected Company $company;
@@ -75,6 +81,52 @@ class ProjectBalanceTest extends TestCase
     protected function actingAsApi(User $user, Company|int|null $company = null): self
     {
         return parent::actingAsApi($user, $company ?? $this->company);
+    }
+
+    public function test_order_debt_mismatch_compares_document_total_not_def_total(): void
+    {
+        $this->seedStandardTransactionCategoryBindings($this->company, $this->adminUser);
+
+        $documentCurrency = Currency::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+
+        $order = Order::factory()->create([
+            'company_id' => $this->company->id,
+            'client_id' => $this->client->id,
+            'creator_id' => $this->adminUser->id,
+            'project_id' => $this->project->id,
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $documentCurrency->id,
+            'total_price' => 100,
+            'def_total_price' => 200,
+        ]);
+
+        $categoryId = $this->transactionCategoryBindingsByKey[TransactionCategoryBindingKeys::ORDER]->id;
+
+        Transaction::factory()->create([
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
+            'project_id' => $this->project->id,
+            'currency_id' => $documentCurrency->id,
+            'cash_id' => $this->cashRegister->id,
+            'category_id' => $categoryId,
+            'source_type' => Order::class,
+            'source_id' => $order->id,
+            'is_debt' => true,
+            'type' => 1,
+            'orig_amount' => 200,
+            'amount' => 200,
+            'def_amount' => 200,
+            'rep_amount' => 200,
+        ]);
+
+        $result = app(ProjectBalanceService::class)->recalculateProject($this->project->id, true);
+
+        $mismatch = collect($result['issues'])->firstWhere('type', 'order_tx_amount_mismatch');
+        $this->assertNotNull($mismatch);
+        $this->assertEqualsWithDelta(100.0, (float) $mismatch['expected_total'], 0.0001);
+        $this->assertEqualsWithDelta(200.0, (float) $mismatch['tx_amount'], 0.0001);
     }
 
     public function test_contract_debt_transaction_excluded_from_project_balance(): void

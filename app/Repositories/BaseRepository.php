@@ -456,8 +456,6 @@ abstract class BaseRepository
             }
         }
 
-        $defaultCategoryId = $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::TRANSACTION_DEFAULT_INCOME);
-
         return [
             'client_id' => $data['client_id'] ?? null,
             'amount' => $this->roundAmountBySource((float) $amount, $sourceType),
@@ -466,7 +464,7 @@ abstract class BaseRepository
             'type' => $data['type'] ?? 1,
             'is_debt' => $data['is_debt'] ?? false,
             'cash_id' => $data['cash_id'] ?? null,
-            'category_id' => $data['category_id'] ?? $defaultCategoryId,
+            'category_id' => $data['category_id'] ?? $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::TRANSACTION_DEFAULT_INCOME),
             'source_type' => $sourceType,
             'source_id' => $sourceId,
             'date' => $data['date'] ?? now(),

@@ -13,9 +13,12 @@ use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
 use App\Services\RoundingService;
 use App\Models\Transaction;
+use App\Models\WhReceipt;
 use App\Support\TransactionCategoryBindingKeys;
 use App\Services\Timeline\WarehouseTimelineCache;
+use App\Services\InventoryLockService;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class WarehousePurchaseRepository extends BaseRepository
 {
@@ -303,7 +306,7 @@ class WarehousePurchaseRepository extends BaseRepository
     }
 
     /**
-     * Удалить закупку в статусе «Черновик» и связанные с ней транзакции.
+     * Удалить закупку и связанные оприходования с откатом стока и транзакций.
      *
      * @param  int  $id  ID закупки
      * @return bool
@@ -312,14 +315,24 @@ class WarehousePurchaseRepository extends BaseRepository
     {
         return DB::transaction(function () use ($id): bool {
             $purchase = WhPurchase::query()->lockForUpdate()->findOrFail($id);
-            if ($purchase->status !== WhPurchaseStatus::Draft) {
-                throw new \RuntimeException((string) __('warehouse_purchase.delete_only_draft'));
-            }
-            if ($purchase->receipts()->exists()) {
-                throw new \RuntimeException((string) __('warehouse_purchase.delete_forbidden_has_receipts'));
+            $supplierId = (int) $purchase->supplier_id;
+
+            if ($purchase->warehouse_id !== null) {
+                app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $purchase->warehouse_id);
             }
 
-            $supplierId = (int) $purchase->supplier_id;
+            $receiptRepo = app(WarehouseReceiptRepository::class);
+            $receipts = WhReceipt::query()
+                ->where('purchase_id', $purchase->id)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($receipts as $receipt) {
+                $this->assertUserCanDeleteLinkedReceipt($receipt);
+                $receiptRepo->deleteReceiptWithinTransaction($receipt, false);
+            }
+
             $transactions = $purchase->transactions()->where('is_deleted', false)->get();
             app(TransactionsRepository::class)->deleteLinkedTransactions($transactions);
             $purchase->delete();
@@ -328,6 +341,32 @@ class WarehousePurchaseRepository extends BaseRepository
 
             return true;
         });
+    }
+
+    /**
+     * @throws AccessDeniedHttpException
+     */
+    private function assertUserCanDeleteLinkedReceipt(WhReceipt $receipt): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = auth('api')->user();
+        if ($user === null || $user->is_admin) {
+            return;
+        }
+
+        $permissions = $this->getUserPermissionsForCompany($user);
+        if (in_array('warehouse_receipts_delete_all', $permissions, true)) {
+            return;
+        }
+
+        if (
+            in_array('warehouse_receipts_delete_own', $permissions, true)
+            && (int) $receipt->creator_id === (int) $user->id
+        ) {
+            return;
+        }
+
+        throw new AccessDeniedHttpException((string) __('warehouse_purchase.delete_receipt_permission_denied'));
     }
 
     /**

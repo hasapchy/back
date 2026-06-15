@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use App\Models\ClientsPhone;
 use App\Models\ClientsEmail;
-use App\Models\Currency;
 use App\Models\Comment;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
@@ -33,8 +32,6 @@ use App\Contracts\SupportsTimeline;
  * @property string|null $discount_type Тип скидки (fixed, percent)
  * @property float|null $discount Размер скидки
  * @property bool $status Статус активности
- * @property int|null $sort Порядок сортировки
- * @property float $balance Баланс клиента
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -68,12 +65,9 @@ class Client extends Model implements SupportsTimeline
         'discount_type',
         'discount',
         'status',
-        'sort',
-        'balance',
     ];
 
     protected $casts = [
-        'balance' => 'decimal:5',
         'is_supplier' => 'boolean',
         'is_conflict' => 'boolean',
         'status' => 'boolean',
@@ -217,48 +211,4 @@ class Client extends Model implements SupportsTimeline
         return $query;
     }
 
-    /**
-     * Scope для фильтрации по типу клиента
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string|null $clientType Тип клиента
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeByType($query, $clientType = null)
-    {
-        if ($clientType) {
-            return $query->where('client_type', $clientType);
-        }
-        return $query;
-    }
-
-    /**
-     * Получить баланс клиента для указанной валюты
-     *
-     * @param int $currencyId ID валюты
-     * @return ClientBalance|null
-     */
-    public function getBalanceForCurrency($currencyId)
-    {
-        return $this->balances()->where('currency_id', $currencyId)->first();
-    }
-
-    /**
-     * Получить дефолтный баланс клиента
-     *
-     * @return ClientBalance|null
-     */
-    public function getDefaultBalance()
-    {
-        $defaultBalance = $this->defaultBalance;
-
-        if (!$defaultBalance) {
-            $defaultCurrency = Currency::where('is_default', true)->first();
-            if ($defaultCurrency) {
-                return $this->getBalanceForCurrency($defaultCurrency->id);
-            }
-        }
-
-        return $defaultBalance;
-    }
 }

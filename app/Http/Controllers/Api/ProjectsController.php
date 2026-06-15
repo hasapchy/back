@@ -16,9 +16,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Контроллер для управления проектами
- */
-/**
  * @group Проекты
  */
 class ProjectsController extends BaseController
@@ -80,7 +77,7 @@ class ProjectsController extends BaseController
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        $items = $this->itemsRepository->getItemsWithPagination($perPage, $page, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, null);
+        $items = $this->itemsRepository->getItemsWithPagination($perPage, $page, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId);
 
         $statusCounts = $this->itemsRepository->getStatusCountsForFilters(
             search: is_string($search) ? $search : null,

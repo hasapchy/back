@@ -192,22 +192,7 @@ class WarehouseReceiptController extends BaseController
             $targetStatus = WhReceiptStatus::tryFrom((string) $validatedData['status']);
 
             if ($targetStatus === WhReceiptStatus::Completed) {
-                try {
-                    $this->itemsRepository->completeReceipt(
-                        (int) $id,
-                        $validatedData['date'] ?? null,
-                        array_key_exists('note', $validatedData) ? $validatedData['note'] : null
-                    );
-
-                    $receipt = $this->itemsRepository->getItemById((int) $id, $userUuid);
-                    if (! $receipt) {
-                        return $this->errorResponse(__('warehouse_receipt.not_found'), 404);
-                    }
-
-                    return $this->successResponse(new WarehouseReceiptResource($receipt), __('warehouse_receipt.completed_success'));
-                } catch (\Throwable $th) {
-                    return $this->errorResponse(__('warehouse_receipt.update_error', ['message' => $th->getMessage()]), 400);
-                }
+                return $this->errorResponse(__('warehouse_receipt.completion_is_automatic'), 400);
             }
         }
 
@@ -266,7 +251,7 @@ class WarehouseReceiptController extends BaseController
 
             return $this->successResponse(new WarehouseReceiptResource($receipt), __('warehouse_receipt.updated_success'));
         } catch (\Throwable $th) {
-            return $this->errorResponse(__('warehouse_receipt.update_error', ['message' => $th->getMessage()]), 400);
+            return $this->errorResponse($th->getMessage(), 400);
         }
     }
 

@@ -17,6 +17,7 @@ use App\Models\Transaction;
 use App\Models\TransactionCategory;
 use App\Models\OrderStatus;
 use App\Models\OrderStatusCategory;
+use App\Models\CurrencyHistory;
 use App\Support\TransactionCategoryBindingKeys;
 use Tests\Support\Concerns\SeedsTransactionCategoryBindings;
 use Tests\TestCase;
@@ -510,6 +511,152 @@ class OrderControllerTest extends TestCase
         $showResponse->assertStatus(200);
         $showResponse->assertJsonPath('data.payment_status', 'partially_paid');
         $this->assertEqualsWithDelta(80.0, (float) $showResponse->json('data.paid_amount'), 1e-9);
+    }
+
+    public function test_store_order_persists_orig_def_rep_header_amounts(): void
+    {
+        $defaultCurrency = Currency::query()
+            ->where('company_id', $this->company->id)
+            ->where('is_default', true)
+            ->firstOrFail();
+        $documentCurrency = Currency::factory()->create([
+            'company_id' => $this->company->id,
+            'is_default' => false,
+            'is_report' => false,
+            'code' => 'USD',
+        ]);
+        CurrencyHistory::query()->create([
+            'currency_id' => $defaultCurrency->id,
+            'company_id' => $this->company->id,
+            'exchange_rate' => 1,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => null,
+        ]);
+        CurrencyHistory::query()->create([
+            'currency_id' => $documentCurrency->id,
+            'company_id' => $this->company->id,
+            'exchange_rate' => 2,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => null,
+        ]);
+        $documentCashRegister = CashRegister::factory()->create([
+            'company_id' => $this->company->id,
+            'currency_id' => $documentCurrency->id,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)->postJson('/api/orders', [
+            'client_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'category_id' => $this->category->id,
+            'cash_id' => $documentCashRegister->id,
+            'currency_id' => $documentCurrency->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                    'price' => 100,
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $orderId = (int) $response->json('data.id');
+        $this->assertGreaterThan(0, $orderId);
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $orderId,
+            'price' => 100,
+            'total_price' => 100,
+            'currency_id' => $documentCurrency->id,
+            'def_currency_id' => $defaultCurrency->id,
+            'def_price' => 200,
+            'def_total_price' => 200,
+        ]);
+
+        $debtTransaction = Transaction::query()
+            ->where('source_type', Order::class)
+            ->where('source_id', $orderId)
+            ->where('is_debt', true)
+            ->where('is_deleted', false)
+            ->first();
+        $this->assertNotNull($debtTransaction);
+        $this->assertEqualsWithDelta(100.0, (float) $debtTransaction->orig_amount, 0.0001);
+        $this->assertSame((int) $documentCurrency->id, (int) $debtTransaction->currency_id);
+        $this->assertEqualsWithDelta(200.0, (float) $debtTransaction->def_amount, 0.0001);
+
+        $showResponse = $this->actingAsApi($this->adminUser)->getJson("/api/orders/{$orderId}");
+        $showResponse->assertStatus(200);
+        $showResponse->assertJsonPath('data.total_price', 100);
+        $showResponse->assertJsonPath('data.def_total_price', 200);
+        $showResponse->assertJsonPath('data.currency.id', $documentCurrency->id);
+        $showResponse->assertJsonPath('data.def_currency.id', $defaultCurrency->id);
+    }
+
+    public function test_discount_type_round_trip(): void
+    {
+        $data = [
+            'client_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'category_id' => $this->category->id,
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $this->currency->id,
+            'discount' => 10,
+            'discount_type' => 'percent',
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 2,
+                    'price' => 100.00,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/orders', $data);
+
+        $response->assertStatus(200);
+        $orderId = (int) $response->json('data.id');
+        $response->assertJsonPath('data.discount_type', 'percent');
+
+        $showResponse = $this->actingAsApi($this->adminUser)
+            ->getJson("/api/orders/{$orderId}");
+
+        $showResponse->assertStatus(200);
+        $showResponse->assertJsonPath('data.discount_type', 'percent');
+    }
+
+    public function test_show_includes_orig_currency_on_product_lines(): void
+    {
+        $data = [
+            'client_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'category_id' => $this->category->id,
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $this->currency->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                    'price' => 50.00,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/orders', $data);
+
+        $response->assertStatus(200);
+        $orderId = (int) $response->json('data.id');
+
+        $showResponse = $this->actingAsApi($this->adminUser)
+            ->getJson("/api/orders/{$orderId}");
+
+        $showResponse->assertStatus(200);
+        $products = $showResponse->json('data.products');
+        $this->assertIsArray($products);
+        $this->assertNotEmpty($products);
+        $this->assertArrayHasKey('orig_currency', $products[0]);
+        $this->assertSame($this->currency->id, (int) $products[0]['orig_currency']['id']);
     }
 }
 

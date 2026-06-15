@@ -357,8 +357,11 @@ class TransactionsController extends BaseController
             'client_id' => $updateClientId,
             'note' => $validatedData['note'] ?? null,
             'date' => $validatedData['date'] ?? now(),
-            'is_debt' => $validatedData['is_debt'] ?? false,
         ];
+
+        if (array_key_exists('is_debt', $validatedData)) {
+            $updateData['is_debt'] = (bool) $validatedData['is_debt'];
+        }
 
         if (isset($validatedData['orig_amount'])) {
             $updateData['orig_amount'] = $validatedData['orig_amount'];

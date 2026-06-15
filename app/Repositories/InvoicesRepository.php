@@ -258,7 +258,7 @@ class InvoicesRepository extends BaseRepository
         $query->leftJoin('cash_registers', 'orders.cash_id', '=', 'cash_registers.id');
         $query->leftJoin('projects', 'orders.project_id', '=', 'projects.id');
         $query->leftJoin('users', 'orders.creator_id', '=', 'users.id');
-        $query->leftJoin('currencies as cash_currency', 'cash_registers.currency_id', '=', 'cash_currency.id');
+        $query->leftJoin('currencies as order_currency', 'orders.currency_id', '=', 'order_currency.id');
         $query->leftJoin('order_statuses', 'orders.status_id', '=', 'order_statuses.id');
         $query->leftJoin('order_status_categories', 'order_statuses.category_id', '=', 'order_status_categories.id');
         $query->leftJoin('categories', 'orders.category_id', '=', 'categories.id');
@@ -280,9 +280,9 @@ class InvoicesRepository extends BaseRepository
             'orders.warehouse_id',
             'orders.project_id',
             'orders.category_id',
-            'orders.price',
-            'orders.discount',
-            'orders.total_price',
+            'orders.def_price',
+            'orders.def_discount',
+            'orders.def_total_price',
             'orders.paid_amount',
             'orders.date',
             'orders.created_at',
@@ -290,9 +290,9 @@ class InvoicesRepository extends BaseRepository
             'warehouses.name as warehouse_name',
             'cash_registers.name as cash_name',
             'cash_registers.is_cash as cash_is_cash',
-            'cash_currency.id as currency_id',
-            'cash_currency.name as currency_name',
-            'cash_currency.code as currency_symbol',
+            'order_currency.id as currency_id',
+            'order_currency.name as currency_name',
+            'order_currency.code as currency_symbol',
             'projects.name as project_name',
             'users.name as creator_name',
             'users.surname as creator_surname',
@@ -300,7 +300,12 @@ class InvoicesRepository extends BaseRepository
             'categories.name as category_name'
         );
 
-        $orders = $query->get();
+        $orders = $query->with([
+            'client.phones',
+            'client.emails',
+            'orderProducts.product',
+            'tempProducts.unit',
+        ])->get();
 
         foreach ($orders as $order) {
             if ($order->creator_id) {
@@ -314,9 +319,6 @@ class InvoicesRepository extends BaseRepository
                 $order->setRelation('creator', null);
             }
             unset($order->creator_name, $order->creator_surname, $order->creator_photo);
-            $order->setRelation('client', $order->client()->with(['phones', 'emails'])->first());
-            $order->setRelation('orderProducts', $order->orderProducts()->with('product')->get());
-            $order->setRelation('tempProducts', $order->tempProducts()->with('unit')->get());
         }
 
         return $orders;
@@ -338,7 +340,7 @@ class InvoicesRepository extends BaseRepository
                 $orderDate = $order->date;
             }
 
-            $totalPrice = (float) ($order->total_price ?? 0);
+            $totalPrice = (float) ($order->def_total_price ?? 0);
             $paidAmount = (float) ($order->paid_amount ?? 0);
             $unpaidAmount = max(0, $totalPrice - $paidAmount);
 

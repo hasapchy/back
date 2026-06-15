@@ -16,18 +16,26 @@ use App\Services\CacheService;
  * Модель заказа
  *
  * @property int $id
- * @property string $name Название заказа
  * @property int $client_id ID клиента
  * @property int $creator_id ID создателя
  * @property int $status_id ID статуса заказа
  * @property string|null $description Описание
  * @property string|null $note Примечание
  * @property \Carbon\Carbon $date Дата заказа
- * @property int|null $order_id ID родительского заказа
- * @property float $price Цена заказа
- * @property float $discount Скидка
- * @property float $total_price Итоговая сумма заказа
- * @property float $paid_amount Оплаченная сумма
+ * @property float $price Подытог в валюте документа
+ * @property float $discount Скидка в валюте документа
+ * @property string $discount_type Тип скидки (fixed|percent)
+ * @property float $total_price Итог в валюте документа
+ * @property int|null $currency_id ID валюты документа
+ * @property float $def_price Подытог в дефолтной валюте
+ * @property float $def_discount Скидка в дефолтной валюте
+ * @property float $def_total_price Итог в дефолтной валюте
+ * @property int|null $def_currency_id ID дефолтной валюты
+ * @property float|null $rep_price Подытог в валюте отчётности
+ * @property float|null $rep_discount Скидка в валюте отчётности
+ * @property float|null $rep_total_price Итог в валюте отчётности
+ * @property int|null $rep_currency_id ID валюты отчётности
+ * @property float $paid_amount Оплаченная сумма (def)
  * @property int|null $cash_id ID кассы
  * @property int|null $client_balance_id ID баланса клиента
  * @property int|null $warehouse_id ID склада
@@ -50,6 +58,9 @@ use App\Services\CacheService;
  * @property-read \App\Models\Project|null $project
  * @property-read \App\Models\Company|null $company
  * @property-read \App\Models\Category|null $category
+ * @property-read \App\Models\Currency|null $currency
+ * @property-read \App\Models\Currency|null $defCurrency
+ * @property-read \App\Models\Currency|null $repCurrency
  * @property-read string $payment_status_text Текст статуса оплаты на русском языке
  *
  * @property string|null $creator_name
@@ -81,7 +92,17 @@ class Order extends Model implements SupportsTimeline
         'date',
         'price',
         'discount',
+        'discount_type',
         'total_price',
+        'currency_id',
+        'def_price',
+        'def_discount',
+        'def_total_price',
+        'def_currency_id',
+        'rep_price',
+        'rep_discount',
+        'rep_total_price',
+        'rep_currency_id',
         'paid_amount',
         'cash_id',
         'client_balance_id',
@@ -98,15 +119,24 @@ class Order extends Model implements SupportsTimeline
         'description',
         'note',
         'date',
-        'order_id',
         'price',
         'discount',
+        'discount_type',
         'total_price',
+        'currency_id',
+        'def_price',
+        'def_discount',
+        'def_total_price',
+        'def_currency_id',
+        'rep_price',
+        'rep_discount',
+        'rep_total_price',
+        'rep_currency_id',
         'cash_id',
         'client_balance_id',
         'warehouse_id',
         'project_id',
-        'category_id'
+        'category_id',
     ];
 
     protected static $logName = 'order';
@@ -151,6 +181,12 @@ class Order extends Model implements SupportsTimeline
         'price' => 'decimal:5',
         'discount' => 'decimal:5',
         'total_price' => 'decimal:5',
+        'def_price' => 'decimal:5',
+        'def_discount' => 'decimal:5',
+        'def_total_price' => 'decimal:5',
+        'rep_price' => 'decimal:5',
+        'rep_discount' => 'decimal:5',
+        'rep_total_price' => 'decimal:5',
         'paid_amount' => 'decimal:5',
         'client_id' => 'integer',
         'project_id' => 'integer',
@@ -304,6 +340,30 @@ class Order extends Model implements SupportsTimeline
     }
 
     /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function currency()
+    {
+        return $this->belongsTo(Currency::class, 'currency_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function defCurrency()
+    {
+        return $this->belongsTo(Currency::class, 'def_currency_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function repCurrency()
+    {
+        return $this->belongsTo(Currency::class, 'rep_currency_id');
+    }
+
+    /**
      * Scope для фильтрации по компании
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
@@ -355,15 +415,11 @@ class Order extends Model implements SupportsTimeline
      */
     public function getPaymentStatusTextAttribute(): string
     {
-        $paidAmount = (float) ($this->paid_amount ?? 0);
-        $totalPrice = (float) ($this->total_price ?? 0);
+        $resolved = app(\App\Services\OrderPaymentStatusService::class)->resolve(
+            (float) ($this->paid_amount ?? 0),
+            (float) ($this->def_total_price ?? 0)
+        );
 
-        if ($paidAmount <= 0) {
-            return 'Не оплачено';
-        } elseif ($paidAmount < $totalPrice) {
-            return 'Частично оплачено';
-        } else {
-            return 'Оплачено';
-        }
+        return $resolved['payment_status_text'];
     }
 }

@@ -110,6 +110,8 @@ class WarehousePurchaseController extends BaseController
             return $this->successResponse(null, __('warehouse_purchase.deleted_success'));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse(__('warehouse_purchase.not_found'), 404);
+        } catch (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e) {
+            return $this->errorResponse($e->getMessage(), 403);
         } catch (\Throwable $th) {
             return $this->errorResponse($th->getMessage(), 400);
         }

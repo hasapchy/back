@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\ClientReferencePayload;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Resources\Json\JsonResource;
 class ProjectReferenceResource extends JsonResource
@@ -66,21 +67,10 @@ class ProjectReferenceResource extends JsonResource
      */
     private function referenceClientPayload($client): array
     {
-        return [
-            'id' => data_get($client, 'id'),
-            'client_type' => data_get($client, 'client_type'),
-            'first_name' => data_get($client, 'first_name'),
-            'last_name' => data_get($client, 'last_name'),
-            'patronymic' => data_get($client, 'patronymic'),
-            'balance' => data_get($client, 'balance'),
-            'is_supplier' => data_get($client, 'is_supplier'),
-            'is_conflict' => data_get($client, 'is_conflict'),
-            'position' => data_get($client, 'position'),
+        return array_merge(ClientReferencePayload::build($client), [
             'emails' => [],
             'phones' => [],
-            'created_at' => $this->formatDateTimeValue(data_get($client, 'created_at')),
-            'updated_at' => $this->formatDateTimeValue(data_get($client, 'updated_at')),
-        ];
+        ]);
     }
 
     /**

@@ -5,8 +5,8 @@ namespace App\Http\Resources;
 use App\Models\Client;
 use App\Models\Currency;
 use App\Models\Order;
-use App\Models\OrderProduct;
-use App\Models\OrderTempProduct;
+use App\Services\OrderPaymentStatusService;
+use App\Services\OrderProductsPresenter;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -27,20 +27,22 @@ class OrderResource extends JsonResource
         /** @var Order $order */
         $order = $this->resource;
 
-        $allProducts = $this->collectProductsForResponse($order);
+        $presenter = app(OrderProductsPresenter::class);
+        $allProducts = $presenter->mapOrderProducts($order);
 
+        $defPrice = (float) ($order->def_price ?? 0);
+        $defDiscount = (float) ($order->def_discount ?? 0);
+        $paidAmount = (float) ($order->paid_amount ?? 0);
+        $defTotalPrice = (float) ($order->def_total_price ?? 0);
         $price = (float) ($order->price ?? 0);
         $discount = (float) ($order->discount ?? 0);
-        $paidAmount = (float) ($order->paid_amount ?? 0);
+        $discountType = (string) ($order->discount_type ?? 'fixed');
         $totalPrice = (float) ($order->total_price ?? 0);
+        $repPrice = $order->rep_price !== null ? (float) $order->rep_price : null;
+        $repDiscount = $order->rep_discount !== null ? (float) $order->rep_discount : null;
+        $repTotalPrice = $order->rep_total_price !== null ? (float) $order->rep_total_price : null;
 
-        $paymentStatusText = $paidAmount <= 0
-            ? 'Не оплачено'
-            : ($paidAmount < $totalPrice - 0.00001 ? 'Частично оплачено' : 'Оплачено');
-
-        $paymentStatus = $paidAmount <= 0
-            ? 'unpaid'
-            : ($paidAmount < $totalPrice - 0.00001 ? 'partially_paid' : 'paid');
+        $paymentStatus = app(OrderPaymentStatusService::class)->resolve($paidAmount, $defTotalPrice);
 
         $status = $order->status;
         $category = $order->category;
@@ -50,18 +52,10 @@ class OrderResource extends JsonResource
         $warehouse = $order->warehouse;
         $project = $order->project;
 
-        $companyId = $cashRegister?->company_id;
-        $accountingCurrency = null;
-        if ($companyId !== null) {
-            $accountingCurrency = Currency::where('is_default', true)
-                ->where(function ($q) use ($companyId) {
-                    $q->where('company_id', $companyId)->orWhereNull('company_id');
-                })
-                ->first();
-        }
-        if (! $accountingCurrency) {
-            $accountingCurrency = Currency::firstWhere('is_default', true);
-        }
+        $currency = $order->currency;
+        $defCurrency = $order->defCurrency;
+        $repCurrency = $order->repCurrency;
+        $defCurrencyPayload = $this->currencyPayload($defCurrency);
 
         return [
             'id' => $order->id,
@@ -77,10 +71,23 @@ class OrderResource extends JsonResource
             'project_id' => $order->project_id,
             'price' => $price,
             'discount' => $discount,
+            'discount_type' => $discountType,
             'total_price' => $totalPrice,
+            'currency_id' => $order->currency_id,
+            'def_price' => $defPrice,
+            'def_discount' => $defDiscount,
+            'def_total_price' => $defTotalPrice,
+            'def_currency_id' => $order->def_currency_id,
+            'rep_price' => $repPrice,
+            'rep_discount' => $repDiscount,
+            'rep_total_price' => $repTotalPrice,
+            'rep_currency_id' => $order->rep_currency_id,
+            'currency' => $this->currencyPayload($currency),
+            'def_currency' => $defCurrencyPayload,
+            'rep_currency' => $this->currencyPayload($repCurrency),
             'paid_amount' => $paidAmount,
-            'payment_status' => $paymentStatus,
-            'payment_status_text' => $paymentStatusText,
+            'payment_status' => $paymentStatus['payment_status'],
+            'payment_status_text' => $paymentStatus['payment_status_text'],
             'date' => $this->serializeDateValue($order->date),
             'created_at' => $this->serializeDateValue($order->created_at),
             'updated_at' => $this->serializeDateValue($order->updated_at),
@@ -92,7 +99,7 @@ class OrderResource extends JsonResource
                     'name' => $status->category->name,
                     'color' => $status->category->color,
                 ] : null,
-            ], fn ($value) => $value !== null) : null,
+            ], fn($value) => $value !== null) : null,
             'category' => $category ? [
                 'id' => $category->id,
                 'name' => $category->name,
@@ -117,11 +124,6 @@ class OrderResource extends JsonResource
                     'code' => $cashRegister->currency->code,
                 ] : null,
             ] : null,
-            'accounting_currency' => $accountingCurrency ? [
-                'id' => $accountingCurrency->id,
-                'name' => $accountingCurrency->name,
-                'code' => $accountingCurrency->code,
-            ] : null,
             'warehouse' => $warehouse ? [
                 'id' => $warehouse->id,
                 'name' => $warehouse->name,
@@ -134,94 +136,25 @@ class OrderResource extends JsonResource
         ];
     }
 
-    /**
-     * @return Collection<int, mixed>
-     */
-    private function collectProductsForResponse(Order $order): Collection
-    {
-        $attributes = $order->getAttributes();
-        if (array_key_exists('products', $attributes) && $attributes['products'] !== null) {
-            return collect($attributes['products']);
-        }
-
-        $all = collect();
-
-        $orderProducts = $order->relationLoaded('orderProducts')
-            ? $order->orderProducts
-            : collect();
-
-        foreach ($orderProducts as $orderProduct) {
-            if (! $orderProduct instanceof OrderProduct) {
-                continue;
-            }
-            $product = $orderProduct->product;
-            if ($product === null) {
-                continue;
-            }
-            $origCur = $orderProduct->relationLoaded('origCurrency') ? $orderProduct->origCurrency : null;
-            $all->push([
-                'id' => $orderProduct->id,
-                'order_id' => $order->id,
-                'product_id' => $orderProduct->product_id,
-                'product_name' => $product->name,
-                'product_image' => $product->image,
-                'unit_id' => $product->unit_id,
-                'unit_short_name' => $product->unit?->short_name,
-                'quantity' => $orderProduct->quantity,
-                'price' => $orderProduct->price,
-                'orig_unit_price' => $orderProduct->orig_unit_price,
-                'orig_currency_id' => $orderProduct->orig_currency_id,
-                'orig_currency' => $origCur ? [
-                    'id' => $origCur->id,
-                    'name' => $origCur->name,
-                    'code' => $origCur->code,
-                ] : null,
-                'width' => $orderProduct->width,
-                'height' => $orderProduct->height,
-                'product_type' => 'regular',
-                'type' => (int) (bool) $product->type,
-            ]);
-        }
-
-        $tempProducts = $order->relationLoaded('tempProducts')
-            ? $order->tempProducts
-            : collect();
-
-        foreach ($tempProducts as $tempProduct) {
-            if (! $tempProduct instanceof OrderTempProduct) {
-                continue;
-            }
-            $tempOrigCur = $tempProduct->relationLoaded('origCurrency') ? $tempProduct->origCurrency : null;
-            $all->push([
-                'id' => $tempProduct->id,
-                'order_id' => $order->id,
-                'product_id' => null,
-                'product_name' => $tempProduct->name,
-                'product_image' => null,
-                'unit_id' => $tempProduct->unit_id,
-                'unit_short_name' => $tempProduct->unit?->short_name,
-                'quantity' => $tempProduct->quantity,
-                'price' => $tempProduct->price,
-                'orig_unit_price' => $tempProduct->orig_unit_price,
-                'orig_currency_id' => $tempProduct->orig_currency_id,
-                'orig_currency' => $tempOrigCur ? [
-                    'id' => $tempOrigCur->id,
-                    'name' => $tempOrigCur->name,
-                    'code' => $tempOrigCur->code,
-                ] : null,
-                'width' => $tempProduct->width,
-                'height' => $tempProduct->height,
-                'product_type' => 'temp',
-                'type' => null,
-            ]);
-        }
-
-        return $all;
-    }
-
     protected function shouldEmbedClient(): bool
     {
         return true;
+    }
+
+    /**
+     * @return array{id: int, name: string, code: string}|null
+     */
+    private function currencyPayload(?Currency $currency): ?array
+    {
+        if (! $currency) {
+            return null;
+        }
+
+        return [
+            'id' => $currency->id,
+            'name' => $currency->name,
+            'code' => $currency->code,
+        ];
     }
 
     private function serializeDateValue(mixed $value): ?string
@@ -261,6 +194,9 @@ class OrderResource extends JsonResource
             'orderProducts.product:id,name,image,unit_id',
             'orderProducts.product.unit:id,name,short_name',
             'orderProducts.origCurrency:id,name,code',
+            'currency:id,name,code',
+            'defCurrency:id,name,code',
+            'repCurrency:id,name,code',
             'tempProducts:id,order_id,name,description,quantity,price,orig_unit_price,orig_currency_id,unit_id,width,height',
             'tempProducts.unit:id,name,short_name',
             'tempProducts.origCurrency:id,name,code',
@@ -294,9 +230,9 @@ class OrderResource extends JsonResource
         $prefixed = [];
         foreach (self::eagerLoadRelationsForOrderDetailWithoutClient() as $key => $value) {
             if (is_string($key)) {
-                $prefixed['orders.'.$key] = $value;
+                $prefixed['orders.' . $key] = $value;
             } else {
-                $prefixed[] = 'orders.'.$value;
+                $prefixed[] = 'orders.' . $value;
             }
         }
 

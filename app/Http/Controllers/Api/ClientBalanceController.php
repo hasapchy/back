@@ -47,9 +47,7 @@ class ClientBalanceController extends BaseController
                 $user,
                 $this->getCurrentCompanyId()
             );
-            $balancesData = $balances->values()->map(fn ($balance) => $this->formatBalanceResponse($balance))->all();
-
-            return $this->successResponse(ClientBalanceResource::collection($balancesData)->resolve());
+            return $this->successResponse(ClientBalanceResource::collection($balances->values())->resolve());
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
@@ -111,7 +109,7 @@ class ClientBalanceController extends BaseController
             $balance->users()->sync($assigneeIds);
             $balance->load('users:id,name,surname');
 
-            return $this->successResponse(new ClientBalanceResource($this->formatBalanceResponse($balance)), __('Баланс создан успешно'), 201);
+            return $this->successResponse(new ClientBalanceResource($balance), __('Баланс создан успешно'), 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse($e->getMessage(), 422);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
@@ -200,7 +198,7 @@ class ClientBalanceController extends BaseController
             $balance->refresh();
             $balance->load(['currency', 'users:id,name,surname']);
 
-            return $this->successResponse(new ClientBalanceResource($this->formatBalanceResponse($balance)), __('Баланс обновлен успешно'));
+            return $this->successResponse(new ClientBalanceResource($balance), __('Баланс обновлен успешно'));
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse($e->getMessage(), 422);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
@@ -257,35 +255,6 @@ class ClientBalanceController extends BaseController
         } catch (\Exception $e) {
             return $this->errorResponse(__('Ошибка при удалении баланса: ') . $e->getMessage(), 500);
         }
-    }
-
-    /**
-     * Формат ответа с данными баланса и списком пользователей
-     *
-     * @param \App\Models\ClientBalance $balance
-     * @return array
-     */
-    private function formatBalanceResponse(ClientBalance $balance): array
-    {
-        $users = ($balance->users ?? collect())->map(fn ($u) => [
-            'id' => $u->id,
-            'name' => trim(($u->name ?? '') . ' ' . ($u->surname ?? '')),
-        ])->values()->all();
-
-        return [
-            'id' => $balance->id,
-            'currency_id' => $balance->currency_id,
-                'type' => (int) $balance->type,
-            'currency' => $balance->currency ? [
-                'id' => $balance->currency->id,
-                'code' => $balance->currency->code,
-                'name' => $balance->currency->name,
-            ] : null,
-            'balance' => (float) $balance->balance,
-            'is_default' => $balance->is_default,
-            'note' => $balance->note,
-            'users' => $users,
-        ];
     }
 
     /**

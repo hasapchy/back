@@ -12,9 +12,6 @@ use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 /**
- * Контроллер для работы со статусами проектов
- */
-/**
  * @group Проекты
  * @subgroup Статусы
  */
@@ -22,9 +19,6 @@ class ProjectStatusController extends BaseController
 {
     protected $itemsRepository;
 
-    /**
-     * Конструктор контроллера
-     */
     public function __construct(ProjectStatusRepository $itemsRepository)
     {
         $this->itemsRepository = $itemsRepository;
@@ -94,15 +88,13 @@ class ProjectStatusController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
-        $created = $this->itemsRepository->createItem([
+        $this->itemsRepository->createItem([
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
             'is_visible' => $validatedData['is_visible'] ?? true,
+            'kanban_outcome' => $validatedData['kanban_outcome'] ?? null,
             'creator_id' => $userUuid,
         ]);
-        if (! $created) {
-            return $this->errorResponse(__('api.statuses.create_failed'), 400);
-        }
 
         CacheService::invalidateProjectsCache();
 
@@ -123,14 +115,16 @@ class ProjectStatusController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
-        $updated = $this->itemsRepository->updateItem($id, [
+        $payload = [
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
             'is_visible' => $validatedData['is_visible'] ?? true,
-        ]);
-        if (! $updated) {
-            return $this->errorResponse(__('api.statuses.update_failed'), 400);
+        ];
+        if (array_key_exists('kanban_outcome', $validatedData)) {
+            $payload['kanban_outcome'] = $validatedData['kanban_outcome'];
         }
+
+        $this->itemsRepository->updateItem($id, $payload);
 
         CacheService::invalidateProjectsCache();
 

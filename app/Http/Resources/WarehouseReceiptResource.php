@@ -25,7 +25,7 @@ class WarehouseReceiptResource extends BaseDomainResource
         if (! $receipt->status instanceof WhReceiptStatus) {
             throw new \LogicException('Invalid receipt status value');
         }
-        $receipt->loadMissing('products.product.unit');
+        $receipt->loadMissing(['products.product.unit', 'products.origUnit']);
         $presentation = app(UnitStockPresentationService::class);
         $lineProducts = $receipt->products->map(static fn ($l) => $l->product)->filter()->unique('id')->values();
         if ($lineProducts->isNotEmpty()) {
@@ -67,7 +67,7 @@ class WarehouseReceiptResource extends BaseDomainResource
         $data['purchase_id'] = $receipt->purchase_id !== null ? (int) $receipt->purchase_id : null;
         $data['is_from_purchase'] = $receipt->purchase_id !== null;
         $data['supplier'] = $receipt->supplier ? $receipt->supplier->toArray() : null;
+
         return $this->normalizeCreator($data);
     }
 }
-

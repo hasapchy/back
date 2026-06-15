@@ -15,4 +15,5 @@ return [
     'receipt_price_must_match_purchase' => 'Receipt price from a purchase must match the purchase price.',
     'completion_is_automatic' => 'Completed status is set automatically after all linked receipts are completed.',
     'duplicate_product_lines_price_mismatch' => 'Duplicate product lines in a purchase must have the same price.',
+    'delete_receipt_permission_denied' => 'Insufficient permissions to delete a linked warehouse receipt',
 ];

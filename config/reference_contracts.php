@@ -115,7 +115,7 @@ return [
         'projects.client' => [
             'balance', 'client_type', 'created_at', 'emails', 'first_name', 'id', 'is_conflict', 'is_supplier', 'last_name', 'patronymic', 'phones', 'position', 'updated_at',
         ],
-        'projects.creator' => ['id', 'name', 'photo'],
+        'projects.creator' => ['id', 'name', 'photo', 'surname'],
         'projects.currency' => ['id', 'is_default', 'is_report', 'name', 'status', 'code'],
         'projects.status' => ['color', 'id', 'is_visible', 'name'],
         'projects.users_item' => ['id', 'name'],

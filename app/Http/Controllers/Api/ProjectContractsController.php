@@ -15,9 +15,6 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Контроллер для управления контрактами проектов
- */
-/**
  * @group Контракты
  * @subgroup Проекты
  */
@@ -34,39 +31,6 @@ class ProjectContractsController extends BaseController
     }
 
     /**
-     * Список контрактов 1 проекта
-     *
-     * @param  int  $projectId  ID проекта
-     */
-    public function index(Request $request, $projectId): JsonResponse
-    {
-        try {
-            $project = $this->findProjectAndCheckAccess($projectId, 'view');
-            if ($project instanceof JsonResponse) {
-                return $project;
-            }
-
-            $perPage = (int) $request->get('per_page', 20);
-            $page = (int) $request->get('page', 1);
-            $search = $request->get('search');
-
-            $result = $this->repository->getItemsWithPagination($projectId, $perPage, $page, $search);
-
-            return $this->successResponse([
-                'items' => ProjectContractResource::collection($result->items())->resolve(),
-                'meta' => [
-                    'current_page' => $result->currentPage(),
-                    'last_page' => $result->lastPage(),
-                    'per_page' => $result->perPage(),
-                    'total' => $result->total(),
-                ],
-            ]);
-        } catch (\Exception $e) {
-            return $this->errorResponse(__('Ошибка при получении контрактов проекта: ').$e->getMessage(), 500);
-        }
-    }
-
-    /**
      * Список всех контрактов проекта
      *
      * @param  int  $projectId  ID проекта
@@ -74,10 +38,12 @@ class ProjectContractsController extends BaseController
     public function getAll(Request $request, $projectId): JsonResponse
     {
         try {
-            $project = $this->findProjectAndCheckAccess($projectId, 'view');
-            if ($project instanceof JsonResponse) {
-                return $project;
+            $project = Project::find($projectId);
+            if (! $project) {
+                return $this->errorResponse(__('api.projects.not_found'), 404);
             }
+
+            $this->authorize('view', $project);
 
             $contracts = $this->repository->getAllItems($projectId);
 
@@ -271,31 +237,4 @@ class ProjectContractsController extends BaseController
         }
     }
 
-    /**
-     * Найти проект и проверить доступ
-     *
-     * @param  int  $projectId  ID проекта
-     * @param  string  $action  Действие (view, update, delete)
-     * @return Project|JsonResponse
-     */
-    protected function findProjectAndCheckAccess(int $projectId, string $action)
-    {
-        $project = Project::find($projectId);
-        if (! $project) {
-            return $this->errorResponse(__('api.projects.not_found'), 404);
-        }
-
-        $actionMessages = [
-            'view' => 'У вас нет прав на просмотр этого проекта',
-            'update' => 'У вас нет прав на редактирование этого проекта',
-            'delete' => 'У вас нет прав на удаление этого проекта',
-        ];
-
-        $user = $this->requireAuthenticatedUser();
-        if (! $user->can($action, $project)) {
-            return $this->errorResponse($actionMessages[$action] ?? 'У вас нет прав на это действие', 403);
-        }
-
-        return $project;
-    }
 }

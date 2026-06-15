@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\ProjectStatus;
 use App\Services\CacheService;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Репозиторий для работы со статусами проектов
@@ -48,6 +49,12 @@ class ProjectStatusRepository extends BaseRepository
      */
     public function createItem(array $data): ProjectStatus
     {
+        $this->assertKanbanOutcomeUnique(
+            (int) $data['creator_id'],
+            $data['kanban_outcome'] ?? null,
+            null
+        );
+
         $item = ProjectStatus::create($data);
         CacheService::invalidateProjectStatusesCache();
 
@@ -63,6 +70,9 @@ class ProjectStatusRepository extends BaseRepository
     public function updateItem(int $id, array $data): ProjectStatus
     {
         $item = ProjectStatus::findOrFail($id);
+        $outcome = array_key_exists('kanban_outcome', $data) ? $data['kanban_outcome'] : $item->kanban_outcome;
+        $this->assertKanbanOutcomeUnique((int) $item->creator_id, $outcome, $item->id);
+
         $item->update($data);
         CacheService::invalidateProjectStatusesCache();
 
@@ -81,5 +91,29 @@ class ProjectStatusRepository extends BaseRepository
         CacheService::invalidateProjectStatusesCache();
 
         return true;
+    }
+
+    /**
+     * @return void
+     */
+    protected function assertKanbanOutcomeUnique(int $creatorId, ?string $outcome, ?int $exceptId): void
+    {
+        if ($outcome === null || $outcome === '') {
+            return;
+        }
+
+        $query = ProjectStatus::query()
+            ->where('creator_id', $creatorId)
+            ->where('kanban_outcome', $outcome);
+
+        if ($exceptId !== null) {
+            $query->where('id', '!=', $exceptId);
+        }
+
+        if ($query->exists()) {
+            throw ValidationException::withMessages([
+                'kanban_outcome' => ['Для компании уже задан итог канбана этого типа.'],
+            ]);
+        }
     }
 }

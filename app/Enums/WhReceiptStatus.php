@@ -5,6 +5,7 @@ namespace App\Enums;
 enum WhReceiptStatus: string
 {
     case Draft = 'draft';
+    case Approved = 'approved';
     case Completed = 'completed';
 
     /**

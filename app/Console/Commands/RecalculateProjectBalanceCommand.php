@@ -19,7 +19,7 @@ class RecalculateProjectBalanceCommand extends Command
                             {--chunk=100 : Размер пакета}
                             {--dry-run : Показать расхождения без сохранения}';
 
-    protected $description = 'Проверить баланс проекта: пересчитать orders.total_price по price/discount (без строк) и синхронизировать долговые транзакции заказов';
+    protected $description = 'Проверить баланс проекта: пересчитать orders.def_total_price по def_price/def_discount (без строк) и синхронизировать долговые транзакции заказов';
 
     /**
      * @return int

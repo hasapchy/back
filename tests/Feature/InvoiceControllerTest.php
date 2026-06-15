@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\CashRegister;
+use App\Models\Currency;
 use App\Models\User;
 use App\Models\Company;
 use App\Models\Invoice;
@@ -73,6 +74,46 @@ class InvoiceControllerTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['client_id', 'order_ids']);
+    }
+
+    public function test_store_invoice_rejects_orders_with_different_document_currencies(): void
+    {
+        $defaultCurrency = $this->ensureDefaultCurrencyForCompany($this->company);
+        $otherCurrency = Currency::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+        $cashRegister = CashRegister::factory()->create([
+            'company_id' => $this->company->id,
+            'currency_id' => $defaultCurrency->id,
+        ]);
+
+        $orderA = Order::factory()->create([
+            'client_id' => $this->client->id,
+            'creator_id' => $this->adminUser->id,
+            'cash_id' => $cashRegister->id,
+            'currency_id' => $defaultCurrency->id,
+            'total_price' => 500,
+            'def_total_price' => 500,
+            'paid_amount' => 0,
+        ]);
+        $orderB = Order::factory()->create([
+            'client_id' => $this->client->id,
+            'creator_id' => $this->adminUser->id,
+            'cash_id' => $cashRegister->id,
+            'currency_id' => $otherCurrency->id,
+            'total_price' => 500,
+            'def_total_price' => 500,
+            'paid_amount' => 0,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/invoices', [
+                'client_id' => $this->client->id,
+                'order_ids' => [$orderA->id, $orderB->id],
+                'invoice_date' => '2025-01-01',
+            ]);
+
+        $response->assertStatus(400);
     }
 
     public function test_store_invoice_success(): void

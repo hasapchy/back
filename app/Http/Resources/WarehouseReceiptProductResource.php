@@ -17,7 +17,8 @@ class WarehouseReceiptProductResource extends JsonResource
     public function toArray($request): array
     {
         $line = $this->resource;
-        $product = $line->relationLoaded('product') ? $line->product : null;
+        $line->loadMissing(['product.unit', 'origUnit']);
+        $product = $line->product;
 
         return [
             'id' => $line->id,
@@ -34,8 +35,8 @@ class WarehouseReceiptProductResource extends JsonResource
             'unit_id' => $product?->unit_id,
             'unit_name' => $product?->unit?->name,
             'unit_short_name' => $product?->unit?->short_name,
-            'orig_unit_name' => $line->relationLoaded('origUnit') ? $line->origUnit?->name : null,
-            'orig_unit_short_name' => $line->relationLoaded('origUnit') ? $line->origUnit?->short_name : null,
+            'orig_unit_name' => $line->origUnit?->name,
+            'orig_unit_short_name' => $line->origUnit?->short_name,
             'stock_by_units' => $line->stock_by_units,
             'alternate_unit_options' => $product ? $product->alternate_unit_options : [],
         ];

@@ -172,29 +172,9 @@ class BaseController extends BaseRoutingController
      */
     protected function getAllowedMutualSettlementsClientTypes($user = null)
     {
-        $user = $user ?? $this->getAuthenticatedUser();
-        if (! $user) {
-            return [];
-        }
-
-        if ($user->is_admin) {
-            return ['individual', 'company', 'employee', 'investor'];
-        }
-
-        $names = CompanyScopedPermissions::names($user);
-        $allowedTypes = [];
-        $config = config('permissions.resources.mutual_settlements');
-
-        if (isset($config['custom_permissions'])) {
-            foreach ($config['custom_permissions'] as $key => $permissionName) {
-                if (in_array($permissionName, $names, true)) {
-                    $type = str_replace('view_', '', $key);
-                    $allowedTypes[] = $type;
-                }
-            }
-        }
-
-        return $allowedTypes;
+        return \App\Support\MutualSettlementsAccess::getAllowedClientTypes(
+            $user ?? $this->getAuthenticatedUser()
+        );
     }
 
     /**

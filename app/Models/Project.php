@@ -162,65 +162,6 @@ class Project extends Model implements SupportsTimeline
     }
 
     /**
-     * Получить курс обмена валюты
-     * Если курс указан вручную, использует его, иначе берет актуальный курс из истории валют
-     *
-     * @return float Курс обмена валюты
-     */
-    public function getExchangeRateAttribute()
-    {
-        // Если курс указан вручную, используем его
-        if (isset($this->attributes['exchange_rate']) && $this->attributes['exchange_rate'] !== null) {
-            return $this->attributes['exchange_rate'];
-        }
-
-        // Иначе берем актуальный курс из истории валют
-        $currency = $this->currency;
-        if (!$currency) {
-            return 1;
-        }
-
-        // Получаем актуальный курс из истории валют для текущей компании
-        $companyId = $this->company_id;
-        $currentRate = $currency->getExchangeRateForCompany($companyId);
-
-        // Если валюта не дефолтная (не манат), возвращаем 1/курс для конвертации в манаты
-        if (!$currency->is_default) {
-            return 1 / $currentRate;
-        }
-
-        return $currentRate;
-    }
-
-    /**
-     * Получить актуальный курс валюты из истории
-     *
-     * @param int|null $currencyId ID валюты
-     * @return float
-     */
-    public function getCurrentExchangeRate($currencyId = null)
-    {
-        $currencyId = $currencyId ?? $this->currency_id;
-        if (!$currencyId) {
-            return 1;
-        }
-
-        $currency = Currency::find($currencyId);
-        if (!$currency) {
-            return 1;
-        }
-
-        $companyId = $this->company_id;
-        $currentRate = $currency->getExchangeRateForCompany($companyId);
-
-        if (!$currency->is_default) {
-            return 1 / $currentRate;
-        }
-
-        return $currentRate;
-    }
-
-    /**
      * Связь с контрактами проекта
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany

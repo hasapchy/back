@@ -153,6 +153,8 @@ class ClientController extends BaseController
      */
     public function search(Request $request)
     {
+        $this->authorize('viewAny', Client::class);
+
         $search_request = $request->input('search_request');
 
         if (! $search_request || empty($search_request)) {
@@ -233,8 +235,23 @@ class ClientController extends BaseController
         $balanceId = $balanceIdRaw ? intval($balanceIdRaw) : null;
         $page = max(1, (int) $request->input('page', 1));
         $perPage = min(100, max(1, (int) $request->input('per_page', 20)));
+        $search = $request->input('search');
+        $transactionType = $request->input('transaction_type');
 
-        $result = $this->itemsRepository->getBalanceHistory($id, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage, $source, $isDebt);
+        $result = $this->itemsRepository->getBalanceHistory(
+            $id,
+            $excludeDebt,
+            $cashRegisterId,
+            $dateFrom,
+            $dateTo,
+            $balanceId,
+            $page,
+            $perPage,
+            $source,
+            $isDebt,
+            $search,
+            $transactionType
+        );
 
         return $this->successResponse($result);
     }
@@ -265,6 +282,8 @@ class ClientController extends BaseController
      */
     public function all(Request $request)
     {
+        $this->authorize('viewAny', Client::class);
+
         try {
             $typeFilterInput = $request->input('type_filter');
             $typeFilter = [];
@@ -288,21 +307,6 @@ class ClientController extends BaseController
                 $balanceTypeFilter = $balanceTypeFilterInput;
             } elseif ($balanceTypeFilterInput !== null && $balanceTypeFilterInput !== '') {
                 $balanceTypeFilter = [$balanceTypeFilterInput];
-            }
-
-            if ($forMutualSettlements) {
-                $user = $this->requireAuthenticatedUser();
-                $allowedTypes = $this->getAllowedMutualSettlementsClientTypes($user);
-
-                if (empty($allowedTypes)) {
-                    return $this->successResponse([]);
-                }
-
-                if (empty($typeFilter)) {
-                    $typeFilter = $allowedTypes;
-                } else {
-                    $typeFilter = array_intersect($typeFilter, $allowedTypes);
-                }
             }
 
             $items = $this->itemsRepository->getAllItems(

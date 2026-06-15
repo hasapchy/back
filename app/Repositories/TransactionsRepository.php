@@ -75,6 +75,8 @@ class TransactionsRepository extends BaseRepository
                 'client:id,first_name,last_name,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
                 'client.phones:id,client_id,phone',
                 'client.emails:id,client_id,email',
+                'client.defaultBalance:id,client_id,balance',
+                'clientBalance:id,client_id,balance',
                 'currency:id,name,code',
                 'cashRegister:id,name,currency_id,is_cash,icon,color',
                 'cashRegister.currency:id,name,code',
@@ -83,13 +85,7 @@ class TransactionsRepository extends BaseRepository
                 'creator:id,name,surname,photo',
                 'cashTransfersFrom:id,tr_id_from',
                 'cashTransfersTo:id,tr_id_to',
-            ])
-                ->addSelect([
-                    'client_balance' => DB::table('clients')
-                        ->select('balance')
-                        ->whereColumn('clients.id', 'transactions.client_id')
-                        ->limit(1),
-                ]);
+            ]);
 
             $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister');
 
@@ -245,15 +241,9 @@ class TransactionsRepository extends BaseRepository
             /** @var \Illuminate\Pagination\LengthAwarePaginator $paginatedResults */
             $paginatedResults = $query->paginate($perPage, ['*'], 'page', (int) $page);
 
-            $debtStats = DB::table('clients')
-                ->select([
-                    DB::raw('SUM(CASE WHEN balance > 0 THEN balance ELSE 0 END) as positive'),
-                    DB::raw('SUM(CASE WHEN balance < 0 THEN ABS(balance) ELSE 0 END) as negative'),
-                ])
-                ->first();
-
-            $totalDebtPositive = $debtStats->positive ?? 0;
-            $totalDebtNegative = $debtStats->negative ?? 0;
+            $debtTotals = app(ClientsRepository::class)->getDebtTotals();
+            $totalDebtPositive = $debtTotals['positive'];
+            $totalDebtNegative = $debtTotals['negative'];
 
             $paginatedResults->getCollection()->transform(fn ($transaction) => $this->transformTransactionToListItem($transaction));
 
@@ -362,7 +352,11 @@ class TransactionsRepository extends BaseRepository
                 'updated_at' => $transaction->client->updated_at,
                 'phones' => $transaction->client->phones ? $transaction->client->phones->toArray() : [],
                 'emails' => $transaction->client->emails ? $transaction->client->emails->toArray() : [],
-                'balance' => $transaction->client_balance ?? 0,
+                'balance' => (float) (
+                    $transaction->clientBalance?->balance
+                    ?? $transaction->client?->defaultBalance?->balance
+                    ?? 0
+                ),
             ] : null,
             'note' => $transaction->note,
             'date' => $transaction->date,
@@ -396,7 +390,9 @@ class TransactionsRepository extends BaseRepository
     {
         $this->assertWarehouseReceiptAllowsTransactionMutation(
             isset($data['source_type']) ? (string) $data['source_type'] : null,
-            isset($data['source_id']) ? (int) $data['source_id'] : null
+            isset($data['source_id']) ? (int) $data['source_id'] : null,
+            isset($data['category_id']) ? (int) $data['category_id'] : null,
+            (bool) ($data['is_debt'] ?? false)
         );
 
         $cashRegister = CashRegister::findOrFail($data['cash_id']);
@@ -1841,15 +1837,21 @@ class TransactionsRepository extends BaseRepository
 
         $this->assertWarehouseReceiptAllowsTransactionMutation(
             $transaction->source_type,
-            ($sid !== null && $sid !== '') ? (int) $sid : null
+            ($sid !== null && $sid !== '') ? (int) $sid : null,
+            (int) $transaction->category_id,
+            (bool) $transaction->is_debt
         );
     }
 
     /**
      * @return void
      */
-    private function assertWarehouseReceiptAllowsTransactionMutation(?string $sourceType, ?int $sourceId): void
-    {
+    private function assertWarehouseReceiptAllowsTransactionMutation(
+        ?string $sourceType,
+        ?int $sourceId,
+        ?int $categoryId = null,
+        bool $isDebt = false
+    ): void {
         if ($sourceId === null || $sourceId <= 0 || $sourceType === null || $sourceType === '') {
             return;
         }
@@ -1858,9 +1860,40 @@ class TransactionsRepository extends BaseRepository
         }
 
         $receipt = WhReceipt::query()->find($sourceId);
-        if ($receipt instanceof WhReceipt && $receipt->status === WhReceiptStatus::Completed) {
+        if (! $receipt instanceof WhReceipt) {
+            return;
+        }
+
+        if ($receipt->status === WhReceiptStatus::Completed) {
             throw new \RuntimeException((string) __('warehouse_receipt.receipt_completed_transactions_locked'));
         }
+
+        $companyId = (int) $this->getCurrentCompanyId();
+        $isGoodsPayment = $categoryId !== null
+            && $categoryId > 0
+            && app(WarehouseDocumentPaymentStatusService::class)->isWarehouseGoodsPaymentCategory($companyId, $categoryId);
+
+        if ($receipt->status === WhReceiptStatus::Draft) {
+            if ($isGoodsPayment && ! $isDebt) {
+                throw new \RuntimeException((string) __('warehouse_receipt.goods_payment_only_approved'));
+            }
+
+            return;
+        }
+
+        if ($receipt->status !== WhReceiptStatus::Approved) {
+            return;
+        }
+
+        if ($isGoodsPayment && ! $isDebt) {
+            return;
+        }
+
+        if ($isGoodsPayment && $isDebt) {
+            return;
+        }
+
+        throw new \RuntimeException((string) __('warehouse_receipt.expense_only_draft'));
     }
 
     /**

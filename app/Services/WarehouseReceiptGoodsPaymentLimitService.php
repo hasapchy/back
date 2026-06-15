@@ -87,7 +87,9 @@ class WarehouseReceiptGoodsPaymentLimitService
 
         $companyId = (int) ($receipt->warehouse?->company_id ?? 0);
         $total = $this->goodsTotalDefault($receipt);
-        $paid = $this->paidGoodsCashDefault((int) $receipt->id, $excludeTransactionId);
+        $paid = $excludeTransactionId !== null
+            ? $this->paidGoodsCashDefault((int) $receipt->id, $excludeTransactionId)
+            : (float) ($receipt->paid_amount ?? 0);
         $rounding = new RoundingService;
         $raw = $total - $paid;
 

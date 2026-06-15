@@ -51,7 +51,7 @@ class StoreWarehouseReceiptRequest extends FormRequest
                 'sometimes',
                 'nullable',
                 'string',
-                Rule::in([WhReceiptStatus::Draft->value]),
+                Rule::in([WhReceiptStatus::Draft->value, WhReceiptStatus::Approved->value]),
             ],
         ], $this->warehouseProductLinesOrigRules());
     }

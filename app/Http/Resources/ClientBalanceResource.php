@@ -2,13 +2,13 @@
 
 namespace App\Http\Resources;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\ClientBalance;
+use App\Support\ClientBalancePayload;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ClientBalanceResource extends JsonResource
 {
     /**
-     * @param \Illuminate\Http\Request $request
      * @return array<string, mixed>
      */
     public function toArray($request): array
@@ -17,8 +17,8 @@ class ClientBalanceResource extends JsonResource
             return $this->resource;
         }
 
-        if ($this->resource instanceof Model) {
-            return $this->resource->toArray();
+        if ($this->resource instanceof ClientBalance) {
+            return ClientBalancePayload::fromModel($this->resource);
         }
 
         return (array) $this->resource;

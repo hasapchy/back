@@ -16,6 +16,7 @@ use App\Models\Transaction;
 use App\Models\WarehouseStock;
 use App\Models\WhPurchase;
 use App\Models\WhReceipt;
+use App\Repositories\TransactionsRepository;
 use App\Repositories\WarehouseReceiptRepository;
 use App\Services\CacheService;
 use Tests\Support\Concerns\SeedsWarehouseTransactionCategoryBindings;
@@ -334,7 +335,7 @@ class WarehouseReceiptControllerTest extends TestCase
         $response->assertJson(['message' => __('warehouse_receipt.deleted_success')]);
     }
 
-    public function test_draft_receipt_update_recalculates_auto_transactions_and_posts_stock_on_complete(): void
+    public function test_draft_receipt_update_recalculates_auto_transactions_and_posts_stock_on_approve(): void
     {
         auth()->shouldUse('api');
         auth('api')->setUser($this->adminUser);
@@ -399,25 +400,29 @@ class WarehouseReceiptControllerTest extends TestCase
         $this->assertEqualsWithDelta(60.0, (float) $txs->where('is_debt', true)->first()->orig_amount, 0.01);
         $this->assertEquals((int) $defaultCurrency->id, (int) $txs->where('is_debt', true)->first()->currency_id);
 
-        Transaction::query()->create([
+        $this->approveReceiptForCompletion((int) $receiptId);
+
+        $stockAfterApprove = WarehouseStock::query()
+            ->where('warehouse_id', $this->warehouse->id)
+            ->where('product_id', $this->product->id)
+            ->value('quantity');
+        $this->assertEqualsWithDelta(3.0, (float) ($stockAfterApprove ?? 0.0), 1e-9);
+
+        app(TransactionsRepository::class)->createItem([
             'type' => 0,
             'creator_id' => $this->adminUser->id,
             'orig_amount' => 60,
             'amount' => 60,
-            'def_amount' => 60,
             'currency_id' => (int) $defaultCurrency->id,
             'cash_id' => $this->cashRegister->id,
             'category_id' => $this->warehouseGoodsPaymentCategory->id,
             'client_id' => $this->client->id,
             'exchange_rate' => 1,
-            'date' => now(),
+            'date' => now()->toDateTimeString(),
             'is_debt' => false,
-            'is_deleted' => false,
             'source_type' => WhReceipt::class,
             'source_id' => (int) $receiptId,
-        ]);
-
-        $repo->completeReceipt((int) $receiptId);
+        ], true);
 
         $stockAfterComplete = WarehouseStock::query()
             ->where('warehouse_id', $this->warehouse->id)
@@ -547,6 +552,223 @@ class WarehouseReceiptControllerTest extends TestCase
         $receiptAfterPurchasePayment->assertStatus(200);
         $receiptAfterPurchasePayment->assertJsonPath('data.payment_status', null);
         $this->assertEqualsWithDelta(0.0, (float) WhReceipt::query()->findOrFail($receipt->id)->paid_amount, 1e-9);
+    }
+
+    public function test_complete_receipt_from_draft_is_forbidden(): void
+    {
+        auth()->shouldUse('api');
+        auth('api')->setUser($this->adminUser);
+        request()->attributes->set(\App\Support\ResolvedCompany::ATTRIBUTE, (int) $this->company->id);
+
+        $receiptId = app(WarehouseReceiptRepository::class)->createItem([
+            'client_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'date' => now()->toDateTimeString(),
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage((string) __('warehouse_receipt.completion_requires_approved'));
+
+        app(WarehouseReceiptRepository::class)->completeReceipt((int) $receiptId);
+    }
+
+    public function test_receipt_draft_to_approved_via_api(): void
+    {
+        auth()->shouldUse('api');
+        auth('api')->setUser($this->adminUser);
+        request()->attributes->set(\App\Support\ResolvedCompany::ATTRIBUTE, (int) $this->company->id);
+
+        $receiptId = app(WarehouseReceiptRepository::class)->createItem([
+            'client_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'date' => now()->toDateTimeString(),
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)->putJson("/api/warehouse_receipts/{$receiptId}", [
+            'status' => 'approved',
+        ]);
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('wh_receipts', [
+            'id' => $receiptId,
+            'status' => 'approved',
+        ]);
+    }
+
+    public function test_store_warehouse_receipt_ignores_approved_status_on_create(): void
+    {
+        $response = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_receipts', [
+            'client_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'status' => 'approved',
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+        $response->assertStatus(200);
+
+        $receiptId = (int) WhReceipt::query()->orderByDesc('id')->value('id');
+        $this->assertDatabaseHas('wh_receipts', [
+            'id' => $receiptId,
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_receipt_manual_completion_via_api_is_forbidden_and_auto_completes_when_fully_paid(): void
+    {
+        auth()->shouldUse('api');
+        auth('api')->setUser($this->adminUser);
+        request()->attributes->set(\App\Support\ResolvedCompany::ATTRIBUTE, (int) $this->company->id);
+
+        $receiptId = app(WarehouseReceiptRepository::class)->createItem([
+            'client_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'date' => now()->toDateTimeString(),
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+
+        $this->approveReceiptForCompletion((int) $receiptId);
+
+        $response = $this->actingAsApi($this->adminUser)->putJson("/api/warehouse_receipts/{$receiptId}", [
+            'status' => 'completed',
+        ]);
+        $response->assertStatus(400);
+        $response->assertJsonFragment(['error' => __('warehouse_receipt.completion_is_automatic')]);
+        $this->assertDatabaseHas('wh_receipts', [
+            'id' => $receiptId,
+            'status' => 'approved',
+        ]);
+
+        app(TransactionsRepository::class)->createItem([
+            'type' => 0,
+            'creator_id' => $this->adminUser->id,
+            'orig_amount' => 10,
+            'amount' => 10,
+            'currency_id' => $this->cashRegister->currency_id,
+            'cash_id' => $this->cashRegister->id,
+            'category_id' => $this->warehouseGoodsPaymentCategory->id,
+            'client_id' => $this->client->id,
+            'exchange_rate' => 1,
+            'date' => now()->toDateTimeString(),
+            'is_debt' => false,
+            'source_type' => WhReceipt::class,
+            'source_id' => (int) $receiptId,
+        ], true);
+
+        $this->assertDatabaseHas('wh_receipts', [
+            'id' => $receiptId,
+            'status' => 'completed',
+        ]);
+    }
+
+    public function test_receipt_revert_to_draft_is_forbidden(): void
+    {
+        auth()->shouldUse('api');
+        auth('api')->setUser($this->adminUser);
+        request()->attributes->set(\App\Support\ResolvedCompany::ATTRIBUTE, (int) $this->company->id);
+
+        $receiptId = app(WarehouseReceiptRepository::class)->createItem([
+            'client_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'date' => now()->toDateTimeString(),
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+        $this->approveReceiptForCompletion((int) $receiptId);
+
+        $response = $this->actingAsApi($this->adminUser)->putJson("/api/warehouse_receipts/{$receiptId}", [
+            'status' => 'draft',
+        ]);
+        $response->assertStatus(400);
+        $response->assertJsonFragment(['error' => __('warehouse_receipt.edit_only_draft')]);
+    }
+
+    public function test_receipt_edit_forbidden_when_approved(): void
+    {
+        auth()->shouldUse('api');
+        auth('api')->setUser($this->adminUser);
+        request()->attributes->set(\App\Support\ResolvedCompany::ATTRIBUTE, (int) $this->company->id);
+
+        $receiptId = app(WarehouseReceiptRepository::class)->createItem([
+            'client_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'date' => now()->toDateTimeString(),
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+        $this->approveReceiptForCompletion((int) $receiptId);
+
+        $response = $this->actingAsApi($this->adminUser)->putJson("/api/warehouse_receipts/{$receiptId}", [
+            'note' => 'updated',
+        ]);
+        $response->assertStatus(400);
+        $response->assertJsonFragment(['error' => __('warehouse_receipt.edit_only_draft')]);
+    }
+
+    /**
+     * @return void
+     */
+    private function approveReceiptForCompletion(int $receiptId): void
+    {
+        $receipt = WhReceipt::query()->with('products')->findOrFail($receiptId);
+        $products = [];
+        foreach ($receipt->products as $line) {
+            $products[] = [
+                'product_id' => (int) $line->product_id,
+                'quantity' => (float) $line->quantity,
+                'price' => (float) ($line->orig_unit_price ?? $line->price),
+            ];
+        }
+
+        app(WarehouseReceiptRepository::class)->updateReceipt($receiptId, [
+            'client_id' => (int) $receipt->supplier_id,
+            'warehouse_id' => (int) $receipt->warehouse_id,
+            'cash_id' => $receipt->cash_id,
+            'date' => $receipt->date,
+            'note' => $receipt->note,
+            'status' => 'approved',
+            'products' => $products,
+        ]);
     }
 }
 

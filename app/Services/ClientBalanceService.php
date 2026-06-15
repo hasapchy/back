@@ -242,23 +242,4 @@ class ClientBalanceService
         return self::balanceLedgerSign($type, $isDebt) * $amount;
     }
 
-    /**
-     * Получить баланс клиента в валюте (или дефолтный)
-     *
-     * @param Client $client Клиент
-     * @param Currency|null $currency Валюта (если null, возвращается дефолтный баланс)
-     * @return ClientBalance|null
-     */
-    public static function getBalance(Client $client, ?Currency $currency = null): ?ClientBalance
-    {
-        if ($currency) {
-            return ClientBalance::where('client_id', $client->id)
-                ->where('currency_id', $currency->id)
-                ->first();
-        }
-
-        return ClientBalance::where('client_id', $client->id)
-            ->where('is_default', true)
-            ->first();
-    }
 }

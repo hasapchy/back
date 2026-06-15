@@ -94,6 +94,11 @@ class TransactionsControllerTest extends TestCase
             'currency_id' => $this->currency->id,
             'category_id' => $this->category->id,
             'creator_id' => $this->adminUser->id,
+            'client_id' => null,
+            'client_balance_id' => null,
+            'project_id' => null,
+            'source_type' => null,
+            'source_id' => null,
         ], $overrides));
     }
 

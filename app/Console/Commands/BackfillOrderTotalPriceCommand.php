@@ -19,7 +19,7 @@ class BackfillOrderTotalPriceCommand extends Command
                             {--chunk=500 : Размер пакета}
                             {--dry-run : Показать изменения без сохранения}';
 
-    protected $description = 'Заполнить orders.total_price по price/discount с округлением итога и синхронизировать долговую транзакцию (строки не изменяются)';
+    protected $description = 'Заполнить orders.def_total_price по def_price/def_discount с округлением итога и синхронизировать долговую транзакцию (строки не изменяются)';
 
     /**
      * @return int
@@ -188,8 +188,8 @@ class BackfillOrderTotalPriceCommand extends Command
                 'new_total' => $result['new_total'],
                 'old_tx_amount' => $result['old_tx_amount'],
                 'new_tx_amount' => $result['new_tx_amount'],
-                'price' => (float) $order->price,
-                'discount' => (float) $order->discount,
+                'def_price' => (float) $order->def_price,
+                'def_discount' => (float) $order->def_discount,
             ]);
         }
 

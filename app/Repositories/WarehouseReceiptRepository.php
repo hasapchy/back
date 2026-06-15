@@ -172,7 +172,7 @@ class WarehouseReceiptRepository extends BaseRepository
                 'cashRegister.currency:id,name,code',
                 'origCurrency:id,name,code',
                 'creator:id,name,surname,photo',
-                'supplier:id,first_name,last_name,status,balance',
+                'supplier:id,first_name,last_name,status',
                 'supplier.phones:id,client_id,phone',
                 'supplier.emails:id,client_id,email',
                 'purchase:id,supplier_id,status,amount',
@@ -218,15 +218,11 @@ class WarehouseReceiptRepository extends BaseRepository
         $note = $data['note'] ?? null;
         $products = $data['products'];
         $client_balance_id = $data['client_balance_id'] ?? null;
-        $status = $this->resolveReceiptStatusFromInput($data['status'] ?? null);
-
-        if ($status === WhReceiptStatus::Completed) {
-            throw new \RuntimeException((string) __('warehouse_receipt.cannot_create_completed'));
-        }
+        $status = WhReceiptStatus::Draft;
 
         app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
 
-        return DB::transaction(function () use ($data, $client_id, $warehouse_id, $cash_id, $date, $note, $products, $client_balance_id, $status, $purchase_id) {
+        return DB::transaction(function () use ($client_id, $warehouse_id, $cash_id, $date, $note, $products, $client_balance_id, $status, $purchase_id) {
             $defaultCurrency = Currency::firstWhere('is_default', true);
             $lineCurrency = $defaultCurrency;
             if ($cash_id !== null) {
@@ -415,6 +411,10 @@ class WarehouseReceiptRepository extends BaseRepository
                 throw new \RuntimeException((string) __('warehouse_receipt.receipt_completed_readonly'));
             }
 
+            if ($receipt->status !== WhReceiptStatus::Draft) {
+                throw new \RuntimeException((string) __('warehouse_receipt.edit_only_draft'));
+            }
+
             if (array_key_exists('status', $data) && $data['status'] !== null && $data['status'] !== '') {
                 $incomingStatus = $this->resolveReceiptStatusFromInput($data['status']);
                 if ($incomingStatus === WhReceiptStatus::Completed) {
@@ -488,10 +488,6 @@ class WarehouseReceiptRepository extends BaseRepository
             $receipt->amount = $totalInDefault;
             $receipt->save();
 
-            $transactions = $receipt->transactions()->get();
-            if ($transactions->isEmpty()) {
-                $this->updateClientBalance($client_id, $totalInDefault - $old_total_amount);
-            }
             $this->syncDraftAutoTransactions($receipt, $totalInDefault);
 
             $incomingProductIds = collect($products)
@@ -508,6 +504,11 @@ class WarehouseReceiptRepository extends BaseRepository
             }
 
             app(ReceiptExpenseAllocationService::class)->syncAllForReceipt((int) $receipt_id);
+
+            if ($receipt->status === WhReceiptStatus::Approved) {
+                $this->applyReceiptProductsToStock($receipt);
+                $this->tryAutoCompleteReceipt((int) $receipt_id);
+            }
 
             $this->syncLinkedPurchaseCompletion($receipt->purchase_id);
 
@@ -582,6 +583,10 @@ class WarehouseReceiptRepository extends BaseRepository
                 throw new \RuntimeException((string) __('warehouse_receipt.already_completed'));
             }
 
+            if ($receipt->status !== WhReceiptStatus::Approved) {
+                throw new \RuntimeException((string) __('warehouse_receipt.completion_requires_approved'));
+            }
+
             if (! $this->receiptEligibleForCompletion($receipt)) {
                 $messageKey = $receipt->purchase_id === null
                     ? 'warehouse_receipt.completion_requires_full_goods_payment'
@@ -633,8 +638,6 @@ class WarehouseReceiptRepository extends BaseRepository
                 $this->updateProductPurchasePrice($productId, $unit);
             }
 
-            $this->applyReceiptProductsToStock($receipt);
-
             $receipt->status = WhReceiptStatus::Completed;
             $receipt->saveQuietly();
 
@@ -643,6 +646,24 @@ class WarehouseReceiptRepository extends BaseRepository
             $this->invalidateCaches();
             WarehouseTimelineCache::forgetReceipt($receipt_id);
         });
+    }
+
+    /**
+     * Автоматически завершает подтверждённое оприходование при выполнении условий.
+     *
+     * @throws \Throwable
+     */
+    public function tryAutoCompleteReceipt(int $receiptId): void
+    {
+        $receipt = WhReceipt::query()->find($receiptId);
+        if (! $receipt instanceof WhReceipt || $receipt->status !== WhReceiptStatus::Approved) {
+            return;
+        }
+        if (! $this->receiptEligibleForCompletion($receipt)) {
+            return;
+        }
+
+        $this->completeReceipt($receiptId);
     }
 
     /**
@@ -666,18 +687,11 @@ class WarehouseReceiptRepository extends BaseRepository
     public function deleteItem($receipt_id)
     {
         $meta = DB::transaction(function () use ($receipt_id) {
-            $receipt = WhReceipt::findOrFail($receipt_id);
-            app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $receipt->warehouse_id);
-            $isCompleted = $receipt->status === WhReceiptStatus::Completed;
-            $purchaseId = $receipt->purchase_id !== null ? (int) $receipt->purchase_id : null;
-            $this->reverseReceiptStockAndDeleteLines($receipt, $isCompleted);
-            $this->purgeReceiptTransactions($receipt);
-
+            $receipt = WhReceipt::query()->lockForUpdate()->findOrFail($receipt_id);
             $rid = (int) $receipt->id;
             $wid = (int) $receipt->warehouse_id;
-            $receipt->delete();
-
-            $this->syncLinkedPurchaseCompletion($purchaseId);
+            app(InventoryLockService::class)->checkWarehouseIsUnlocked($wid);
+            $this->deleteReceiptCore($receipt, true);
 
             return ['rid' => $rid, 'wid' => $wid];
         });
@@ -687,6 +701,33 @@ class WarehouseReceiptRepository extends BaseRepository
         }
 
         return is_array($meta);
+    }
+
+    /**
+     * Удалить оприходование внутри внешней транзакции (каскад из закупки).
+     *
+     * @throws \Throwable
+     */
+    public function deleteReceiptWithinTransaction(WhReceipt $receipt, bool $syncPurchaseCompletion = true): void
+    {
+        app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $receipt->warehouse_id);
+        $this->deleteReceiptCore($receipt, $syncPurchaseCompletion);
+    }
+
+    /**
+     * @param  bool  $syncPurchaseCompletion  false при cascade из delete purchase
+     */
+    private function deleteReceiptCore(WhReceipt $receipt, bool $syncPurchaseCompletion = true): void
+    {
+        $reverseStock = in_array($receipt->status, [WhReceiptStatus::Approved, WhReceiptStatus::Completed], true);
+        $purchaseId = $receipt->purchase_id !== null ? (int) $receipt->purchase_id : null;
+        $this->reverseReceiptStockAndDeleteLines($receipt, $reverseStock);
+        $this->purgeReceiptTransactions($receipt);
+        $receipt->delete();
+
+        if ($syncPurchaseCompletion && $purchaseId !== null) {
+            $this->syncLinkedPurchaseCompletion($purchaseId);
+        }
     }
 
     /**
@@ -999,20 +1040,6 @@ class WarehouseReceiptRepository extends BaseRepository
                 'date'           => now(),
             ]
         );
-        return true;
-    }
-
-    /**
-     * Обновить баланс клиента
-     *
-     * @param int $client_id ID клиента
-     * @param float $amount Сумма
-     * @return bool
-     */
-    private function updateClientBalance($client_id, $amount)
-    {
-        $amount = is_numeric($amount) ? (float)$amount : 0.0;
-        \App\Models\Client::where('id', $client_id)->decrement('balance', $amount);
         return true;
     }
 

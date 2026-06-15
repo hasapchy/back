@@ -288,30 +288,7 @@ class ClientsRepository extends BaseRepository
      */
     protected function getAllowedMutualSettlementsClientTypes($user = null)
     {
-        if (! $user) {
-            return [];
-        }
-
-        if ($user->is_admin) {
-            return ['individual', 'company', 'employee', 'investor'];
-        }
-
-        $permissions = $this->getUserPermissionsForCompany($user);
-        $hasViewAll = in_array('mutual_settlements_view_all', $permissions);
-
-        if (! $hasViewAll) {
-            return [];
-        }
-
-        $allowedTypes = [];
-        $clientTypes = ['individual', 'company', 'employee', 'investor'];
-        foreach ($clientTypes as $type) {
-            if (in_array("mutual_settlements_view_{$type}", $permissions)) {
-                $allowedTypes[] = $type;
-            }
-        }
-
-        return $allowedTypes;
+        return \App\Support\MutualSettlementsAccess::getAllowedClientTypes($user);
     }
 
     /**
@@ -337,6 +314,8 @@ class ClientsRepository extends BaseRepository
                 'emails:id,client_id,email',
                 'creator:id,name,surname,photo',
                 'employee:id,name,surname,position,photo',
+                'balances.currency',
+                'balances.users',
             ])
                 ->where('clients.status', true);
 
@@ -502,51 +481,7 @@ class ClientsRepository extends BaseRepository
         $this->invalidateClientBalanceCache($id);
         TimelineCache::forget('client', (int) $id);
 
-        return $client->load('phones', 'emails', 'creator', 'employee');
-    }
-
-    /**
-     * Получить клиентов по массиву ID
-     *
-     * @param  array  $ids  Массив ID клиентов
-     * @return \Illuminate\Support\Collection
-     */
-    public function getItemsByIds(array $ids)
-    {
-
-        $query = Client::whereIn('id', $ids)
-            ->with(['employee:id,name,surname,position,photo', 'emails:id,client_id,email', 'phones:id,client_id,phone']);
-
-        $companyId = $this->getCurrentCompanyId();
-        if ($companyId) {
-            $query->where('company_id', $companyId);
-        }
-
-            $clients = $query->get()->map(function ($client) {
-            return (object) [
-                'id' => $client->id,
-                'client_type' => $client->client_type,
-                'is_supplier' => $client->is_supplier,
-                'is_conflict' => $client->is_conflict,
-                'first_name' => $client->first_name,
-                'last_name' => $client->last_name,
-                'patronymic' => $client->patronymic,
-                'position' => $client->position,
-                'address' => $client->address,
-                'note' => $client->note,
-                'status' => $client->status,
-                'discount_type' => $client->discount_type,
-                'discount' => $client->discount,
-                'employee_id' => $client->employee_id,
-                'employee_name' => $client->employee->name ?? null,
-                'created_at' => $client->created_at,
-                'updated_at' => $client->updated_at,
-                'emails' => $client->emails,
-                'phones' => $client->phones,
-            ];
-        });
-
-        return $clients;
+        return $client->load('phones', 'emails', 'creator', 'employee', 'balances.currency', 'balances.users');
     }
 
     /**
@@ -562,14 +497,16 @@ class ClientsRepository extends BaseRepository
      * @param  int  $perPage  Записей на странице
      * @param  string|null  $source  Фильтр по источнику транзакции
      * @param  bool|null  $isDebt  Фильтр по долговым транзакциям (true - только долги)
+     * @param  string|null  $search  Поиск по id, примечанию, категории, автору, проекту
+     * @param  string|null  $transactionType  Тип транзакции: income|outcome
      * @return array{history: array, current_page: int, last_page: int, total: int, per_page: int}
      */
-    public function getBalanceHistory($clientId, $excludeDebt = null, $cashRegisterId = null, $dateFrom = null, $dateTo = null, $balanceId = null, $page = 1, $perPage = 20, $source = null, $isDebt = null)
+    public function getBalanceHistory($clientId, $excludeDebt = null, $cashRegisterId = null, $dateFrom = null, $dateTo = null, $balanceId = null, $page = 1, $perPage = 20, $source = null, $isDebt = null, $search = null, $transactionType = null)
     {
         $currentUser = auth('api')->user();
-        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage, $source, $isDebt, $currentUser?->id]);
+        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage, $source, $isDebt, $search, $transactionType, $currentUser?->id]);
 
-        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage, $source, $isDebt, $currentUser) {
+        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage, $source, $isDebt, $search, $transactionType, $currentUser) {
             try {
                 $defaultCurrency = Currency::where('is_default', true)->first();
                 $defaultCurrencySymbol = $defaultCurrency?->code;
@@ -661,6 +598,30 @@ class ClientsRepository extends BaseRepository
                     }
                 }
 
+                if ($transactionType === 'income') {
+                    $transactionsQuery->where('type', 1);
+                } elseif ($transactionType === 'outcome') {
+                    $transactionsQuery->where('type', 0);
+                }
+
+                $searchTrimmed = is_string($search) ? trim($search) : '';
+                if ($searchTrimmed !== '') {
+                    $searchLower = mb_strtolower($searchTrimmed);
+                    $transactionsQuery->where(function ($q) use ($searchTrimmed, $searchLower) {
+                        $q->where('transactions.id', 'like', "%{$searchTrimmed}%")
+                            ->orWhereRaw('LOWER(transactions.note) LIKE ?', ["%{$searchLower}%"])
+                            ->orWhereHas('category', function ($categoryQuery) use ($searchLower) {
+                                $categoryQuery->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"]);
+                            })
+                            ->orWhereHas('creator', function ($creatorQuery) use ($searchLower) {
+                                $creatorQuery->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"]);
+                            })
+                            ->orWhereHas('project', function ($projectQuery) use ($searchLower) {
+                                $projectQuery->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"]);
+                            });
+                    });
+                }
+
                 $transactionsQuery->with([
                     'cashRegister:id,name,currency_id',
                     'cashRegister.currency:id,code',
@@ -706,7 +667,7 @@ class ClientsRepository extends BaseRepository
                         $amount = $item->amount;
                         $results = [];
 
-                        $balanceDelta = $this->calculateBalanceDelta($item->type, $item->is_debt, $amount);
+                        $balanceDelta = ClientBalanceService::balanceDelta($amount, (int) $item->type, (bool) $item->is_debt);
 
                         if ($source === 'receipt') {
                             $receiptId = $item->source_id;
@@ -860,10 +821,7 @@ class ClientsRepository extends BaseRepository
                         return $results;
                     });
 
-                $orders = collect([]);
-
                 $history = $transactions
-                    ->concat($orders)
                     ->sortByDesc('date')
                     ->values()
                     ->all();
@@ -1035,24 +993,25 @@ class ClientsRepository extends BaseRepository
     }
 
     /**
-     * Рассчитать дельту баланса клиента для транзакции
-     *
-     * @param  int  $type  Тип транзакции (0 - расход, 1 - приход)
-     * @param  bool  $isDebt  Является ли транзакция кредитной
-     * @param  float  $amount  Сумма транзакции
-     * @return float Дельта баланса
+     * @return array{positive: float, negative: float}
      */
-    private function calculateBalanceDelta(int $type, bool $isDebt, float $amount): float
+    public function getDebtTotals(): array
     {
-        if ($amount == 0.0) {
-            return 0;
-        }
+        /** @var User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
 
-        $sign = $isDebt
-            ? ($type === 1 ? 1 : -1)
-            : ($type === 1 ? -1 : 1);
+        $debtStats = $this->settlementsBalanceAggregateQuery($currentUser, $companyId)
+            ->select([
+                DB::raw('SUM(CASE WHEN client_balances.balance > 0 THEN client_balances.balance ELSE 0 END) as positive'),
+                DB::raw('SUM(CASE WHEN client_balances.balance < 0 THEN ABS(client_balances.balance) ELSE 0 END) as negative'),
+            ])
+            ->first();
 
-        return $sign * $amount;
+        return [
+            'positive' => (float) ($debtStats->positive ?? 0),
+            'negative' => (float) ($debtStats->negative ?? 0),
+        ];
     }
 
     /**
@@ -1066,40 +1025,19 @@ class ClientsRepository extends BaseRepository
         /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $userId = $currentUser?->id;
-        $allowedBalanceTypes = ClientBalanceViewAccess::getAllowedBalanceTypes($currentUser, $companyId);
 
         $cacheKey = $this->generateCacheKey('clients_settlements_summary', [
             $currentUser?->id,
             $companyId,
         ]);
 
-        return CacheService::remember($cacheKey, function () use ($currentUser, $companyId, $userId, $allowedBalanceTypes) {
-            $balanceQuery = ClientBalance::query()
+        return CacheService::remember($cacheKey, function () use ($currentUser, $companyId) {
+            $aggregates = $this->settlementsBalanceAggregateQuery($currentUser, $companyId)
                 ->select([
                     'client_balances.currency_id',
                     DB::raw('SUM(CASE WHEN client_balances.balance > 0 THEN client_balances.balance ELSE 0 END) as they_owe_us'),
                     DB::raw('SUM(CASE WHEN client_balances.balance < 0 THEN ABS(client_balances.balance) ELSE 0 END) as we_owe_them'),
                 ])
-                ->join('clients', 'clients.id', '=', 'client_balances.client_id')
-                ->where('clients.status', true);
-
-            $balanceQuery = $this->addCompanyFilterDirect($balanceQuery, 'clients');
-            $this->applyOwnFilter($balanceQuery, 'clients', 'clients', 'creator_id', $currentUser, 'employee_id');
-
-            if ($currentUser && ! $currentUser->is_admin && $userId) {
-                $balanceQuery->where(function ($q) use ($userId) {
-                    $q->whereDoesntHave('users')
-                        ->orWhereHas('users', fn ($uq) => $uq->where('users.id', $userId));
-                });
-            }
-            if (! empty($allowedBalanceTypes)) {
-                $balanceQuery->whereIn('client_balances.type', $allowedBalanceTypes);
-            } else {
-                $balanceQuery->whereRaw('1 = 0');
-            }
-
-            $aggregates = $balanceQuery
                 ->groupBy('client_balances.currency_id')
                 ->get()
                 ->keyBy('currency_id');
@@ -1134,5 +1072,35 @@ class ClientsRepository extends BaseRepository
 
             return $result;
         }, $this->getCacheTTL('reference'));
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\ClientBalance>
+     */
+    protected function settlementsBalanceAggregateQuery(?User $currentUser, ?int $companyId): \Illuminate\Database\Eloquent\Builder
+    {
+        $userId = $currentUser?->id;
+        $allowedBalanceTypes = ClientBalanceViewAccess::getAllowedBalanceTypes($currentUser, $companyId);
+
+        $balanceQuery = ClientBalance::query()
+            ->join('clients', 'clients.id', '=', 'client_balances.client_id')
+            ->where('clients.status', true);
+
+        $balanceQuery = $this->addCompanyFilterDirect($balanceQuery, 'clients');
+        $this->applyOwnFilter($balanceQuery, 'clients', 'clients', 'creator_id', $currentUser, 'employee_id');
+
+        if ($currentUser && ! $currentUser->is_admin && $userId) {
+            $balanceQuery->where(function ($q) use ($userId) {
+                $q->whereDoesntHave('users')
+                    ->orWhereHas('users', fn ($uq) => $uq->where('users.id', $userId));
+            });
+        }
+        if (! empty($allowedBalanceTypes)) {
+            $balanceQuery->whereIn('client_balances.type', $allowedBalanceTypes);
+        } else {
+            $balanceQuery->whereRaw('1 = 0');
+        }
+
+        return $balanceQuery;
     }
 }

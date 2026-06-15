@@ -329,7 +329,6 @@ return [
         'settings_edit_any_date',
         'settings_project_budget_view',
         'settings_project_balance_view',
-        'settings_project_contracts_view',
         'settings_currencies_view',
         'settings_cash_balance_view',
         'settings_client_balance_view',
@@ -421,7 +420,6 @@ return [
         'projects' => [
             'settings_project_budget_view',
             'settings_project_balance_view',
-            'settings_project_contracts_view',
         ],
         'finance' => [
             'settings_cash_balance_view',

@@ -6,7 +6,6 @@ use App\Models\Order;
 use App\Models\OrderProduct;
 use App\Models\OrderTempProduct;
 use App\Models\Product;
-use App\Models\ProductPrice;
 use App\Models\WarehouseStock;
 use App\Models\Warehouse;
 use App\Models\Currency;
@@ -22,6 +21,8 @@ use App\Services\CacheService;
 use App\Services\InventoryLockService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\OrderPaymentStatusService;
+use App\Services\OrderProductsPresenter;
 use App\Services\RoundingService;
 use App\Services\Timeline\OrderTimelineSummaryLogger;
 use App\Http\Resources\OrderResource;
@@ -71,24 +72,23 @@ class OrdersRepository extends BaseRepository
      * @param int|null $clientFilter Фильтр по клиенту
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1, $projectFilter = null, $clientFilter = null, $categoryFilter = null, $unpaidOnly = false)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1, $projectFilter = null, $clientFilter = null, $categoryFilter = null)
     {
         $userUuid = (int) $userUuid;
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
 
-        $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $categoryFilter, $unpaidOnly, 'single_v2', $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $categoryFilter, 'single_v2', $currentUser?->id, $companyId]);
 
         $searchTrimmed = is_string($search) ? trim($search) : '';
         $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
-        $loadProducts = $perPage <= 50;
+        $productsPresenter = app(OrderProductsPresenter::class);
 
-        $buildResult = function () use ($userUuid, $perPage, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $categoryFilter, $unpaidOnly, $currentUser, $hasSearch, $loadProducts) {
-            ['resource' => $orderResource, 'is_simple' => $isSimpleUser] = SimpleUser::orderAccess($currentUser);
-            $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $categoryFilter, $unpaidOnly, null);
+        $buildResult = function () use ($userUuid, $perPage, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $categoryFilter, $currentUser, $productsPresenter) {
+            $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $categoryFilter, null);
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
-            $orders->getCollection()->transform(function ($order) {
+            $orders->getCollection()->transform(function ($order) use ($productsPresenter) {
                 assert($order instanceof Order);
                 if ($order->client) {
                     $order->client_first_name = $order->client->first_name;
@@ -124,113 +124,10 @@ class OrdersRepository extends BaseRepository
                     $order->category_name = $order->category->name;
                 }
 
-                $allProducts = collect();
-
-                if ($order->orderProducts) {
-                    foreach ($order->orderProducts as $orderProduct) {
-                        $product = $orderProduct->product;
-                        $origCur = $orderProduct->relationLoaded('origCurrency') ? $orderProduct->origCurrency : null;
-                        $allProducts->push([
-                            'id' => $orderProduct->id,
-                            'order_id' => $orderProduct->order_id,
-                            'product_id' => $orderProduct->product_id,
-                            'product_name' => $product?->name ?? null,
-                            'product_image' => $product?->image ?? null,
-                            'unit_id' => $product?->unit_id ?? null,
-                            'unit_short_name' => $product?->unit?->short_name ?? null,
-                            'quantity' => $orderProduct->quantity,
-                            'price' => $orderProduct->price,
-                            'orig_unit_price' => $orderProduct->orig_unit_price,
-                            'orig_currency_id' => $orderProduct->orig_currency_id,
-                            'orig_currency' => $origCur ? [
-                                'id' => $origCur->id,
-                                'name' => $origCur->name,
-                                'code' => $origCur->code,
-                            ] : null,
-                            'width' => $orderProduct->width,
-                            'height' => $orderProduct->height,
-                            'product_type' => 'regular',
-                            'type' => (int) (bool) ($product?->type),
-                        ]);
-                    }
-                }
-
-                if ($order->tempProducts) {
-                    foreach ($order->tempProducts as $tempProduct) {
-                        $tempOrigCur = $tempProduct->relationLoaded('origCurrency') ? $tempProduct->origCurrency : null;
-                        $allProducts->push([
-                            'id' => $tempProduct->id,
-                            'order_id' => $tempProduct->order_id,
-                            'product_id' => null,
-                            'product_name' => $tempProduct->name,
-                            'product_image' => null,
-                            'unit_id' => $tempProduct->unit_id,
-                            'unit_short_name' => $tempProduct->unit?->short_name ?? null,
-                            'quantity' => $tempProduct->quantity,
-                            'price' => $tempProduct->price,
-                            'orig_unit_price' => $tempProduct->orig_unit_price,
-                            'orig_currency_id' => $tempProduct->orig_currency_id,
-                            'orig_currency' => $tempOrigCur ? [
-                                'id' => $tempOrigCur->id,
-                                'name' => $tempOrigCur->name,
-                                'code' => $tempOrigCur->code,
-                            ] : null,
-                            'width' => $tempProduct->width,
-                            'height' => $tempProduct->height,
-                            'product_type' => 'temp',
-                        ]);
-                    }
-                }
-
-                $order->setAttribute('products', $allProducts);
-
-                $this->setOrderPaymentInfo($order, (float) ($order->paid_amount ?? 0));
+                $order->setAttribute('products', $productsPresenter->mapOrderProducts($order));
 
                 return $order;
             });
-
-            $unpaidOrdersTotal = 0;
-
-            $unpaidQuery = Order::selectRaw('
-                COALESCE(SUM(
-                    CASE
-                        WHEN orders.total_price > COALESCE(orders.paid_amount, 0)
-                        THEN (orders.total_price - COALESCE(orders.paid_amount, 0))
-                        ELSE 0
-                    END
-                ), 0) as unpaid_total
-            ')
-                ->whereNull('orders.project_id');
-
-            if (! $isSimpleUser) {
-                $unpaidQuery->where(function ($q) use ($userUuid) {
-                    if ($this->shouldApplyUserFilter('cash_registers')) {
-                        $q->whereNull('orders.cash_id');
-                        $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
-                        $q->orWhereExists(function ($subQuery) use ($filterUserId) {
-                            $subQuery->select(DB::raw(1))
-                                ->from('cash_register_users')
-                                ->join('cash_registers', 'cash_register_users.cash_register_id', '=', 'cash_registers.id')
-                                ->whereColumn('cash_registers.id', 'orders.cash_id')
-                                ->where('cash_register_users.user_id', $filterUserId);
-                        });
-                    }
-                });
-            }
-
-            $this->applyOwnFilter($unpaidQuery, $orderResource, 'orders', 'creator_id', $currentUser);
-            $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cashRegister');
-
-            if ($categoryFilter) {
-                $unpaidQuery->where('orders.category_id', $categoryFilter);
-            }
-
-            $this->applySimpleUserOrderCategoryFilter($unpaidQuery, $currentUser);
-
-            $unpaidResult = $unpaidQuery->first();
-            $unpaidOrdersTotal = $unpaidResult && $unpaidResult->unpaid_total !== null ? (float) $unpaidResult->unpaid_total : 0;
-
-            $orders->unpaid_orders_total = $unpaidOrdersTotal;
 
             return $orders;
         };
@@ -261,8 +158,7 @@ class OrdersRepository extends BaseRepository
         ?string $endDate = null,
         ?int $projectFilter = null,
         ?int $clientFilter = null,
-        ?int $categoryFilter = null,
-        bool $unpaidOnly = false
+        ?int $categoryFilter = null
     ): array {
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
@@ -320,10 +216,6 @@ class OrdersRepository extends BaseRepository
         if ($categoryFilter) {
             $query->where('orders.category_id', $categoryFilter);
         }
-        if ($unpaidOnly) {
-            $query->whereNull('orders.project_id')
-                ->whereRaw('orders.total_price > COALESCE(orders.paid_amount, 0)');
-        }
 
         $this->applySimpleUserOrderCategoryFilter($query, $currentUser);
         $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister');
@@ -360,11 +252,10 @@ class OrdersRepository extends BaseRepository
      * @param int|null $statusFilter
      * @param int|null $projectFilter
      * @param int|null $clientFilter
-     * @param bool $unpaidOnly
      * @param array|null $ids
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    protected function buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $projectFilter = null, $clientFilter = null, $categoryFilter = null, $unpaidOnly = false, ?array $ids = null)
+    protected function buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $projectFilter = null, $clientFilter = null, $categoryFilter = null, ?array $ids = null)
     {
         $userUuid = (int) $userUuid;
         /** @var \App\Models\User|null $currentUser */
@@ -388,6 +279,9 @@ class OrdersRepository extends BaseRepository
             'tempProducts:id,order_id,name,description,quantity,price,orig_unit_price,orig_currency_id,unit_id,width,height',
             'tempProducts.unit:id,name,short_name',
             'tempProducts.origCurrency:id,name,code',
+            'currency:id,name,code',
+            'defCurrency:id,name,code',
+            'repCurrency:id,name,code',
         ];
         ['resource' => $orderResource, 'is_simple' => $isSimpleUser] = SimpleUser::orderAccess($currentUser);
         $query = Order::query()->with($withRelations);
@@ -435,12 +329,7 @@ class OrdersRepository extends BaseRepository
             $query->where('orders.client_id', $clientFilter);
         }
         if ($categoryFilter) {
-            // Фильтр по "категории заказа" (orders.category_id)
             $query->where('orders.category_id', $categoryFilter);
-        }
-        if ($unpaidOnly) {
-            $query->whereNull('orders.project_id')
-                ->whereRaw('orders.total_price > COALESCE(orders.paid_amount, 0)');
         }
         $this->applySimpleUserOrderCategoryFilter($query, $currentUser);
 
@@ -463,15 +352,14 @@ class OrdersRepository extends BaseRepository
      * @param int|null $projectFilter
      * @param int|null $clientFilter
      * @param int|null $categoryFilter Фильтр по категории заказа (orders.category_id)
-     * @param bool $unpaidOnly
      * @param array|null $ids
      * @param int $limit
      * @return \Illuminate\Support\Collection
      */
-    public function getItemsForExport($userUuid, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $projectFilter = null, $clientFilter = null, $categoryFilter = null, $unpaidOnly = false, ?array $ids = null, int $limit = 10000)
+    public function getItemsForExport($userUuid, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $projectFilter = null, $clientFilter = null, $categoryFilter = null, ?array $ids = null, int $limit = 10000)
     {
         $searchTrimmed = is_string($search) ? trim($search) : '';
-        $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $categoryFilter, $unpaidOnly, $ids);
+        $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $categoryFilter, $ids);
         $orders = $query->orderBy('orders.created_at', 'desc')->limit($limit)->get();
         $orders->transform(function ($order) {
             assert($order instanceof Order);
@@ -503,35 +391,7 @@ class OrdersRepository extends BaseRepository
             if ($order->category) {
                 $order->category_name = $order->category->name;
             }
-            $allProducts = collect();
-            if ($order->orderProducts) {
-                foreach ($order->orderProducts as $orderProduct) {
-                    $product = $orderProduct->product;
-                    $allProducts->push([
-                        'id' => $orderProduct->id,
-                        'order_id' => $orderProduct->order_id,
-                        'product_id' => $orderProduct->product_id,
-                        'product_name' => $product?->name ?? null,
-                        'quantity' => $orderProduct->quantity,
-                        'price' => $orderProduct->price,
-                        'product_type' => 'regular'
-                    ]);
-                }
-            }
-            if ($order->tempProducts) {
-                foreach ($order->tempProducts as $tempProduct) {
-                    $allProducts->push([
-                        'id' => $tempProduct->id,
-                        'order_id' => $tempProduct->order_id,
-                        'product_id' => null,
-                        'product_name' => $tempProduct->name,
-                        'quantity' => $tempProduct->quantity,
-                        'price' => $tempProduct->price,
-                        'product_type' => 'temp'
-                    ]);
-                }
-            }
-            $order->setAttribute('products', $allProducts);
+            $order->setAttribute('products', app(OrderProductsPresenter::class)->mapOrderProducts($order));
             $this->setOrderPaymentInfo($order, (float) ($order->paid_amount ?? 0));
             return $order;
         });
@@ -598,189 +458,120 @@ class OrdersRepository extends BaseRepository
             return null;
         }
 
-        $order->setAttribute(
-            'products',
-            $this->getProducts([(int) $order->id])->get($order->id, collect())
-        );
-
-        $this->setOrderPaymentInfo($order, (float) ($order->paid_amount ?? 0));
-
         return $order;
     }
 
-
-
     /**
-     * Получить заказы по массиву ID
-     *
-     * @param array $order_ids Массив ID заказов
-     * @return \Illuminate\Support\Collection
+     * @param  array<int, array<string, mixed>>  $products
+     * @param  array<int, array<string, mixed>>  $tempProducts
+     * @param  \Illuminate\Support\Collection<int, Product>  $newProductsData
+     * @return array{
+     *     price: float,
+     *     orig_subtotal: float,
+     *     products_cache: list<array<string, mixed>>,
+     *     warehouse_stocks: array<int, array{quantity: float, product_name: string}>,
+     *     temp_rows: list<array<string, mixed>>
+     * }
      */
-    public function getItemsByIds(array $order_ids)
-    {
-        if (empty($order_ids)) {
-            return collect();
-        }
+    protected function buildOrderLinesFromRequest(
+        array $products,
+        array $tempProducts,
+        $newProductsData,
+        RoundingService $roundingService,
+        int $companyId,
+        Currency $documentCurrency,
+        Currency $defaultCurrency,
+        string $rateDate,
+        bool $buildTempRows = true
+    ): array {
+        $price = 0.0;
+        $origSubtotal = 0.0;
+        $productsCache = [];
+        $warehouseStocksToUpdate = [];
+        $tempRows = [];
 
-        $cacheKey = $this->generateCacheKey('orders_by_ids_' . md5(implode(',', $order_ids)), []);
+        foreach ($products as $product) {
+            $p_id = $product['product_id'];
+            $width = $product['width'] ?? null;
+            $height = $product['height'] ?? null;
 
-        return CacheService::remember($cacheKey, function () use ($order_ids) {
-            return $this->getItems($order_ids);
-        });
-    }
+            $product_object = $newProductsData->get($p_id);
+            if (! $product_object) {
+                throw new \Exception("Товар ID {$p_id} не найден");
+            }
 
+            $q = $this->calculateProductQuantity($product, $product_object, $roundingService, $companyId);
+            $unitPrices = $this->resolveOrderLineUnitPrices(
+                (float) ($product['price'] ?? 0),
+                $documentCurrency,
+                $defaultCurrency,
+                $companyId,
+                $rateDate
+            );
+            $defUnit = (float) $unitPrices['def_unit'];
+            $price += $q * $defUnit;
+            $origSubtotal += $q * (float) $unitPrices['orig_unit'];
 
-    /**
-     * Получить заказы по массиву ID (приватный метод)
-     *
-     * @param array $order_ids Массив ID заказов
-     * @return \Illuminate\Support\Collection
-     */
-    private function getItems(array $order_ids = [])
-    {
-        if (empty($order_ids)) {
-            return collect();
-        }
-
-        $orders = Order::query()
-            ->whereIn('orders.id', $order_ids)
-            ->with([
-                'warehouse:id,name',
-                'cashRegister:id,name,currency_id,is_cash,company_id',
-                'cashRegister.currency:id,name,code',
-                'project:id,name',
-                'creator:id,name,surname,photo',
-                'status:id,name,category_id',
-                'status.category:id,name,color',
-                'category:id,name',
-                'client:id,first_name,last_name,client_type,is_supplier,is_conflict',
-                'client.phones:id,client_id,phone',
-                'orderProducts:id,order_id,product_id,quantity,price,orig_unit_price,orig_currency_id,width,height',
-                'orderProducts.product:id,name,image,unit_id',
-                'orderProducts.product.unit:id,name,short_name',
-                'tempProducts:id,order_id,name,description,quantity,price,orig_unit_price,orig_currency_id,unit_id,width,height',
-                'tempProducts.unit:id,name,short_name'
-            ])
-            ->get();
-
-        $products = $this->getProducts($order_ids);
-        $client_ids = $orders->pluck('client_id')->unique()->filter()->toArray();
-        $client_repository = new ClientsRepository();
-        $clients = $client_repository->getItemsByIds($client_ids)->keyBy('id');
-
-        $items = $orders->map(function ($order) use ($products, $clients) {
-            $orderProducts = $products->get($order->id, collect());
-
-            $item = (object) [
-                'id' => $order->id,
-                'note' => $order->note,
-                'description' => $order->description,
-                'status_id' => $order->status_id,
-                'status_name' => $order->status->name,
-                'status_category_id' => $order->status->category_id,
-                'status_category_name' => $order->status->category->name ?? null,
-                'status_category_color' => $order->status->category->color ?? null,
-                'client_id' => $order->client_id,
-                'creator_id' => $order->creator_id,
-                'cash_id' => $order->cash_id,
-                'warehouse_id' => $order->warehouse_id,
-                'project_id' => $order->project_id,
-                'price' => $order->price,
-                'discount' => $order->discount,
-                'total_price' => $order->total_price,
-                'date' => $order->date,
-                'created_at' => $order->created_at,
-                'updated_at' => $order->updated_at,
-                'warehouse_name' => $order->warehouse->name ?? null,
-                'cash_name' => $order->cashRegister->name ?? null,
-                'cash_is_cash' => $order->cashRegister->is_cash ?? null,
-                'currency_id' => $order->cashRegister?->currency->id,
-                'currency_name' => $order->cashRegister?->currency->name,
-                'currency_symbol' => $order->cashRegister?->currency->code,
-                'project_name' => $order->project->name ?? null,
-                'category_name' => $order->category->name ?? null,
-                'products' => $orderProducts,
-                'client' => $clients->get($order->client_id),
-                'status' => [
-                    'id' => $order->status_id,
-                    'name' => $order->status->name,
-                    'category_id' => $order->status->category_id,
-                    'category' => $order->status->category ? [
-                        'id' => $order->status->category->id,
-                        'name' => $order->status->category->name,
-                        'color' => $order->status->category->color,
-                    ] : null,
-                ],
+            $productsCache[] = [
+                'id' => $product['id'] ?? null,
+                'product_id' => $p_id,
+                'quantity' => $q,
+                'price' => $defUnit,
+                'orig_unit_price' => (float) $unitPrices['orig_unit'],
+                'orig_currency_id' => (int) $unitPrices['orig_currency_id'],
+                'width' => $width,
+                'height' => $height,
             ];
 
-            $paidAmount = (float) ($order->paid_amount ?? 0);
-            $totalPrice = (float) ($item->total_price ?? 0);
-            $item->paid_amount = $paidAmount;
-            $item->payment_status = $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid');
-            $item->payment_status_text = $paidAmount <= 0 ? 'Не оплачено' : ($paidAmount < $totalPrice ? 'Частично оплачено' : 'Оплачено');
+            if ($product_object->type == 1) {
+                if (! isset($warehouseStocksToUpdate[$p_id])) {
+                    $warehouseStocksToUpdate[$p_id] = [
+                        'quantity' => 0,
+                        'product_name' => $product_object->name,
+                    ];
+                }
+                $warehouseStocksToUpdate[$p_id]['quantity'] += $q;
+            }
+        }
 
-            return $item;
-        });
+        foreach ($tempProducts as $temp_product) {
+            $q = $roundingService->roundQuantityForCompany($companyId, (float) ($temp_product['quantity'] ?? 0));
+            $unitPrices = $this->resolveOrderLineUnitPrices(
+                (float) ($temp_product['price'] ?? 0),
+                $documentCurrency,
+                $defaultCurrency,
+                $companyId,
+                $rateDate
+            );
+            $defUnit = (float) $unitPrices['def_unit'];
+            $price += $q * $defUnit;
+            $origSubtotal += $q * (float) $unitPrices['orig_unit'];
 
-        return $items;
-    }
-
-
-    /**
-     * Получить продукты заказов (приватный метод)
-     *
-     * @param array $order_ids Массив ID заказов
-     * @return \Illuminate\Support\Collection Сгруппированные по order_id продукты
-     */
-    private function getProducts(array $order_ids)
-    {
-        $regularProducts = OrderProduct::whereIn('order_id', $order_ids)
-            ->with(['product.unit:id,name,short_name'])
-            ->get()
-            ->map(function ($item) {
-                $product = $item->product;
-                return (object) [
-                    'id' => $item->id,
-                    'order_id' => $item->order_id,
-                    'product_id' => $item->product_id,
-                    'product_name' => $product?->name ?? null,
-                    'product_image' => $product?->image ?? null,
-                    'unit_id' => $product?->unit_id ?? null,
-                    'unit_short_name' => $product?->unit?->short_name ?? null,
-                    'quantity' => $item->quantity,
-                    'price' => $item->price,
-                    'orig_unit_price' => $item->orig_unit_price,
-                    'orig_currency_id' => $item->orig_currency_id,
-                    'width' => $item->width,
-                    'height' => $item->height,
-                    'product_type' => 'regular',
+            if ($buildTempRows) {
+                $tempRows[] = [
+                    'order_id' => null,
+                    'name' => $temp_product['name'],
+                    'description' => $temp_product['description'] ?? null,
+                    'quantity' => $q,
+                    'price' => $defUnit,
+                    'orig_unit_price' => (float) $unitPrices['orig_unit'],
+                    'orig_currency_id' => (int) $unitPrices['orig_currency_id'],
+                    'unit_id' => $temp_product['unit_id'] ?? null,
+                    'width' => $temp_product['width'] ?? null,
+                    'height' => $temp_product['height'] ?? null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ];
-            });
+            }
+        }
 
-        $tempProducts = OrderTempProduct::whereIn('order_id', $order_ids)
-            ->with('unit:id,name,short_name')
-            ->get()
-            ->map(function ($item) {
-                return (object) [
-                    'id' => $item->id,
-                    'order_id' => $item->order_id,
-                    'product_id' => null,
-                    'product_name' => $item->name,
-                    'product_image' => null,
-                    'unit_id' => $item->unit_id,
-                    'unit_short_name' => $item->unit?->short_name ?? null,
-                    'quantity' => $item->quantity,
-                    'price' => $item->price,
-                    'orig_unit_price' => $item->orig_unit_price,
-                    'orig_currency_id' => $item->orig_currency_id,
-                    'width' => $item->width,
-                    'height' => $item->height,
-                    'product_type' => 'temp',
-                ];
-            });
-
-        $allProducts = $regularProducts->concat($tempProducts);
-        return $allProducts->groupBy('order_id');
+        return [
+            'price' => $price,
+            'orig_subtotal' => $origSubtotal,
+            'products_cache' => $productsCache,
+            'warehouse_stocks' => $warehouseStocksToUpdate,
+            'temp_rows' => $tempRows,
+        ];
     }
 
     /**
@@ -819,114 +610,38 @@ class OrdersRepository extends BaseRepository
             );
             $rateDate = $this->orderDateForRates($date);
 
-            $price = 0;
-            $discount_calculated = 0;
-            $total_price = 0;
-
-            $productsCache = [];
-            $warehouseStocksToUpdate = [];
             $newProductIds = array_filter(array_column($products, 'product_id'));
             $newProductsData = Product::whereIn('id', $newProductIds)->get()->keyBy('id');
-            $productPriceIds = $project_id ? $newProductIds : [];
-            $productPricesData = $project_id && $productPriceIds !== []
-                ? ProductPrice::whereIn('product_id', $productPriceIds)->get()->keyBy('product_id')
-                : collect();
-
-            foreach ($products as $product) {
-                $p_id = $product['product_id'];
-                $width = $product['width'] ?? null;
-                $height = $product['height'] ?? null;
-
-                $product_object = $newProductsData->get($p_id);
-                if (!$product_object) {
-                    throw new \Exception("Товар ID {$p_id} не найден");
-                }
-
-                $q = $this->calculateProductQuantity($product, $product_object, $roundingService, $companyId);
-                $unitPrices = $this->resolveOrderLineUnitPrices(
-                    $p_id,
-                    (float) ($product['price'] ?? 0),
-                    $project_id,
-                    $productPricesData,
-                    $documentCurrency,
-                    $defaultCurrency,
-                    $companyId,
-                    $rateDate,
-                    $roundingService
-                );
-                $defUnit = (float) $unitPrices['def_unit'];
-                $price += $q * $defUnit;
-
-                $productsCache[] = [
-                    'id' => $product['id'] ?? null,
-                    'product_id' => $p_id,
-                    'quantity' => $q,
-                    'price' => $defUnit,
-                    'orig_unit_price' => (float) $unitPrices['orig_unit'],
-                    'orig_currency_id' => (int) $unitPrices['orig_currency_id'],
-                    'width' => $width,
-                    'height' => $height,
-                ];
-
-                if ($product_object->type == 1) {
-                    if (!isset($warehouseStocksToUpdate[$p_id])) {
-                        $warehouseStocksToUpdate[$p_id] = [
-                            'quantity' => 0,
-                            'product_name' => $product_object->name,
-                        ];
-                    }
-                    $warehouseStocksToUpdate[$p_id]['quantity'] += $q;
-                }
-            }
+            $lineData = $this->buildOrderLinesFromRequest(
+                $products,
+                $temp_products,
+                $newProductsData,
+                $roundingService,
+                $companyId,
+                $documentCurrency,
+                $defaultCurrency,
+                $rateDate
+            );
+            $price = $lineData['price'];
+            $origSubtotal = $lineData['orig_subtotal'];
+            $productsCache = $lineData['products_cache'];
+            $warehouseStocksToUpdate = $lineData['warehouse_stocks'];
+            $tempRows = $lineData['temp_rows'];
 
             $warehouseName = Warehouse::find($warehouse_id)?->name ?? (string) $warehouse_id;
             $this->checkAndDeductWarehouseStock($warehouseStocksToUpdate, $warehouse_id, $warehouseName);
 
-            $tempRows = [];
-            foreach ($temp_products as $temp_product) {
-                $q = $roundingService->roundQuantityForCompany($companyId, (float) ($temp_product['quantity'] ?? 0));
-                $unitPrices = $this->resolveOrderTempLineUnitPrices(
-                    (float) ($temp_product['price'] ?? 0),
-                    $documentCurrency,
-                    $defaultCurrency,
-                    $companyId,
-                    $rateDate,
-                    $roundingService
-                );
-                $defUnit = (float) $unitPrices['def_unit'];
-                $price += $q * $defUnit;
-                $tempRows[] = [
-                    'order_id' => null,
-                    'name' => $temp_product['name'],
-                    'description' => $temp_product['description'] ?? null,
-                    'quantity' => $q,
-                    'price' => $defUnit,
-                    'orig_unit_price' => (float) $unitPrices['orig_unit'],
-                    'orig_currency_id' => (int) $unitPrices['orig_currency_id'],
-                    'unit_id' => $temp_product['unit_id'] ?? null,
-                    'width' => $temp_product['width'] ?? null,
-                    'height' => $temp_product['height'] ?? null,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
-            }
-
-            $discountForCalc = (float) $discount;
-            if ($discount_type === 'fixed') {
-                $discountForCalc = (float) CurrencyConverter::convert(
-                    $discountForCalc,
-                    $documentCurrency,
-                    $defaultCurrency,
-                    null,
-                    $companyId,
-                    $rateDate
-                );
-            }
-
-            $pricing = $this->calculateDiscountAndTotal($price, $discountForCalc, $discount_type, $roundingService, $companyId);
-            $price = $pricing['price'];
-            $discount_calculated = $pricing['discount'];
-            $total_price = $pricing['total_price'];
+            $headerPricing = $this->resolveOrderHeaderPricing(
+                $origSubtotal,
+                $price,
+                (float) $discount,
+                $discount_type,
+                $documentCurrency,
+                $defaultCurrency,
+                $companyId,
+                $rateDate,
+                $roundingService
+            );
 
             $order = new Order();
             $order->client_id = $client_id;
@@ -935,9 +650,7 @@ class OrdersRepository extends BaseRepository
             $order->cash_id = $cash_id;
             $order->status_id = $status_id;
             $order->category_id = $category_id;
-            $order->price = $price;
-            $order->discount = $discount_calculated;
-            $order->total_price = $total_price;
+            $order->fill($this->orderHeaderPricingFields($headerPricing));
             $order->date = $date;
             $order->note = $note;
             $order->description = $description;
@@ -975,13 +688,13 @@ class OrdersRepository extends BaseRepository
                 $this->createTransactionForSource(
                     $this->orderDebtTransactionPayload(
                         $client_id,
-                        (float) $total_price,
+                        (float) $headerPricing['total_price'],
+                        (int) $headerPricing['currency_id'],
                         $cash_id,
                         $date,
                         $note,
                         (int) $userUuid,
                         $project_id,
-                        (int) $defaultCurrency->id,
                         $order->client_balance_id
                     ),
                     Order::class,
@@ -1053,70 +766,26 @@ class OrdersRepository extends BaseRepository
             );
             $rateDate = $this->orderDateForRates($date);
 
-            $price = 0;
-            $discount_calculated = 0;
-            $total_price = 0;
-
             $newProductIds = array_filter(array_column($products, 'product_id'));
             $newProductsData = Product::whereIn('id', $newProductIds)->get()->keyBy('id');
 
-            $productPriceIds = $project_id ? $newProductIds : [];
-            $productPricesData = $project_id && !empty($productPriceIds)
-                ? ProductPrice::whereIn('product_id', $productPriceIds)->get()->keyBy('product_id')
-                : collect();
-
             $warehouseName = $warehouseChanged ? Warehouse::find($warehouse_id)?->name : null;
 
-            $productsCache = [];
-            $warehouseStocksToUpdate = [];
-
-            foreach ($products as $product) {
-                $p_id = $product['product_id'];
-                $width = $product['width'] ?? null;
-                $height = $product['height'] ?? null;
-
-                $product_object = $newProductsData->get($p_id);
-                if (!$product_object) {
-                    throw new \Exception("Товар ID {$p_id} не найден");
-                }
-
-                $q = $this->calculateProductQuantity($product, $product_object, $roundingService, $companyId);
-                $requestUnitPrice = (float) ($product['price'] ?? 0);
-                $unitPrices = $this->resolveOrderLineUnitPrices(
-                    $p_id,
-                    $requestUnitPrice,
-                    $project_id,
-                    $productPricesData,
-                    $documentCurrency,
-                    $defaultCurrency,
-                    $companyId,
-                    $rateDate,
-                    $roundingService
-                );
-                $defUnit = (float) $unitPrices['def_unit'];
-                $price += $q * $defUnit;
-
-                $productsCache[] = [
-                    'id' => $product['id'] ?? null,
-                    'product_id' => $p_id,
-                    'quantity' => $q,
-                    'price' => $defUnit,
-                    'orig_unit_price' => (float) $unitPrices['orig_unit'],
-                    'orig_currency_id' => (int) $unitPrices['orig_currency_id'],
-                    'width' => $width,
-                    'height' => $height,
-                ];
-
-                if ($product_object->type == 1) {
-                    if (!isset($warehouseStocksToUpdate[$p_id])) {
-                        $warehouseStocksToUpdate[$p_id] = [
-                            'quantity' => 0,
-                            'product_name' => $product_object->name,
-                        ];
-                    }
-                    $warehouseStocksToUpdate[$p_id]['quantity'] += $q;
-                }
-            }
+            $lineData = $this->buildOrderLinesFromRequest(
+                $products,
+                $temp_products,
+                $newProductsData,
+                $roundingService,
+                $companyId,
+                $documentCurrency,
+                $defaultCurrency,
+                $rateDate,
+                false
+            );
+            $price = $lineData['price'];
+            $origSubtotal = $lineData['orig_subtotal'];
+            $productsCache = $lineData['products_cache'];
+            $warehouseStocksToUpdate = $lineData['warehouse_stocks'];
 
             $oldWarehouseStocks = $this->aggregateWarehouseStockFromOrderLines($oldProducts);
             $shouldSyncWarehouseStock = $warehouseChanged
@@ -1127,50 +796,29 @@ class OrdersRepository extends BaseRepository
                 $this->checkAndDeductWarehouseStock($warehouseStocksToUpdate, $warehouse_id, $warehouseName);
             }
 
-            foreach ($temp_products as $temp_product) {
-                $q = $roundingService->roundQuantityForCompany($companyId, (float) ($temp_product['quantity'] ?? 0));
-                $unitPrices = $this->resolveOrderTempLineUnitPrices(
-                    (float) ($temp_product['price'] ?? 0),
-                    $documentCurrency,
-                    $defaultCurrency,
-                    $companyId,
-                    $rateDate,
-                    $roundingService
-                );
-                $price += $q * (float) $unitPrices['def_unit'];
-            }
+            $headerPricing = $this->resolveOrderHeaderPricing(
+                $origSubtotal,
+                $price,
+                (float) $discount,
+                $discount_type,
+                $documentCurrency,
+                $defaultCurrency,
+                $companyId,
+                $rateDate,
+                $roundingService
+            );
 
-            $discountForCalc = (float) $discount;
-            if ($discount_type === 'fixed') {
-                $discountForCalc = (float) CurrencyConverter::convert(
-                    $discountForCalc,
-                    $documentCurrency,
-                    $defaultCurrency,
-                    null,
-                    $companyId,
-                    $rateDate
-                );
-            }
-
-            $pricing = $this->calculateDiscountAndTotal($price, $discountForCalc, $discount_type, $roundingService, $companyId);
-            $price = $pricing['price'];
-            $discount_calculated = $pricing['discount'];
-            $total_price = $pricing['total_price'];
-
-            $updateData = [
+            $updateData = array_merge([
                 'client_id' => $client_id,
                 'project_id' => $project_id,
                 'warehouse_id' => $warehouse_id,
                 'cash_id' => $cash_id,
                 'status_id' => $status_id,
                 'category_id' => $category_id,
-                'price' => $price,
-                'discount' => $discount_calculated,
-                'total_price' => $total_price,
                 'date' => $date,
                 'note' => $note,
-                'description' => $description
-            ];
+                'description' => $description,
+            ], $this->orderHeaderPricingFields($headerPricing));
             if (array_key_exists('client_balance_id', $data)) {
                 $updateData['client_balance_id'] = NullableInt::fromRequest($data['client_balance_id']);
             }
@@ -1312,13 +960,12 @@ class OrdersRepository extends BaseRepository
             foreach ($temp_products as $temp_product) {
                 $tempId = $temp_product['id'] ?? null;
                 $q = $roundingService->roundQuantityForCompany($companyId, (float) ($temp_product['quantity'] ?? 0));
-                $unitPrices = $this->resolveOrderTempLineUnitPrices(
+                $unitPrices = $this->resolveOrderLineUnitPrices(
                     (float) ($temp_product['price'] ?? 0),
                     $documentCurrency,
                     $defaultCurrency,
                     $companyId,
-                    $rateDate,
-                    $roundingService
+                    $rateDate
                 );
                 $defUnit = (float) $unitPrices['def_unit'];
                 $origUnit = (float) $unitPrices['orig_unit'];
@@ -1412,13 +1059,9 @@ class OrdersRepository extends BaseRepository
                     ->where('is_deleted', false)
                     ->value('orig_amount');
 
-                $storedTotal = (float) ($order->total_price ?? 0);
                 $needsTransactionSync = $client_id
                     && $debtTxAmount !== null
-                    && (
-                        abs((float) $debtTxAmount - (float) $total_price) > 0.00001
-                        || abs((float) $debtTxAmount - $storedTotal) > 0.00001
-                    );
+                    && abs((float) $debtTxAmount - (float) $headerPricing['total_price']) > 0.00001;
 
                 if (!$needsTransactionSync) {
                     DB::commit();
@@ -1436,8 +1079,8 @@ class OrdersRepository extends BaseRepository
 
             if ($orderTransaction) {
                 if ($client_id) {
-                    $transactionNeedsUpdate = abs((float) $orderTransaction->orig_amount - (float) $total_price) > 0.00001
-                        || (int) $orderTransaction->currency_id !== (int) $defaultCurrency->id
+                    $transactionNeedsUpdate = abs((float) $orderTransaction->orig_amount - (float) $headerPricing['total_price']) > 0.00001
+                        || (int) $orderTransaction->currency_id !== (int) $headerPricing['currency_id']
                         || (int) $orderTransaction->client_id !== (int) $client_id
                         || (int) $orderTransaction->project_id !== (int) $project_id
                         || (int) $orderTransaction->cash_id !== (int) ($cash_id ?? 0)
@@ -1447,18 +1090,22 @@ class OrdersRepository extends BaseRepository
 
                     if ($transactionNeedsUpdate) {
                         $txRepo = new TransactionsRepository();
-                        $txRepo->updateItem($orderTransaction->id, [
-                            'amount' => $total_price,
-                            'orig_amount' => $total_price,
-                            'currency_id' => $defaultCurrency->id,
-                            'client_id' => $client_id,
-                            'project_id' => $project_id,
-                            'cash_id' => $cash_id,
-                            'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::ORDER),
-                            'date' => $date,
-                            'note' => $note,
-                            'client_balance_id' => $order->client_balance_id,
-                        ]);
+                        $txRepo->updateItem($orderTransaction->id, array_merge(
+                            $this->orderDebtTransactionAmountSyncPayload(
+                                $orderTransaction,
+                                (float) $headerPricing['total_price'],
+                                (int) $headerPricing['currency_id']
+                            ),
+                            [
+                                'client_id' => $client_id,
+                                'project_id' => $project_id,
+                                'cash_id' => $cash_id,
+                                'category_id' => $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::ORDER),
+                                'date' => $date,
+                                'note' => $note,
+                                'client_balance_id' => $order->client_balance_id,
+                            ]
+                        ));
                     }
                 } else {
                     app(TransactionsRepository::class)->deleteItem((int) $orderTransaction->id);
@@ -1467,13 +1114,13 @@ class OrdersRepository extends BaseRepository
                 $this->createTransactionForSource(
                     $this->orderDebtTransactionPayload(
                         $client_id,
-                        (float) $total_price,
+                        (float) $headerPricing['total_price'],
+                        (int) $headerPricing['currency_id'],
                         $cash_id,
                         $date,
                         $note,
                         (int) $order->creator_id,
                         $project_id,
-                        (int) $defaultCurrency->id,
                         $order->client_balance_id
                     ),
                     Order::class,
@@ -1579,7 +1226,7 @@ class OrdersRepository extends BaseRepository
             }
 
             if (in_array($statusId, [5], true) && !$order->project_id) {
-                $orderTotal = (float) ($order->total_price ?? 0);
+                $orderTotal = (float) ($order->def_total_price ?? 0);
                 $paidTotal = (float) ($order->paid_amount ?? 0);
                 $remainingAmount = $orderTotal - $paidTotal;
 
@@ -1809,6 +1456,268 @@ class OrdersRepository extends BaseRepository
     }
 
     /**
+     * @param  Order  $order
+     * @return array{orig: float, def: float}
+     */
+    public function sumOrderLineSubtotals(Order $order): array
+    {
+        $order->loadMissing(['orderProducts', 'tempProducts']);
+
+        $origSubtotal = 0.0;
+        $defSubtotal = 0.0;
+
+        foreach ($order->orderProducts as $line) {
+            $qty = (float) $line->quantity;
+            $origSubtotal += $qty * (float) ($line->orig_unit_price ?? $line->price);
+            $defSubtotal += $qty * (float) $line->price;
+        }
+
+        foreach ($order->tempProducts as $line) {
+            $qty = (float) $line->quantity;
+            $origSubtotal += $qty * (float) ($line->orig_unit_price ?? $line->price);
+            $defSubtotal += $qty * (float) $line->price;
+        }
+
+        return ['orig' => $origSubtotal, 'def' => $defSubtotal];
+    }
+
+    /**
+     * @param  int|null  $companyId
+     * @return Currency|null
+     */
+    protected function getOrderReportCurrency(?int $companyId): ?Currency
+    {
+        return Currency::where('is_report', true)
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->first();
+    }
+
+    /**
+     * @param  array{price: float, discount: float, total_price: float}  $origPricing
+     * @return array{rep_price: float|null, rep_discount: float|null, rep_total_price: float|null, rep_currency_id: int|null}
+     */
+    protected function resolveOrderRepHeaderPricing(
+        array $origPricing,
+        Currency $documentCurrency,
+        Currency $defaultCurrency,
+        ?Currency $reportCurrency,
+        ?int $companyId,
+        string $rateDate,
+        RoundingService $roundingService
+    ): array {
+        if (! $reportCurrency) {
+            return [
+                'rep_price' => null,
+                'rep_discount' => null,
+                'rep_total_price' => null,
+                'rep_currency_id' => null,
+            ];
+        }
+
+        $convert = static fn(float $amount) => (float) CurrencyConverter::convert(
+            $amount,
+            $documentCurrency,
+            $reportCurrency,
+            $defaultCurrency,
+            $companyId,
+            $rateDate
+        );
+
+        $repPrice = $convert((float) $origPricing['price']);
+        $repDiscount = $convert((float) $origPricing['discount']);
+        $repTotal = $convert((float) $origPricing['total_price']);
+
+        if ($companyId && $roundingService->shouldRoundOrderAmounts($companyId)) {
+            $repTotal = $roundingService->roundOrderAmountForCompany($companyId, $repTotal);
+        }
+
+        return [
+            'rep_price' => $repPrice,
+            'rep_discount' => $repDiscount,
+            'rep_total_price' => $repTotal,
+            'rep_currency_id' => (int) $reportCurrency->id,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     *
+     * @throws \Exception
+     */
+    public function resolveOrderHeaderPricing(
+        float $origSubtotal,
+        float $defSubtotal,
+        float $discount,
+        string $discountType,
+        Currency $documentCurrency,
+        Currency $defaultCurrency,
+        ?int $companyId,
+        string $rateDate,
+        RoundingService $roundingService
+    ): array {
+        $origPricing = $this->calculateDiscountAndTotal(
+            $origSubtotal,
+            $discount,
+            $discountType,
+            $roundingService,
+            $companyId
+        );
+
+        $defDiscountInput = $discount;
+        if ($discountType === 'fixed') {
+            $defDiscountInput = (float) CurrencyConverter::convert(
+                $discount,
+                $documentCurrency,
+                $defaultCurrency,
+                null,
+                $companyId,
+                $rateDate
+            );
+        }
+
+        $defPricing = $this->calculateDiscountAndTotal(
+            $defSubtotal,
+            $defDiscountInput,
+            $discountType,
+            $roundingService,
+            $companyId
+        );
+
+        $rep = $this->resolveOrderRepHeaderPricing(
+            $origPricing,
+            $documentCurrency,
+            $defaultCurrency,
+            $this->getOrderReportCurrency($companyId),
+            $companyId,
+            $rateDate,
+            $roundingService
+        );
+
+        return array_merge([
+            'price' => $origPricing['price'],
+            'discount' => $origPricing['discount'],
+            'discount_type' => $discountType,
+            'total_price' => $origPricing['total_price'],
+            'currency_id' => (int) $documentCurrency->id,
+            'def_price' => $defPricing['price'],
+            'def_discount' => $defPricing['discount'],
+            'def_total_price' => $defPricing['total_price'],
+            'def_currency_id' => (int) $defaultCurrency->id,
+        ], $rep);
+    }
+
+    /**
+     * @return array<string, mixed>
+     *
+     * @throws \Exception
+     */
+    public function resolveOrderHeaderPricingFromStoredDefDiscount(
+        float $origSubtotal,
+        float $defSubtotal,
+        float $defDiscount,
+        Currency $documentCurrency,
+        Currency $defaultCurrency,
+        ?int $companyId,
+        string $rateDate,
+        RoundingService $roundingService
+    ): array {
+        $defPricing = $this->calculateDiscountAndTotal(
+            $defSubtotal,
+            $defDiscount,
+            'fixed',
+            $roundingService,
+            $companyId
+        );
+
+        $origDiscount = (float) CurrencyConverter::convert(
+            $defDiscount,
+            $defaultCurrency,
+            $documentCurrency,
+            null,
+            $companyId,
+            $rateDate
+        );
+
+        $origPricing = $this->calculateDiscountAndTotal(
+            $origSubtotal,
+            $origDiscount,
+            'fixed',
+            $roundingService,
+            $companyId
+        );
+
+        $rep = $this->resolveOrderRepHeaderPricing(
+            $origPricing,
+            $documentCurrency,
+            $defaultCurrency,
+            $this->getOrderReportCurrency($companyId),
+            $companyId,
+            $rateDate,
+            $roundingService
+        );
+
+        return array_merge([
+            'price' => $origPricing['price'],
+            'discount' => $origPricing['discount'],
+            'total_price' => $origPricing['total_price'],
+            'currency_id' => (int) $documentCurrency->id,
+            'def_price' => $defPricing['price'],
+            'def_discount' => $defPricing['discount'],
+            'def_total_price' => $defPricing['total_price'],
+            'def_currency_id' => (int) $defaultCurrency->id,
+        ], $rep);
+    }
+
+    /**
+     * @param  Order  $order
+     * @param  array<string, mixed>  $pricingFields
+     * @return bool
+     */
+    protected function orderHeaderPricingDiffers(Order $order, array $pricingFields): bool
+    {
+        foreach ($pricingFields as $field => $value) {
+            $current = $order->getAttribute($field);
+            if ($value === null && ($current === null || $current === '')) {
+                continue;
+            }
+            if (is_numeric($value) || is_numeric($current)) {
+                if (abs((float) $current - (float) $value) > 0.00001) {
+                    return true;
+                }
+            } elseif ((string) $current !== (string) $value) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $pricing
+     * @return array<string, mixed>
+     */
+    protected function orderHeaderPricingFields(array $pricing): array
+    {
+        return [
+            'price' => $pricing['price'],
+            'discount' => $pricing['discount'],
+            'discount_type' => $pricing['discount_type'] ?? 'fixed',
+            'total_price' => $pricing['total_price'],
+            'currency_id' => $pricing['currency_id'],
+            'def_price' => $pricing['def_price'],
+            'def_discount' => $pricing['def_discount'],
+            'def_total_price' => $pricing['def_total_price'],
+            'def_currency_id' => $pricing['def_currency_id'],
+            'rep_price' => $pricing['rep_price'],
+            'rep_discount' => $pricing['rep_discount'],
+            'rep_total_price' => $pricing['rep_total_price'],
+            'rep_currency_id' => $pricing['rep_currency_id'],
+        ];
+    }
+
+    /**
      * Рассчитать скидку и итоговую сумму
      *
      * @param float $price Сумма без скидки
@@ -1848,7 +1757,7 @@ class OrdersRepository extends BaseRepository
     }
 
     /**
-     * Пересчитать orders.total_price по сохранённым price/discount и синхронизировать долговую транзакцию.
+     * Пересчитать orders.def_total_price по сохранённым def_price/def_discount и синхронизировать долговую транзакцию.
      * Строки заказа (order_products / order_temp_products) не изменяются.
      *
      * @param int $orderId
@@ -1874,23 +1783,31 @@ class OrdersRepository extends BaseRepository
     ): array {
         $order = Order::query()->findOrFail($orderId);
         $companyId = $companyId ?? $this->resolveOrderCompanyId([], $order);
+        $roundingService = new RoundingService();
+        $defaultCurrency = $this->getOrderDefaultCurrency();
+        $documentCurrency = $this->resolveOrderDocumentCurrency(
+            $order->cash_id ? (int) $order->cash_id : null,
+            null
+        );
+        $rateDate = $this->orderDateForRates($order->date);
+        $lineSubtotals = $this->sumOrderLineSubtotals($order);
 
-        $price = (float) ($order->price ?? 0);
-        $discount = (float) ($order->discount ?? 0);
+        $headerPricing = $this->resolveOrderHeaderPricingFromStoredDefDiscount(
+            $lineSubtotals['orig'],
+            $lineSubtotals['def'],
+            (float) ($order->def_discount ?? 0),
+            $documentCurrency,
+            $defaultCurrency,
+            $companyId,
+            $rateDate,
+            $roundingService
+        );
 
-        if ($companyId) {
-            $newTotal = (float) $this->calculateDiscountAndTotal(
-                $price,
-                $discount,
-                'fixed',
-                new RoundingService(),
-                $companyId
-            )['total_price'];
-        } else {
-            $newTotal = max(0.0, $price - $discount);
-        }
-
-        $oldTotal = (float) ($order->total_price ?? 0);
+        $pricingFields = $this->orderHeaderPricingFields($headerPricing);
+        $newTotal = (float) $headerPricing['def_total_price'];
+        $newOrigTotal = (float) $headerPricing['total_price'];
+        $oldTotal = (float) ($order->def_total_price ?? 0);
+        $headerChanged = $this->orderHeaderPricingDiffers($order, $pricingFields);
         $clientId = $order->client_id;
         $projectId = $order->project_id;
         $cashId = $order->cash_id;
@@ -1906,20 +1823,19 @@ class OrdersRepository extends BaseRepository
             ->first();
 
         $oldTxAmount = (float) ($orderTransaction->orig_amount ?? 0);
-        $defaultCurrency = $this->getOrderDefaultCurrency();
 
-        $totalChanged = abs($oldTotal - $newTotal) > 0.00001;
+        $totalChanged = $headerChanged;
         $txAmountChanged = false;
         $txMetaChanged = false;
 
         if ($clientId) {
             if (! $orderTransaction) {
-                $txAmountChanged = $newTotal > 0.00001;
+                $txAmountChanged = $newOrigTotal > 0.00001;
             } else {
-                $txAmountChanged = abs($oldTxAmount - $newTotal) > 0.00001;
+                $txAmountChanged = abs($oldTxAmount - $newOrigTotal) > 0.00001
+                    || (int) $orderTransaction->currency_id !== (int) $headerPricing['currency_id'];
                 if ($syncTransactionMeta) {
-                    $txMetaChanged = (int) $orderTransaction->currency_id !== (int) $defaultCurrency->id
-                        || (int) $orderTransaction->client_id !== (int) $clientId
+                    $txMetaChanged = (int) $orderTransaction->client_id !== (int) $clientId
                         || (int) ($orderTransaction->project_id ?? 0) !== (int) ($projectId ?? 0)
                         || (int) ($orderTransaction->cash_id ?? 0) !== (int) ($cashId ?? 0)
                         || ! $this->orderTransactionDatesEqual($orderTransaction->date, $date)
@@ -1945,7 +1861,7 @@ class OrdersRepository extends BaseRepository
                 'old_total' => $oldTotal,
                 'new_total' => $newTotal,
                 'old_tx_amount' => $oldTxAmount,
-                'new_tx_amount' => $clientId ? $newTotal : 0.0,
+                'new_tx_amount' => $clientId ? $newOrigTotal : 0.0,
             ], $changeFlags);
         }
 
@@ -1955,7 +1871,7 @@ class OrdersRepository extends BaseRepository
                 'old_total' => $oldTotal,
                 'new_total' => $newTotal,
                 'old_tx_amount' => $oldTxAmount,
-                'new_tx_amount' => $clientId ? $newTotal : 0.0,
+                'new_tx_amount' => $clientId ? $newOrigTotal : 0.0,
             ], $changeFlags);
         }
 
@@ -1963,7 +1879,7 @@ class OrdersRepository extends BaseRepository
 
         try {
             if ($totalChanged) {
-                $order->total_price = $newTotal;
+                $order->fill($pricingFields);
                 $order->save();
             }
 
@@ -1971,10 +1887,13 @@ class OrdersRepository extends BaseRepository
                 if ($clientId) {
                     if ($txChanged) {
                         $txRepo = new TransactionsRepository();
-                        $txPayload = $this->orderDebtTransactionAmountSyncPayload($orderTransaction, $newTotal);
+                        $txPayload = $this->orderDebtTransactionAmountSyncPayload(
+                            $orderTransaction,
+                            $newOrigTotal,
+                            (int) $headerPricing['currency_id']
+                        );
                         if ($syncTransactionMeta) {
                             $txPayload = array_merge($txPayload, [
-                                'currency_id' => $defaultCurrency->id,
                                 'client_id' => $clientId,
                                 'project_id' => $projectId,
                                 'cash_id' => $cashId,
@@ -1989,17 +1908,17 @@ class OrdersRepository extends BaseRepository
                 } else {
                     app(TransactionsRepository::class)->deleteItem((int) $orderTransaction->id);
                 }
-            } elseif ($clientId && $newTotal > 0.00001) {
+            } elseif ($clientId && $newOrigTotal > 0.00001) {
                 $this->createTransactionForSource(
                     $this->orderDebtTransactionPayload(
                         (int) $clientId,
-                        $newTotal,
+                        $newOrigTotal,
+                        (int) $headerPricing['currency_id'],
                         $cashId,
                         $date,
                         $note,
                         (int) $order->creator_id,
                         $projectId,
-                        (int) $defaultCurrency->id,
                         $order->client_balance_id
                     ),
                     Order::class,
@@ -2243,15 +2162,11 @@ class OrdersRepository extends BaseRepository
      * @return array{def_unit: float, orig_unit: float, orig_currency_id: int}
      */
     protected function resolveOrderLineUnitPrices(
-        int $productId,
         float $requestUnitPrice,
-        ?int $projectId,
-        $productPricesData,
         Currency $documentCurrency,
         Currency $defaultCurrency,
         int $companyId,
-        string $rateDate,
-        RoundingService $roundingService
+        string $rateDate
     ): array {
         $origUnit = (float) $requestUnitPrice;
         $defUnit = (float) CurrencyConverter::convert(
@@ -2268,109 +2183,11 @@ class OrdersRepository extends BaseRepository
             'orig_unit' => $origUnit,
             'orig_currency_id' => $documentCurrency->id,
         ];
-    }
-
-    /**
-     * @return array{def_unit: float, orig_unit: float, orig_currency_id: int}
-     */
-    protected function resolveOrderTempLineUnitPrices(
-        float $requestUnitPrice,
-        Currency $documentCurrency,
-        Currency $defaultCurrency,
-        int $companyId,
-        string $rateDate,
-        RoundingService $roundingService
-    ): array {
-        $origUnit = (float) $requestUnitPrice;
-        $defUnit = (float) CurrencyConverter::convert(
-            $origUnit,
-            $documentCurrency,
-            $defaultCurrency,
-            null,
-            $companyId,
-            $rateDate
-        );
-
-        return [
-            'def_unit' => $defUnit,
-            'orig_unit' => $origUnit,
-            'orig_currency_id' => $documentCurrency->id,
-        ];
-    }
-
-    protected function enrichOrderData($order, $loadProducts = true): void
-    {
-        $order->status_name = $order->status->name ?? null;
-        if ($order->status && $order->status->category) {
-            $order->status_category_name = $order->status->category->name;
-            $order->status_category_color = $order->status->category->color;
-        }
-
-        $order->warehouse_name = $order->warehouse->name ?? null;
-        $order->cash_name = $order->cashRegister->name ?? null;
-        $order->cash_is_cash = $order->cashRegister->is_cash ?? null;
-
-        if ($order->cashRegister && $order->cashRegister->currency) {
-            $order->currency_name = $order->cashRegister->currency->name;
-            $order->currency_symbol = $order->cashRegister->currency->code;
-        }
-
-        $order->project_name = $order->project->name ?? null;
-        $order->category_name = $order->category->name ?? null;
-        if ($loadProducts) {
-            $regularProducts = $order->orderProducts ? $order->orderProducts->map(function ($orderProduct) {
-                return [
-                    'id' => $orderProduct->id,
-                    'order_id' => $orderProduct->order_id,
-                    'product_id' => $orderProduct->product_id,
-                    'product_name' => $orderProduct->product?->name ?? null,
-                    'product_image' => $orderProduct->product?->image ?? null,
-                    'unit_id' => $orderProduct->product?->unit_id ?? null,
-                    'unit_short_name' => $orderProduct->product?->unit?->short_name,
-                    'quantity' => $orderProduct->quantity,
-                    'price' => $orderProduct->price,
-                    'width' => $orderProduct->width,
-                    'height' => $orderProduct->height,
-                    'product_type' => 'regular'
-                ];
-            }) : collect();
-
-            $tempProducts = $order->tempProducts ? $order->tempProducts->map(function ($tempProduct) {
-                return [
-                    'id' => $tempProduct->id,
-                    'order_id' => $tempProduct->order_id,
-                    'product_id' => null,
-                    'product_name' => $tempProduct->name,
-                    'product_image' => null,
-                    'unit_id' => $tempProduct->unit_id,
-                    'unit_short_name' => $tempProduct->unit?->short_name,
-                    'quantity' => $tempProduct->quantity,
-                    'price' => $tempProduct->price,
-                    'width' => $tempProduct->width,
-                    'height' => $tempProduct->height,
-                    'product_type' => 'temp'
-                ];
-            }) : collect();
-
-            $order->setAttribute('products', $regularProducts->merge($tempProducts));
-        } else {
-            $order->setAttribute('products', collect());
-        }
     }
 
     protected function setOrderPaymentInfo($order, float $paidAmount): void
     {
-        $totalPrice = (float) ($order->total_price ?? 0);
-        $order->setAttribute('paid_amount', $paidAmount);
-        $order->setAttribute(
-            'payment_status',
-            $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid')
-        );
-        $order->setAttribute(
-            'payment_status_text',
-            $paidAmount <= 0 ? 'Не оплачено' : ($paidAmount < $totalPrice ? 'Частично оплачено' : 'Оплачено')
-        );
-        $order->makeVisible(['paid_amount', 'payment_status', 'payment_status_text']);
+        app(OrderPaymentStatusService::class)->applyToOrder($order, $paidAmount);
     }
 
     /**
@@ -2378,16 +2195,19 @@ class OrdersRepository extends BaseRepository
      *
      * @return array<string, mixed>
      */
-    private function orderDebtTransactionAmountSyncPayload(Transaction $orderTransaction, float $newTotal): array
-    {
+    private function orderDebtTransactionAmountSyncPayload(
+        Transaction $orderTransaction,
+        float $origTotal,
+        int $origCurrencyId
+    ): array {
         return [
-            'orig_amount' => $newTotal,
+            'orig_amount' => $origTotal,
+            'currency_id' => $origCurrencyId,
             'skip_amount_rounding' => true,
             'client_id' => (int) $orderTransaction->client_id,
             'category_id' => (int) $orderTransaction->category_id,
             'date' => $orderTransaction->date,
             'note' => $orderTransaction->note,
-            'currency_id' => (int) $orderTransaction->currency_id,
             'cash_id' => $orderTransaction->cash_id,
             'project_id' => $orderTransaction->project_id,
             'client_balance_id' => $orderTransaction->client_balance_id,
@@ -2410,21 +2230,20 @@ class OrdersRepository extends BaseRepository
      */
     private function orderDebtTransactionPayload(
         int $clientId,
-        float $totalPrice,
+        float $origTotalPrice,
+        int $origCurrencyId,
         $cashId,
         $date,
         ?string $note,
         int $creatorId,
         $projectId,
-        int $currencyId,
         ?int $clientBalanceId
     ): array {
         $categoryId = $this->requireTransactionCategoryBinding(TransactionCategoryBindingKeys::ORDER);
 
         return [
             'client_id' => $clientId,
-            'amount' => $totalPrice,
-            'orig_amount' => $totalPrice,
+            'orig_amount' => $origTotalPrice,
             'skip_amount_rounding' => true,
             'type' => 1,
             'is_debt' => true,
@@ -2434,7 +2253,7 @@ class OrdersRepository extends BaseRepository
             'note' => $note,
             'creator_id' => $creatorId,
             'project_id' => $projectId,
-            'currency_id' => $currencyId,
+            'currency_id' => $origCurrencyId,
             'client_balance_id' => $clientBalanceId,
         ];
     }
@@ -2453,7 +2272,7 @@ class OrdersRepository extends BaseRepository
             ->where('source_id', $orderId)
             ->where('is_debt', 0)
             ->where('is_deleted', false)
-            ->sum('orig_amount');
+            ->sum(DB::raw('COALESCE(def_amount, orig_amount)'));
 
         Order::where('id', $orderId)->update([
             'paid_amount' => (float) $paidAmount

@@ -37,7 +37,7 @@ class TaskReferenceResource extends JsonResource
                 'email' => $creator->email,
             ] : null,
             'deadline' => $task->deadline?->toDateTimeString(),
-            'description' => null,
+            'description' => $task->description,
             'executor' => $executor ? [
                 'id' => $executor->id,
                 'name' => $executor->name,

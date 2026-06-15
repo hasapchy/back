@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Client;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
@@ -108,6 +109,18 @@ class ClientBalanceViewAccess
      * @param  Collection<int, \App\Models\ClientBalance>  $balances
      * @return Collection<int, \App\Models\ClientBalance>
      */
+    public static function visibleDefaultBalanceValue(Client $client, ?User $user = null, ?int $companyId = null): float
+    {
+        $user = $user ?? auth('api')->user();
+        $balances = $client->relationLoaded('balances')
+            ? $client->balances
+            : $client->balances()->with('currency')->get();
+        $filtered = self::filterBalancesForUser($balances, $user, $companyId);
+        $visibleDefault = $filtered->firstWhere('is_default', true) ?? $filtered->first();
+
+        return $visibleDefault ? (float) $visibleDefault->balance : 0.0;
+    }
+
     public static function filterBalancesForUser(Collection $balances, ?User $user, ?int $companyId = null): Collection
     {
         if (! $user) {

@@ -54,13 +54,4 @@ class ProjectStatus extends Model
         return $this->belongsTo(User::class, 'creator_id');
     }
 
-    /**
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $userId
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeByUser($query, $userId)
-    {
-        return $query->where('creator_id', $userId);
-    }
 }

@@ -121,7 +121,6 @@ class UserFilterPresetsControllerTest extends TestCase
 
         $ok->assertStatus(201);
         $ok->assertJsonPath('data.filters.dateFilter', 'all_time');
-        $ok->assertJsonPath('data.filters.paidOrdersFilter', false);
         $ok->assertJsonPath('data.filters.statusFilter', '5');
     }
 
@@ -326,7 +325,6 @@ class UserFilterPresetsControllerTest extends TestCase
                 'projectFilter' => '',
                 'clientFilter' => '',
                 'categoryFilter' => '',
-                'paidOrdersFilter' => false,
             ],
         ]);
 

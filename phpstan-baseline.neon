@@ -861,11 +861,6 @@ parameters:
 			path: app/Repositories/OrdersRepository.php
 
 		-
-			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$unpaid_total\\.$#"
-			count: 1
-			path: app/Repositories/OrdersRepository.php
-
-		-
 			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$user_name\\.$#"
 			count: 2
 			path: app/Repositories/OrdersRepository.php
@@ -886,17 +881,7 @@ parameters:
 			path: app/Repositories/OrdersRepository.php
 
 		-
-			message: "#^Access to an undefined property Illuminate\\\\Pagination\\\\LengthAwarePaginator\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:\\$unpaid_orders_total\\.$#"
-			count: 1
-			path: app/Repositories/OrdersRepository.php
-
-		-
 			message: "#^Anonymous function has an unused use \\$hasSearch\\.$#"
-			count: 1
-			path: app/Repositories/OrdersRepository.php
-
-		-
-			message: "#^Anonymous function has an unused use \\$loadProducts\\.$#"
 			count: 1
 			path: app/Repositories/OrdersRepository.php
 

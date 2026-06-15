@@ -29,6 +29,7 @@ class StoreProjectStatusRequest extends FormRequest
             'name' => 'required|string',
             'color' => 'nullable|string|max:7',
             'is_visible' => 'nullable|boolean',
+            'kanban_outcome' => ['nullable', 'string', 'in:success,failure'],
         ];
     }
 

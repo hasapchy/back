@@ -60,6 +60,7 @@ class UsersRepository extends BaseRepository
 
             $query = $this->buildUsersListQuery($search, $statusFilter);
             $query->with([
+                'creator:id,name,surname,photo',
                 'companies:id,name',
                 'departments' => function ($q) use ($companyId) {
                     if ($companyId) {
@@ -113,6 +114,7 @@ class UsersRepository extends BaseRepository
 
         $query = User::select([
             'users.id',
+            'users.creator_id',
             'users.name',
             'users.surname',
             'users.email',
@@ -242,6 +244,7 @@ class UsersRepository extends BaseRepository
     {
         $query = User::select([
             'users.id',
+            'users.creator_id',
             'users.name',
             'users.surname',
             'users.email',
@@ -259,6 +262,7 @@ class UsersRepository extends BaseRepository
             'users.created_at',
             'users.last_login_at'
         ])->with([
+            'creator:id,name,surname,photo',
             'companies:id,name',
             'departments' => function ($q) use ($companyId) {
                 if ($companyId) {
@@ -498,6 +502,8 @@ class UsersRepository extends BaseRepository
                 $user->photo = $data['photo'];
             }
 
+            $user->creator_id = auth('api')->id();
+
             Log::info('users.repository.createItem simple fields before save', [
                 'data_has_is_simple_user' => array_key_exists('is_simple_user', $data),
                 'data_is_simple_user' => $data['is_simple_user'] ?? null,
@@ -708,7 +714,7 @@ class UsersRepository extends BaseRepository
         } else {
             $user->load(['roles']);
         }
-        $user->load(['companies', 'departments:id,title,company_id']);
+        $user->load(['creator:id,name,surname,photo', 'companies', 'departments:id,title,company_id']);
         $user->company_roles = $user->getAllCompanyRoles();
     }
 
@@ -1047,13 +1053,13 @@ class UsersRepository extends BaseRepository
         $companyId = $companyId ?? $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('user_employee_balance', [$userId, $companyId]);
 
-        return CacheService::remember($cacheKey, function () use ($userId) {
+        return CacheService::remember($cacheKey, function () use ($userId, $companyId) {
             $query = Client::where('employee_id', $userId)
                 ->where('client_type', 'employee')
                 ->select('id', 'company_id');
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
-            $client = $query->first();
+            $client = $query->with('defaultBalance:id,client_id,balance')->first();
 
             if (!$client) {
                 return null;
@@ -1061,7 +1067,11 @@ class UsersRepository extends BaseRepository
 
             return [
                 'client_id' => $client->id,
-                'balance' => 0,
+                'balance' => ClientBalanceViewAccess::visibleDefaultBalanceValue(
+                    $client,
+                    auth('api')->user(),
+                    $companyId
+                ),
             ];
         }, 900);
     }
@@ -1095,6 +1105,7 @@ class UsersRepository extends BaseRepository
 
             $query = User::select([
                 'users.id',
+                'users.creator_id',
                 'users.name',
                 'users.surname',
                 'users.email',
@@ -1112,7 +1123,10 @@ class UsersRepository extends BaseRepository
                 'users.created_at',
                 'users.updated_at',
                 'users.last_login_at'
-            ])->with(['companies:id,name']);
+            ])->with([
+                'creator:id,name,surname,photo',
+                'companies:id,name',
+            ]);
 
             if ($companyId) {
                 $query->join('company_user', 'users.id', '=', 'company_user.user_id')
