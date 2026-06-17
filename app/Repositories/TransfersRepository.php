@@ -14,6 +14,19 @@ use Illuminate\Support\Facades\DB;
 class TransfersRepository extends BaseRepository
 {
     /**
+     * @param  array<string, mixed>  $filters
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
+    public function paginate(array $filters)
+    {
+        return $this->getItemsWithPagination(
+            $filters['user_uuid'] ?? auth('api')->id(),
+            isset($filters['per_page']) ? (int) $filters['per_page'] : 20,
+            isset($filters['page']) ? (int) $filters['page'] : 1
+        );
+    }
+
+    /**
      * Получить перемещения с пагинацией
      *
      * @param int $userUuid ID пользователя

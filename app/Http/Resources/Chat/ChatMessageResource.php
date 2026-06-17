@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Chat;
 
+use App\Services\Chat\EntityLinkShareService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -59,6 +60,7 @@ class ChatMessageResource extends JsonResource
             'creator_id' => (int) $this->creator_id,
             'body' => $this->body,
             'files' => $this->files,
+            'metadata' => $this->resolveMetadata($request),
             'parent_id' => $this->parent_id,
             'parent' => $parent,
             'forwarded_from_message_id' => $this->forwarded_from_message_id,
@@ -91,6 +93,27 @@ class ChatMessageResource extends JsonResource
                 ])->values()->all()
             ),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function resolveMetadata(Request $request): ?array
+    {
+        $metadata = $this->metadata;
+        if (! is_array($metadata)) {
+            return $metadata;
+        }
+
+        $user = $request->user();
+        $service = app(EntityLinkShareService::class);
+        if (! $user) {
+            return ($metadata['type'] ?? null) === 'entity_link'
+                ? $service->redactedEntityLinkMetadata($metadata)
+                : $metadata;
+        }
+
+        return $service->sanitizeMetadataForViewer($metadata, $user);
     }
 }
 

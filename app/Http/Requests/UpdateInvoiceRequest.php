@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Invoice;
 use App\Models\Order;
 use App\Rules\ClientAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -17,7 +18,13 @@ class UpdateInvoiceRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $invoice = Invoice::query()->find($this->route('id'));
+
+        if (! $invoice) {
+            return true;
+        }
+
+        return $this->user()->can('update', $invoice);
     }
 
     /**

@@ -38,6 +38,7 @@ use App\Contracts\SupportsTimeline;
  * @property-read \App\Models\Company|null $company
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\ProjectContract[] $contracts
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Comment[] $comments
+ * @property-read \App\Models\DriveFolder|null $driveFolder
  */
 class Project extends Model implements SupportsTimeline
 {
@@ -177,6 +178,14 @@ class Project extends Model implements SupportsTimeline
     public function chat()
     {
         return $this->hasOne(Chat::class);
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function driveFolder()
+    {
+        return $this->hasOne(DriveFolder::class, 'project_id');
     }
 
     /**

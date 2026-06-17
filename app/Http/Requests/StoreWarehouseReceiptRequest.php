@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Enums\WhReceiptStatus;
 use App\Http\Requests\Concerns\ValidatesOrderClientBalance;
 use App\Http\Requests\Concerns\ValidatesWarehouseProductLinesOrig;
+use App\Models\WhReceipt;
 use App\Rules\CashRegisterAccessRule;
 use App\Rules\ClientAccessRule;
 use App\Rules\WarehouseAccessRule;
@@ -25,7 +26,7 @@ class StoreWarehouseReceiptRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', WhReceipt::class);
     }
 
     /**

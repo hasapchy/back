@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Resources\RoleResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\UserSearchResource;
 use App\Repositories\UsersRepository;
@@ -17,7 +16,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use App\Services\CacheService;
 
 /**
@@ -275,16 +273,6 @@ class UsersController extends BaseController
     public function permissions()
     {
         return $this->successResponse(Permission::where('guard_name', 'api')->get());
-    }
-
-    /**
-     * Получить все роли
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function roles()
-    {
-        return $this->successResponse(RoleResource::collection(Role::where('guard_name', 'api')->with('permissions:id,name')->get())->resolve());
     }
 
     /**

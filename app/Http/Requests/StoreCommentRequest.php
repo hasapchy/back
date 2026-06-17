@@ -2,16 +2,15 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Services\Timeline\TimelineEntityRegistry;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class StoreCommentRequest extends FormRequest
 {
     /**
-     * Определить, авторизован ли пользователь для выполнения этого запроса
-     *
      * @return bool
      */
     public function authorize(): bool
@@ -20,8 +19,6 @@ class StoreCommentRequest extends FormRequest
     }
 
     /**
-     * Получить правила валидации
-     *
      * @return array<string, \Illuminate\Contracts\Validation\Rule|array|string>
      */
     public function rules(): array
@@ -30,30 +27,15 @@ class StoreCommentRequest extends FormRequest
             'type' => [
                 'required',
                 'string',
-                Rule::in([
-                    'order',
-                    'sale',
-                    'transaction',
-                    'client',
-                    'product',
-                    'project',
-                    'task',
-                    'project_contract',
-                    'lead',
-                    'wh_receipt',
-                    'wh_writeoff',
-                    'wh_movement',
-                    'wh_purchase',
-                ]),
+                Rule::in(TimelineEntityRegistry::apiTypes()),
             ],
             'id' => 'required|integer',
             'body' => 'required|string|max:1000',
+            'parent_id' => 'nullable|integer|min:1',
         ];
     }
 
     /**
-     * Обработать неудачную валидацию
-     *
      * @param Validator $validator
      * @return void
      */

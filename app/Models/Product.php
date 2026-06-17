@@ -55,6 +55,10 @@ class Product extends Model implements SupportsTimeline
     use HasFactory;
     use LogsActivity;
 
+    public const TYPE_SERVICE = 0;
+
+    public const TYPE_GOODS = 1;
+
     protected $table = 'products';
     protected $fillable = [
         'name',

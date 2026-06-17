@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\WhWriteoffReason;
 use App\Http\Requests\Concerns\ValidatesWarehouseProductLinesOrig;
+use App\Models\WhWriteoff;
 use App\Rules\WarehouseAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -21,7 +22,7 @@ class StoreWarehouseWriteoffRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', WhWriteoff::class);
     }
 
     /**
@@ -36,6 +37,7 @@ class StoreWarehouseWriteoffRequest extends FormRequest
             'reason' => ['required', 'string', Rule::in(WhWriteoffReason::values())],
             'source_receipt_id' => ['nullable', 'integer', 'exists:wh_receipts,id', 'required_if:reason,'.WhWriteoffReason::ReturnSupplier->value],
             'note' => 'nullable|string',
+            'date' => 'nullable|date',
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',
             'products.*.quantity' => 'required|numeric|min:0',

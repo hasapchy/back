@@ -142,7 +142,9 @@ class DriveRepository extends BaseRepository
      */
     public function renameFolder(DriveFolder $folder, array $validated): DriveFolder
     {
-        $folder->name = trim($validated['name']);
+        if (! $folder->project_id) {
+            $folder->name = trim($validated['name']);
+        }
         if (array_key_exists('icon', $validated)) {
             $folder->icon = DriveFolderAppearance::resolveIcon($validated['icon']);
         }
@@ -162,7 +164,7 @@ class DriveRepository extends BaseRepository
             ->where('company_id', $companyId)
             ->whereIn('folder_id', $folderIds)
             ->pluck('id')
-            ->map(static fn ($value) => (int) $value)
+            ->map(static fn($value) => (int) $value)
             ->all();
 
         DB::transaction(function () use ($folder, $folderIds, $fileIds, $companyId): void {
@@ -208,9 +210,9 @@ class DriveRepository extends BaseRepository
                     }
                 }
                 $extension = strtolower($file->getClientOriginalExtension());
-                $storedName = Str::uuid().($extension !== '' ? '.'.$extension : '');
-                $storageDir = 'drive/'.$companyId.'/'.($targetFolder ? $targetFolder->id : 'root');
-                $path = $storageDir.'/'.$storedName;
+                $storedName = Str::uuid() . ($extension !== '' ? '.' . $extension : '');
+                $storageDir = 'drive/' . $companyId . '/' . ($targetFolder ? $targetFolder->id : 'root');
+                $path = $storageDir . '/' . $storedName;
                 $file->storeAs($storageDir, $storedName, 'local');
 
                 $createdFiles[] = DriveFile::query()->create([
@@ -243,7 +245,7 @@ class DriveRepository extends BaseRepository
             return $baseName;
         }
 
-        $suffix = '.'.$extension;
+        $suffix = '.' . $extension;
         if (str_ends_with(strtolower($baseName), $suffix)) {
             $baseName = substr($baseName, 0, -strlen($suffix));
         }
@@ -253,7 +255,7 @@ class DriveRepository extends BaseRepository
             return '';
         }
 
-        return $baseName.'.'.$extension;
+        return $baseName . '.' . $extension;
     }
 
     public function fileNameExists(int $companyId, ?int $folderId, string $name, int $excludeId): bool
@@ -397,9 +399,9 @@ class DriveRepository extends BaseRepository
 
     private function moveFileWithinTransaction(DriveFile $file, ?DriveFolder $targetFolder, int $companyId): DriveFile
     {
-        $extension = $file->extension ? '.'.$file->extension : '';
-        $newStoredName = Str::uuid().$extension;
-        $newPath = 'drive/'.$companyId.'/'.($targetFolder ? $targetFolder->id : 'root').'/'.$newStoredName;
+        $extension = $file->extension ? '.' . $file->extension : '';
+        $newStoredName = Str::uuid() . $extension;
+        $newPath = 'drive/' . $companyId . '/' . ($targetFolder ? $targetFolder->id : 'root') . '/' . $newStoredName;
 
         Storage::disk($file->disk_name)->move($file->path, $newPath);
         $file->folder_id = $targetFolder?->id;
@@ -509,7 +511,7 @@ class DriveRepository extends BaseRepository
             $children = DriveFolder::query()
                 ->whereIn('parent_id', $cursor)
                 ->pluck('id')
-                ->map(static fn ($value) => (int) $value)
+                ->map(static fn($value) => (int) $value)
                 ->all();
             if ($children === []) {
                 break;
@@ -528,7 +530,7 @@ class DriveRepository extends BaseRepository
     {
         return $this->filesInFolderTree($companyId, $folder)
             ->pluck('id')
-            ->map(static fn ($value) => (int) $value)
+            ->map(static fn($value) => (int) $value)
             ->all();
     }
 

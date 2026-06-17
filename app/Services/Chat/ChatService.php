@@ -17,9 +17,11 @@ use Illuminate\Database\QueryException;
 use App\Repositories\Chat\ChatMessageRepository;
 use App\Repositories\Chat\ChatParticipantRepository;
 use App\Repositories\Chat\ChatRepository;
+use App\Services\ReactionToggleService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -30,6 +32,8 @@ class ChatService
         protected ChatRepository $chats,
         protected ChatParticipantRepository $participants,
         protected ChatMessageRepository $messages,
+        protected EntityLinkShareService $entityLinkShareService,
+        protected ReactionToggleService $reactionToggleService,
     ) {
     }
 
@@ -506,6 +510,7 @@ class ChatService
 
     /**
      * @param array<int, UploadedFile> $files
+     * @param array<string, mixed>|null $rawMetadata
      */
     public function storeMessage(
         int $companyId,
@@ -515,6 +520,7 @@ class ChatService
         array $files,
         bool $canWriteGeneral = true,
         ?int $parentId = null,
+        ?array $rawMetadata = null,
     ): ChatMessage {
         $startTime = microtime(true);
         $body = $body !== null ? trim((string) $body) : '';
@@ -523,7 +529,10 @@ class ChatService
             abort(403, 'Forbidden');
         }
 
-        if ($body === '' && empty($files)) {
+        $this->entityLinkShareService->rejectClientReservedMetadata($rawMetadata);
+        $metadata = $this->entityLinkShareService->buildMetadataFromBody($user, $body);
+
+        if ($body === '' && empty($files) && $metadata === null) {
             throw new HttpResponseException(
                 response()->json(['message' => 'Message body or files are required'], 422)
             );
@@ -556,7 +565,9 @@ class ChatService
             (int) $user->id,
             $body === '' ? null : $body,
             empty($storedFiles) ? null : $storedFiles,
-            $parentId
+            $parentId,
+            null,
+            $metadata
         );
 
         // Load relations for broadcasting
@@ -788,28 +799,19 @@ class ChatService
         $userId = (int) $user->id;
         $messageId = (int) $message->id;
 
-        if ($emoji === null || $emoji === '') {
-            MessageReaction::query()
-                ->where('message_id', $messageId)
-                ->where('user_id', $userId)
-                ->delete();
-        } else {
-            $existing = MessageReaction::query()
-                ->where('message_id', $messageId)
-                ->where('user_id', $userId)
-                ->where('emoji', $emoji)
-                ->first();
-            if ($existing) {
-                $existing->delete();
-            } else {
-                MessageReaction::query()->updateOrInsert(
-                    ['message_id' => $messageId, 'user_id' => $userId],
-                    ['emoji' => $emoji, 'updated_at' => now()]
-                );
-            }
-        }
+        $this->reactionToggleService->toggle(
+            MessageReaction::class,
+            'message_id',
+            $messageId,
+            $userId,
+            $emoji
+        );
 
-        $reactions = $this->formatReactionsForMessage($messageId);
+        $reactions = $this->reactionToggleService->formatReactions(
+            MessageReaction::class,
+            'message_id',
+            $messageId
+        );
 
         try {
             event(new MessageReactionUpdated($message->fresh(), $reactions));
@@ -823,26 +825,6 @@ class ChatService
         return $reactions;
     }
 
-    /** Формат реакций для API: [{ emoji, creator_id }]. */
-    protected function formatReactionsForMessage(int $messageId): array
-    {
-        return MessageReaction::query()
-            ->where('message_id', $messageId)
-            ->with('user:id,name,surname')
-            ->get()
-            ->map(fn (MessageReaction $r) => [
-                'emoji' => $r->emoji,
-                'creator_id' => (int) $r->user_id,
-                'user' => $r->relationLoaded('user') ? [
-                    'id' => (int) $r->user->id,
-                    'name' => $r->user->name,
-                    'surname' => $r->user->surname ?? null,
-                ] : null,
-            ])
-            ->values()
-            ->all();
-    }
-
     public function deleteChat(int $companyId, User $user, Chat $chat): void
     {
         if ($chat->type === 'project') {
@@ -853,24 +835,81 @@ class ChatService
             abort(403, 'Only chat creator can delete the chat');
         }
 
-        // Cannot delete general or direct chats
         if ($chat->type === 'general' || $chat->type === 'direct') {
             abort(422, 'Cannot delete general or direct chats');
         }
 
-        // Инвалидируем кэш перед удалением
+        $this->purgeChat($companyId, $chat);
+    }
+
+    /**
+     * Удалить чат проекта при удалении проекта.
+     *
+     * @param  int  $companyId  ID компании
+     * @param  int  $projectId  ID проекта
+     * @return void
+     */
+    public function deleteProjectChatForProject(int $companyId, int $projectId): void
+    {
+        $chat = $this->chats->findByProjectId($projectId);
+        if ($chat === null || (int) $chat->company_id !== $companyId) {
+            return;
+        }
+
+        $this->purgeChat($companyId, $chat);
+    }
+
+    /**
+     * Полностью удалить чат с сообщениями и участниками.
+     *
+     * @param  int  $companyId  ID компании
+     * @param  Chat  $chat  Чат
+     * @return void
+     */
+    protected function purgeChat(int $companyId, Chat $chat): void
+    {
         $this->invalidateChatListCache($companyId, (int) $chat->id);
 
-        DB::transaction(function () use ($chat) {
-            // Delete all messages
+        DB::transaction(function () use ($chat): void {
+            $this->deleteStoredMessageFiles((int) $chat->id);
             $this->messages->deleteByChatId((int) $chat->id);
-
-            // Delete all participants
             $this->participants->deleteByChatId((int) $chat->id);
-
-            // Delete chat
             $this->chats->delete((int) $chat->id);
         });
+    }
+
+    /**
+     * Удалить файлы вложений сообщений чата из хранилища.
+     *
+     * @param  int  $chatId  ID чата
+     * @return void
+     */
+    protected function deleteStoredMessageFiles(int $chatId): void
+    {
+        ChatMessage::withTrashed()
+            ->where('chat_id', $chatId)
+            ->get(['id', 'files'])
+            ->each(function (ChatMessage $message): void {
+                if (empty($message->files) || ! is_array($message->files)) {
+                    return;
+                }
+
+                foreach ($message->files as $file) {
+                    if (! isset($file['path'])) {
+                        continue;
+                    }
+
+                    try {
+                        Storage::delete($file['path']);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to delete chat message file on chat purge', [
+                            'message_id' => $message->id,
+                            'file_path' => $file['path'],
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            });
     }
 
     /**

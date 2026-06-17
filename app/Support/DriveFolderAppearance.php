@@ -4,6 +4,13 @@ namespace App\Support;
 
 final class DriveFolderAppearance
 {
+    public const PROJECT_LINKED_ICON = 'fas fa-link';
+
+    public static function projectLinkedIcon(): string
+    {
+        return self::PROJECT_LINKED_ICON;
+    }
+
     public static function resolveIcon(?string $icon): string
     {
         $value = trim((string) $icon);
@@ -14,6 +21,16 @@ final class DriveFolderAppearance
         }
 
         return $value;
+    }
+
+    public static function resolveDisplayIcon(?string $icon, ?int $projectId): string
+    {
+        $resolved = self::resolveIcon($icon);
+        if ($projectId && $resolved === self::PROJECT_LINKED_ICON) {
+            return self::resolveIcon(null);
+        }
+
+        return $resolved;
     }
 
     public static function resolveIconColor(?string $color): string

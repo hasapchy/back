@@ -12,11 +12,15 @@ class StoreNewsRequest extends FormRequest
         return $this->user()->can('create', News::class);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [
             'title' => 'required|string|max:255',
             'content' => 'required|string|max:50000', // Ограничение размера контента (примерно 50 КБ текста)
+            'is_important' => 'sometimes|boolean',
         ];
     }
 }

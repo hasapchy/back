@@ -60,13 +60,7 @@ class CurrenciesController extends BaseController
 
         return $this->successResponse([
             'items' => CurrencyResource::collection($paginator->items())->resolve(),
-            'meta' => [
-                'current_page' => $paginator->currentPage(),
-                'next_page' => $paginator->nextPageUrl(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-            ],
+            'meta' => $this->paginationMeta($paginator),
         ]);
     }
 }

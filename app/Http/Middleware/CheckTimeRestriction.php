@@ -19,19 +19,16 @@ class CheckTimeRestriction
     public function handle(Request $request, Closure $next, string $model)
     {
         $user = $request->user();
-        
-        // Если пользователь администратор, пропускаем проверку
+
         if ($user && $user->is_admin) {
             return $next($request);
         }
 
-        // Получаем ID из маршрута
         $id = $request->route('id');
         if (! $id) {
             return $next($request);
         }
 
-        // Получаем модель и запись
         $modelClass = "App\\Models\\{$model}";
         if (! class_exists($modelClass)) {
             return $next($request);
@@ -42,14 +39,10 @@ class CheckTimeRestriction
             return $next($request);
         }
 
-        // Проверяем, прошло ли 24 часа с момента создания
         $createdAt = Carbon::parse($record->created_at);
-        $now = Carbon::now();
-        $hoursPassed = $createdAt->diffInHours($now);
-
-        if ($hoursPassed >= 24) {
+        if ($createdAt->diffInHours(Carbon::now()) >= 24) {
             return response()->json([
-                'message' => 'Редактирование и удаление записей возможно только в течение 24 часов с момента создания'
+                'message' => 'Удаление записей возможно только в течение 24 часов с момента создания',
             ], 403);
         }
 

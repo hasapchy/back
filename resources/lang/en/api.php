@@ -40,11 +40,21 @@ return [
         'balance_adjust_forbidden' => 'You do not have permission to adjust balance',
         'create_failed' => 'Failed to create transaction',
         'created' => 'Transaction created',
-        'update_failed' => 'Failed to update transaction',
         'updated' => 'Transaction updated',
+        'update_failed' => 'Failed to update transaction',
         'deleted' => 'Transaction deleted',
         'report_currency_not_found' => 'Report currency not found for company',
         'cash_cannot_go_negative' => 'Operation forbidden: cash register cannot go negative',
+    ],
+    'entity_link' => [
+        'invalid' => 'Invalid entity link',
+        'unsupported_entity' => 'Unsupported entity type',
+        'unsupported_metadata_type' => 'Unsupported message metadata type',
+        'transaction_title' => 'Transaction #:id',
+        'order_title' => 'Order #:id',
+        'project_title' => 'Project #:id',
+        'income' => 'Income',
+        'outcome' => 'Expense',
     ],
     'tasks' => [
         'view_forbidden' => 'You do not have permission to view tasks',
@@ -83,6 +93,8 @@ return [
         'currency_change_forbidden_has_contracts' => 'Cannot change project currency: project has contracts.',
         'delete_has_transactions_prefix' => 'Cannot delete project, linked transactions count: ',
         'delete_has_chat' => 'Cannot delete project: it has a project chat.',
+        'drive_folder_created' => 'Project folder created successfully',
+        'drive_folder_already_exists' => 'Project folder already exists',
     ],
     'orders' => [
         'not_found' => 'Order not found',
@@ -106,6 +118,7 @@ return [
         'deleted' => 'Comment deleted',
         'invalid_timeline_cursor' => 'Invalid timeline cursor',
         'timeline_load_failed_prefix' => 'Timeline load failed: ',
+        'timeline_load_failed' => 'Failed to load timeline',
     ],
     'writeoff' => [
         'not_found' => 'Write-off not found',
@@ -232,5 +245,9 @@ return [
         'client_delete_related_transactions' => 'Cannot delete client: related transactions found.',
         'client_delete_related_orders' => 'Cannot delete client: related orders found.',
         'client_delete_non_zero_balance' => 'Cannot delete client with non-zero balance.',
+    ],
+    'drive' => [
+        'project_folder_rename_forbidden' => 'Project folder name cannot be changed. Rename the project instead.',
+        'project_folder_delete_forbidden' => 'Project folder cannot be deleted separately. Delete the project.',
     ],
 ];

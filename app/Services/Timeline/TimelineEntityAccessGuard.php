@@ -4,6 +4,7 @@ namespace App\Services\Timeline;
 
 use App\Models\Client;
 use App\Models\Lead;
+use App\Models\News;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Project;
@@ -40,6 +41,7 @@ class TimelineEntityAccessGuard
         'wh_writeoff' => ['warehouse_writeoffs_view_all', 'warehouse_writeoffs_view_own'],
         'wh_movement' => ['warehouse_movements_view_all', 'warehouse_movements_view_own'],
         'wh_purchase' => ['warehouse_purchases_view_all', 'warehouse_purchases_view_own'],
+        'news' => [],
     ];
 
     public function __construct(
@@ -156,9 +158,13 @@ class TimelineEntityAccessGuard
             return true;
         }
 
-        $required = self::PERMISSIONS_BY_API_TYPE[$apiType] ?? null;
-        if ($required === null) {
+        if (! array_key_exists($apiType, self::PERMISSIONS_BY_API_TYPE)) {
             return false;
+        }
+
+        $required = self::PERMISSIONS_BY_API_TYPE[$apiType];
+        if ($required === []) {
+            return true;
         }
 
         $names = $user->getAllPermissionsForCompany($companyId)->pluck('name');
@@ -206,6 +212,7 @@ class TimelineEntityAccessGuard
                 ->whereHas('warehouseFrom', fn (Builder $w) => $w->where('company_id', $companyId))
                 ->whereHas('warehouseTo', fn (Builder $w) => $w->where('company_id', $companyId)),
             WhPurchase::class => $query->whereHas('supplier', fn (Builder $c) => $c->where('company_id', $companyId)),
+            News::class => $query->where('company_id', $companyId),
             default => throw new InvalidArgumentException("Timeline scope is not configured for {$modelClass}"),
         };
     }

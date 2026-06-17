@@ -6,6 +6,7 @@ use App\Http\Requests\StoreCategoryRequest;
 use App\Http\Requests\UpdateCategoryRequest;
 use App\Http\Resources\CategoryReferenceResource;
 use App\Http\Resources\CategoryResource;
+use App\Models\Category;
 use App\Repositories\CategoriesRepository;
 use Illuminate\Http\Request;
 use App\Services\CacheService;
@@ -37,6 +38,8 @@ class CategoriesController extends BaseController
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Category::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
@@ -51,13 +54,7 @@ class CategoriesController extends BaseController
                 CategoryResource::class,
                 $companyId
             ),
-            'meta' => [
-                'current_page' => $items->currentPage(),
-                'next_page' => $items->nextPageUrl(),
-                'last_page' => $items->lastPage(),
-                'per_page' => $items->perPage(),
-                'total' => $items->total(),
-            ],
+            'meta' => $this->paginationMeta($items),
         ]);
     }
 
@@ -106,6 +103,8 @@ class CategoriesController extends BaseController
      */
     public function store(StoreCategoryRequest $request)
     {
+        $this->authorize('create', Category::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
@@ -133,6 +132,8 @@ class CategoriesController extends BaseController
      */
     public function update(UpdateCategoryRequest $request, $id)
     {
+        $this->authorize('update', Category::findOrFail($id));
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
@@ -159,6 +160,8 @@ class CategoriesController extends BaseController
      */
     public function destroy($id)
     {
+        $this->authorize('delete', Category::findOrFail($id));
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $category_deleted = $this->itemsRepository->deleteItem($id);

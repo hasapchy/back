@@ -2,8 +2,8 @@
 
 namespace App\Repositories;
 
-use App\Models\Chat;
 use App\Models\Currency;
+use App\Models\DriveFolder;
 use App\Models\Project;
 use App\Models\ProjectContract;
 use App\Models\ProjectStatus;
@@ -27,6 +27,7 @@ class ProjectsRepository extends BaseRepository
 {
     public function __construct(
         private ?ChatService $chatService = null,
+        private ?DriveRepository $driveRepository = null,
     ) {
     }
 
@@ -43,6 +44,7 @@ class ProjectsRepository extends BaseRepository
             'status:id,name,color,is_visible',
             'creator:id,name,surname,photo',
             'users:id,name',
+            'driveFolder:id,company_id,parent_id,creator_id,project_id,name,icon,icon_color,created_at,updated_at',
         ];
     }
 
@@ -72,6 +74,36 @@ class ProjectsRepository extends BaseRepository
     private function resolveChatService(): ChatService
     {
         return $this->chatService ??= app(ChatService::class);
+    }
+
+    /**
+     * @return DriveRepository
+     */
+    private function resolveDriveRepository(): DriveRepository
+    {
+        return $this->driveRepository ??= app(DriveRepository::class);
+    }
+
+    /**
+     * Удалить папку Drive, привязанную к проекту.
+     *
+     * @param  int  $projectId  ID проекта
+     * @return void
+     */
+    private function deleteProjectDriveFolder(int $projectId): void
+    {
+        $folder = DriveFolder::query()
+            ->where('project_id', $projectId)
+            ->first();
+
+        if ($folder === null) {
+            return;
+        }
+
+        $folder->project_id = null;
+        $folder->save();
+
+        $this->resolveDriveRepository()->deleteFolder($folder);
     }
 
     private function syncProjectChatIfExists(Project $project): void
@@ -276,6 +308,10 @@ class ProjectsRepository extends BaseRepository
 
             $item->save();
 
+            DriveFolder::query()
+                ->where('project_id', $id)
+                ->update(['name' => $item->name]);
+
             if (isset($data['users']) && is_array($data['users'])) {
                 $this->syncProjectUsers($id, $data['users'], (int) $item->creator_id);
             }
@@ -315,6 +351,7 @@ class ProjectsRepository extends BaseRepository
                 'projects.creator_id',
                 'projects.client_id',
                 'projects.status_id',
+                    'projects.description',
                 'projects.created_at',
                 'projects.updated_at',
             ])
@@ -327,6 +364,7 @@ class ProjectsRepository extends BaseRepository
                     'status:id,name,color,is_visible',
                     'users:id,name',
                     'projectUsers:id,project_id,user_id',
+                    'driveFolder:id,company_id,parent_id,creator_id,project_id,name,icon,icon_color,created_at,updated_at',
                 ])
                 ->where('id', $id);
 
@@ -354,8 +392,11 @@ class ProjectsRepository extends BaseRepository
                 throw new \Exception(__('api.projects.delete_has_transactions_prefix').$transactionsCount);
             }
 
-            if (Chat::query()->where('project_id', $id)->exists()) {
-                throw new \Exception(__('api.projects.delete_has_chat'));
+            $companyId = (int) $item->company_id;
+
+            $this->deleteProjectDriveFolder((int) $id);
+            if ($companyId > 0) {
+                $this->resolveChatService()->deleteProjectChatForProject($companyId, (int) $id);
             }
 
             ProjectUser::where('project_id', $id)->delete();

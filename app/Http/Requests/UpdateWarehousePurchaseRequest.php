@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\WhPurchaseStatus;
 use App\Http\Requests\Concerns\ValidatesWarehouseProductLinesOrig;
+use App\Models\WhPurchase;
 use App\Rules\CashRegisterAccessRule;
 use App\Rules\ClientAccessRule;
 use App\Rules\WarehouseAccessRule;
@@ -21,7 +22,13 @@ class UpdateWarehousePurchaseRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $purchase = WhPurchase::query()->find($this->route('id'));
+
+        if (! $purchase) {
+            return true;
+        }
+
+        return $this->user()->can('update', $purchase);
     }
 
     /**

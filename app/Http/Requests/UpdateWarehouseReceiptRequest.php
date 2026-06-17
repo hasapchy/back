@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\WhReceiptStatus;
 use App\Http\Requests\Concerns\ValidatesWarehouseProductLinesOrig;
+use App\Models\WhReceipt;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -20,7 +21,13 @@ class UpdateWarehouseReceiptRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $receipt = WhReceipt::query()->find($this->route('id'));
+
+        if (! $receipt) {
+            return true;
+        }
+
+        return $this->user()->can('update', $receipt);
     }
 
     /**

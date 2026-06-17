@@ -30,7 +30,7 @@ class SalaryMonthlyReport extends Model
     ];
 
     protected $casts = [
-        'date' => 'date',
+        'date' => 'datetime',
         'payment_type' => 'integer',
     ];
 

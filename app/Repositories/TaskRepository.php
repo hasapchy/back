@@ -11,6 +11,16 @@ class TaskRepository extends BaseRepository
 {
     private const OVERDUE_STATUS_IDS = [1, 2];
 
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginate(array $filters): LengthAwarePaginator
+    {
+        $request = new \Illuminate\Http\Request($filters);
+
+        return $this->getFilteredTasks($request);
+    }
+
     public function getFilteredTasks($request): LengthAwarePaginator
     {
         $companyId = $this->getCurrentCompanyId();

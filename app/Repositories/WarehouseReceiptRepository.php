@@ -27,10 +27,40 @@ use App\Services\RoundingService;
 use App\Services\WarehouseReceiptGoodsPaymentLimitService;
 use Illuminate\Database\Eloquent\Builder;
 use App\Support\TransactionCategoryBindingKeys;
+use App\Services\InventoryCostingService;
+use App\Services\ReceiptJournalService;
 use Illuminate\Support\Facades\DB;
 
 class WarehouseReceiptRepository extends BaseRepository
 {
+    private ?InventoryCostingService $inventoryCostingService = null;
+
+    private ?ReceiptJournalService $receiptJournalService = null;
+
+    public function __construct(
+        ?InventoryCostingService $inventoryCostingService = null,
+        ?ReceiptJournalService $receiptJournalService = null,
+    ) {
+        $this->inventoryCostingService = $inventoryCostingService;
+        $this->receiptJournalService = $receiptJournalService;
+    }
+
+    /**
+     * @return InventoryCostingService
+     */
+    private function inventoryCosting(): InventoryCostingService
+    {
+        return $this->inventoryCostingService ??= resolve(InventoryCostingService::class);
+    }
+
+    /**
+     * @return ReceiptJournalService
+     */
+    private function receiptJournal(): ReceiptJournalService
+    {
+        return $this->receiptJournalService ??= resolve(ReceiptJournalService::class);
+    }
+
     use LogsTimelineProductLineChanges;
     use ResolvesWarehouseLineOrigDisplay;
 
@@ -113,11 +143,19 @@ class WarehouseReceiptRepository extends BaseRepository
                     ->whereIn('wh_receipts.status', [WhReceiptStatus::Approved, WhReceiptStatus::Completed]);
             }
 
-            $this->applyIdNoteSearch($query, $search, 'wh_receipts.id', 'wh_receipts.note', [
-                'line_table' => 'wh_receipt_products',
-                'document_fk' => 'receipt_id',
-                'document_id_column' => 'wh_receipts.id',
-            ]);
+            $searchTrimmed = trim((string) ($search ?? ''));
+            if ($searchTrimmed !== '') {
+                $query->where(function ($q) use ($searchTrimmed) {
+                    $this->applyIdNoteSearch($q, $searchTrimmed, 'wh_receipts.id', 'wh_receipts.note', [
+                        'line_table' => 'wh_receipt_products',
+                        'document_fk' => 'receipt_id',
+                        'document_id_column' => 'wh_receipts.id',
+                    ]);
+                    $q->orWhereHas('supplier', function ($clientQuery) use ($searchTrimmed) {
+                        $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
+                    });
+                });
+            }
 
             $paginator = $query->orderBy('wh_receipts.created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int) $page);
@@ -175,10 +213,7 @@ class WarehouseReceiptRepository extends BaseRepository
             'wh_receipts.status',
             'wh_receipts.created_at',
             'wh_receipts.updated_at',
-            'clients.first_name as client_first_name',
-            'clients.last_name as client_last_name'
         ])
-            ->leftJoin('clients', 'wh_receipts.supplier_id', '=', 'clients.id')
             ->with([
                 'warehouse:id,name,company_id',
                 'cashRegister:id,name,currency_id,is_cash',
@@ -521,6 +556,8 @@ class WarehouseReceiptRepository extends BaseRepository
 
             if ($receipt->status === WhReceiptStatus::Approved) {
                 $this->applyReceiptProductsToStock($receipt);
+                $this->inventoryCosting()->createLayersFromReceipt($receipt);
+                event(new \App\Events\WarehouseReceiptApproved($receipt->fresh()));
                 $this->tryAutoCompleteReceipt((int) $receipt_id);
             }
 
@@ -650,6 +687,10 @@ class WarehouseReceiptRepository extends BaseRepository
 
             $receipt->status = WhReceiptStatus::Completed;
             $receipt->save();
+
+            $this->inventoryCosting()->finalizeLayersForReceipt($receipt);
+            $this->receiptJournal()->postCompletionEntries($receipt);
+            event(new \App\Events\WarehouseReceiptCompleted($receipt->fresh()));
 
             $this->syncLinkedPurchaseCompletion($receipt->purchase_id);
 

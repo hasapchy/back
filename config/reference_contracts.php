@@ -79,7 +79,7 @@ return [
             'comment', 'company_id', 'created_at', 'date_from', 'date_to', 'id', 'leave_type', 'leave_type_id', 'updated_at', 'user', 'user_id',
         ],
         'projects' => [
-            'budget', 'client', 'client_id', 'created_at', 'creator', 'creator_id', 'currency', 'currency_id', 'date', 'description', 'id', 'name', 'status', 'status_id', 'updated_at', 'users',
+            'budget', 'client', 'client_id', 'created_at', 'creator', 'creator_id', 'currency', 'currency_id', 'date', 'description', 'drive_folder', 'id', 'name', 'status', 'status_id', 'updated_at', 'users',
         ],
         'tasks' => [
             'checklist', 'comments', 'complexity', 'complexity_icons', 'complexity_label', 'created_at', 'creator', 'deadline', 'description', 'executor', 'files', 'id', 'priority', 'priority_icons', 'priority_label', 'project', 'status', 'status_id', 'supervisor', 'title', 'updated_at',

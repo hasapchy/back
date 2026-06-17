@@ -205,7 +205,11 @@ class DriveController extends BaseController
             return $this->errorResponse('Forbidden', 403);
         }
 
-        if ($this->driveRepository->folderNameExists($companyId, $folder->parent_id, $validated['name'], $folder->id)) {
+        if ($folder->project_id && trim($validated['name']) !== $folder->name) {
+            return $this->errorResponse(__('api.drive.project_folder_rename_forbidden'), 422);
+        }
+
+        if (! $folder->project_id && $this->driveRepository->folderNameExists($companyId, $folder->parent_id, $validated['name'], $folder->id)) {
             return $this->errorResponse('Folder with this name already exists', 422);
         }
 
@@ -229,6 +233,10 @@ class DriveController extends BaseController
 
         if (! $this->driveAccessService->can($user, $companyId, 'delete', $folder)) {
             return $this->errorResponse('Forbidden', 403);
+        }
+
+        if ($folder->project_id) {
+            return $this->errorResponse(__('api.drive.project_folder_delete_forbidden'), 422);
         }
 
         foreach ($this->driveRepository->filesInFolderTree($companyId, $folder) as $file) {

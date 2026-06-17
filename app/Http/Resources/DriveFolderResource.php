@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\DriveFolderAppearance;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class DriveFolderResource extends JsonResource
@@ -16,8 +17,9 @@ class DriveFolderResource extends JsonResource
             'company_id' => $this->company_id,
             'parent_id' => $this->parent_id,
             'creator_id' => $this->creator_id,
+            'project_id' => $this->project_id,
             'name' => $this->name,
-            'icon' => $this->icon,
+            'icon' => DriveFolderAppearance::resolveDisplayIcon($this->icon, $this->project_id),
             'icon_color' => $this->icon_color,
             'is_shared' => (bool) ($this->is_shared ?? false),
             'created_at' => $this->created_at?->toIso8601String(),

@@ -3,21 +3,28 @@
 namespace App\Repositories;
 
 use App\Models\Comment;
+use App\Models\News;
 use App\Models\TimelineReadState;
+use App\Models\User;
 use App\Services\CacheService;
+use App\Services\CommentModerationGuard;
 use App\Services\Timeline\TimelineEntityRegistry;
 use App\Services\Timeline\TimelineUserFormatter;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 
 class CommentsRepository extends BaseRepository
 {
+    public function __construct(
+        private readonly CommentModerationGuard $moderationGuard
+    ) {}
+
     /**
-     * Получить комментарии для сущности
-     *
-     * @param string $type Тип сущности
-     * @param int $id ID сущности
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @param string $type
+     * @param int $id
+     * @return \Illuminate\Database\Eloquent\Collection<int, Comment>
      */
     public function getCommentsFor(string $type, int $id)
     {
@@ -41,30 +48,141 @@ class CommentsRepository extends BaseRepository
                 ])
                 ->where('commentable_type', $modelClass)
                 ->where('commentable_id', $id)
+                ->whereNull('parent_id')
                 ->orderBy('created_at', 'desc')
                 ->get();
         }, $this->getCacheTTL('reference'));
     }
 
     /**
-     * Создать комментарий
-     *
-     * @param string $type Тип сущности
-     * @param int $id ID сущности
-     * @param string $body Текст комментария
-     * @param int $userId ID пользователя
-     * @return array
-     * @throws \Exception
+     * @param int $newsId
+     * @param int $limit
+     * @param int|null $cursor
+     * @return array{items: list<Comment>, next_cursor: int|null, has_more: bool}
      */
-    public function createItem(string $type, int $id, string $body, int $userId): array
+    public function getNewsCommentsPage(int $newsId, int $limit = 20, ?int $cursor = null): array
+    {
+        $limit = max(1, min(100, $limit));
+        $modelClass = News::class;
+
+        $query = Comment::query()
+            ->where('commentable_type', $modelClass)
+            ->where('commentable_id', $newsId)
+            ->whereNull('parent_id')
+            ->with([
+                'creator:'.TimelineUserFormatter::SELECT_COLUMNS,
+                'parent.creator:'.TimelineUserFormatter::SELECT_COLUMNS,
+                'replies.creator:'.TimelineUserFormatter::SELECT_COLUMNS,
+                'reactions.user:'.TimelineUserFormatter::SELECT_COLUMNS,
+                'replies.reactions.user:'.TimelineUserFormatter::SELECT_COLUMNS,
+            ])
+            ->orderBy('id');
+
+        if ($cursor !== null && $cursor > 0) {
+            $query->where('id', '>', $cursor);
+        }
+
+        $comments = $query->limit($limit + 1)->get();
+        $hasMore = $comments->count() > $limit;
+        if ($hasMore) {
+            $comments = $comments->take($limit);
+        }
+
+        $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
+        $readStates = TimelineReadState::query()
+            ->select([
+                'timeline_read_states.user_id',
+                'timeline_read_states.last_read_comment_id',
+                'timeline_read_states.last_read_at',
+            ])
+            ->with(['user:id,name'])
+            ->where('commentable_type', $modelClass)
+            ->where('commentable_id', $newsId)
+            ->when($companyId > 0, fn ($q) => $q->where('company_id', $companyId))
+            ->get();
+
+        $items = $comments->map(function (Comment $comment) use ($readStates) {
+            $this->attachViewedBy($comment, $readStates);
+            foreach ($comment->replies as $reply) {
+                $this->attachViewedBy($reply, $readStates);
+            }
+
+            return $comment;
+        })->values()->all();
+
+        $nextCursor = null;
+        if ($hasMore && $comments->isNotEmpty()) {
+            $nextCursor = (int) $comments->last()->id;
+        }
+
+        return [
+            'items' => $items,
+            'next_cursor' => $nextCursor,
+            'has_more' => $hasMore,
+        ];
+    }
+
+    /**
+     * @param Comment $comment
+     * @param Collection<int, TimelineReadState> $readStates
+     * @return void
+     */
+    private function attachViewedBy(Comment $comment, Collection $readStates): void
+    {
+        $viewedBy = $readStates
+            ->filter(function (TimelineReadState $state) use ($comment) {
+                return $state->last_read_comment_id !== null
+                    && (int) $state->last_read_comment_id >= (int) $comment->id
+                    && $state->last_read_at !== null;
+            })
+            ->map(function (TimelineReadState $state) {
+                return [
+                    'user_id' => (int) $state->user_id,
+                    'name' => $state->user?->name ?? '',
+                    'viewed_at' => optional($state->last_read_at)->toISOString(),
+                ];
+            })
+            ->filter(fn (array $row) => $row['name'] !== '' && $row['viewed_at'] !== null)
+            ->values()
+            ->all();
+
+        if ((int) $comment->creator_id > 0) {
+            $creatorId = (int) $comment->creator_id;
+            $creatorExists = collect($viewedBy)->contains(fn (array $row) => (int) $row['user_id'] === $creatorId);
+            if (! $creatorExists) {
+                array_unshift($viewedBy, [
+                    'user_id' => $creatorId,
+                    'name' => $comment->creator?->name ?? '',
+                    'viewed_at' => optional($comment->created_at)->toISOString(),
+                ]);
+            }
+        }
+
+        $comment->setAttribute('viewed_by', $viewedBy);
+    }
+
+    /**
+     * @param string $type
+     * @param int $id
+     * @param string $body
+     * @param int $userId
+     * @param int|null $parentId
+     * @return array<string, mixed>
+     */
+    public function createItem(string $type, int $id, string $body, int $userId, ?int $parentId = null): array
     {
         try {
-            return DB::transaction(function () use ($type, $id, $body, $userId) {
+            return DB::transaction(function () use ($type, $id, $body, $userId, $parentId) {
                 $modelClass = $this->resolveType($type);
+
+                if ($parentId !== null) {
+                    $this->assertValidParentComment($modelClass, $id, $parentId);
+                }
 
                 $comment = Comment::create([
                     'body' => $body,
                     'creator_id' => $userId,
+                    'parent_id' => $parentId,
                     'commentable_type' => $modelClass,
                     'commentable_id' => $id,
                 ])->load(['creator:'.TimelineUserFormatter::SELECT_COLUMNS]);
@@ -74,6 +192,7 @@ class CommentsRepository extends BaseRepository
                 return [
                     'id' => $comment->id,
                     'body' => $comment->body,
+                    'parent_id' => $comment->parent_id,
                     'commentable_type' => $comment->commentable_type,
                     'commentable_id' => $comment->commentable_id,
                     'created_at' => $comment->created_at,
@@ -94,29 +213,46 @@ class CommentsRepository extends BaseRepository
     }
 
     /**
-     * Обновить комментарий
-     *
-     * @param int $id ID комментария
-     * @param int $userId ID пользователя
-     * @param string $body Новый текст комментария
-     * @return \App\Models\Comment|false
-     * @throws \Exception
+     * @param class-string $modelClass
+     * @param int $entityId
+     * @param int $parentId
+     * @return void
+     */
+    private function assertValidParentComment(string $modelClass, int $entityId, int $parentId): void
+    {
+        $parent = Comment::query()
+            ->where('id', $parentId)
+            ->where('commentable_type', $modelClass)
+            ->where('commentable_id', $entityId)
+            ->first();
+
+        if (! $parent) {
+            throw new InvalidArgumentException('Parent comment does not belong to this entity');
+        }
+
+        if ($parent->parent_id !== null) {
+            throw new InvalidArgumentException('Nested replies deeper than one level are not supported');
+        }
+    }
+
+    /**
+     * @param int $id
+     * @param int $userId
+     * @param string $body
+     * @return Comment|null
      */
     public function updateItem(int $id, int $userId, string $body)
     {
         return DB::transaction(function () use ($id, $userId, $body) {
-            $query = Comment::select([
-                'comments.id',
-                'comments.body',
-                'comments.commentable_type',
-                'comments.commentable_id',
-                'comments.creator_id'
-            ])
-                ->where('id', $id);
+            $comment = Comment::query()->where('id', $id)->first();
+            if (! $comment) {
+                return null;
+            }
 
-            $this->applyUserAccessFilter($query, $userId);
-
-            $comment = $query->firstOrFail();
+            $user = User::query()->find($userId);
+            if (! $user || ! $this->moderationGuard->canUpdate($user, $comment)) {
+                return null;
+            }
 
             $comment->body = $body;
             $comment->save();
@@ -126,40 +262,37 @@ class CommentsRepository extends BaseRepository
                 (int) $comment->commentable_id
             );
 
-            return $comment->load(['creator:id,name,email']);
+            return $comment->load(['creator:'.TimelineUserFormatter::SELECT_COLUMNS]);
         });
     }
 
     /**
-     * Удалить комментарий
-     *
-     * @param int $id ID комментария
-     * @param int $userId ID пользователя
+     * @param int $id
+     * @param int $userId
+     * @param int $companyId
      * @return bool
-     * @throws \Exception
      */
-    public function deleteItem(int $id, int $userId)
+    public function deleteItem(int $id, int $userId, int $companyId): bool
     {
-        return DB::transaction(function () use ($id, $userId) {
-            $query = Comment::select([
-                'comments.id',
-                'comments.commentable_type',
-                'comments.commentable_id'
-            ])
-                ->where('id', $id);
+        return DB::transaction(function () use ($id, $userId, $companyId) {
+            $comment = Comment::query()->where('id', $id)->first();
+            if (! $comment) {
+                return false;
+            }
 
-            $this->applyUserAccessFilter($query, $userId);
+            $user = User::query()->find($userId);
+            if (! $user || ! $this->moderationGuard->canDelete($user, $comment, $companyId)) {
+                return false;
+            }
 
-            $comment = $query->firstOrFail();
             $commentableType = $comment->commentable_type;
-            $commentableId = $comment->commentable_id;
-
-            $deleted = $comment->delete();
+            $commentableId = (int) $comment->commentable_id;
+            $deleted = (bool) $comment->delete();
 
             if ($deleted) {
                 $this->invalidateCommentsCache(
                     $this->apiTypeFromModelClass($commentableType),
-                    (int) $commentableId
+                    $commentableId
                 );
             }
 
@@ -168,44 +301,37 @@ class CommentsRepository extends BaseRepository
     }
 
     /**
-     * Разрешить тип сущности в класс модели
-     *
-     * @param string $type Тип сущности
-     * @return string Класс модели
-     * @throws \InvalidArgumentException
+     * @param string $type
+     * @return string
      */
     public function resolveType(string $type): string
     {
         try {
             return TimelineEntityRegistry::modelClassFromApiType($type);
-        } catch (\InvalidArgumentException $e) {
-            throw new \InvalidArgumentException("Unknown commentable type: $type", 0, $e);
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidArgumentException("Unknown commentable type: $type", 0, $e);
         }
     }
 
     /**
-     * Короткий API-тип сущности по классу модели (для кэша таймлайна и комментариев)
-     *
-     * @param string $modelClass FQCN модели из commentable_type
+     * @param string $modelClass
      * @return string
      */
     public function apiTypeFromModelClass(string $modelClass): string
     {
         try {
             return TimelineEntityRegistry::apiTypeFromModelClass($modelClass);
-        } catch (\InvalidArgumentException $e) {
-            throw new \InvalidArgumentException("Unknown commentable model class: {$modelClass}", 0, $e);
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidArgumentException("Unknown commentable model class: {$modelClass}", 0, $e);
         }
     }
 
     /**
-     * Инвалидировать кэш комментариев
-     *
-     * @param string $type Тип сущности
-     * @param int $id ID сущности
+     * @param string $type
+     * @param int $id
      * @return void
      */
-    private function invalidateCommentsCache(string $type, int $id)
+    private function invalidateCommentsCache(string $type, int $id): void
     {
         CacheService::forget($this->generateCacheKey('comments', [$type, $id]));
         $companyId = $this->getCurrentCompanyId() ?? 'default';
@@ -213,25 +339,21 @@ class CommentsRepository extends BaseRepository
     }
 
     /**
-     * Инвалидировать кэш комментариев по типу
-     *
-     * @param string $type Тип сущности
+     * @param string $type
      * @return void
      */
-    public function invalidateCommentsCacheByType(string $type)
+    public function invalidateCommentsCacheByType(string $type): void
     {
         $companyId = $this->getCurrentCompanyId() ?? 'default';
         CacheService::invalidateByLike("%comments_{$type}_{$companyId}%");
     }
 
     /**
-     * Получить количество непрочитанных комментариев для списка сущностей
-     *
-     * @param string $type Тип сущности
-     * @param array<int> $entityIds ID сущностей
-     * @param int $userId ID текущего пользователя
-     * @param int $companyId ID компании
-     * @return array<int, int> Map: entityId => unreadCount
+     * @param string $type
+     * @param list<int> $entityIds
+     * @param int $userId
+     * @param int $companyId
+     * @return array<int, int>
      */
     public function getUnreadCountsForEntities(string $type, array $entityIds, int $userId, int $companyId): array
     {
@@ -269,13 +391,11 @@ class CommentsRepository extends BaseRepository
     }
 
     /**
-     * Пометить комментарии сущности как прочитанные
-     *
-     * @param string $type Тип сущности
-     * @param int $entityId ID сущности
-     * @param int $userId ID пользователя
-     * @param int $companyId ID компании
-     * @return int Идентификатор последнего прочитанного комментария
+     * @param string $type
+     * @param int $entityId
+     * @param int $userId
+     * @param int $companyId
+     * @return int
      */
     public function markEntityCommentsAsRead(string $type, int $entityId, int $userId, int $companyId): int
     {
@@ -299,24 +419,10 @@ class CommentsRepository extends BaseRepository
             ]
         );
 
-        return $lastCommentId;
-    }
-
-    /**
-     * Применить фильтр доступа пользователя к запросу комментариев
-     *
-     * Администраторы могут редактировать/удалять любые комментарии,
-     * обычные пользователи - только свои
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
-     * @param int $userId ID пользователя, от имени которого выполняется действие
-     * @return void
-     */
-    private function applyUserAccessFilter($query, int $userId)
-    {
-        $currentUser = auth('api')->user();
-        if (!optional($currentUser)->is_admin) {
-            $query->where('creator_id', $userId);
+        if ($type === 'news') {
+            $this->invalidateCommentsCache($type, $entityId);
         }
+
+        return $lastCommentId;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Task;
 use Illuminate\Foundation\Http\FormRequest;
 
 class TaskRequest extends FormRequest
@@ -11,7 +12,17 @@ class TaskRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        if ($this->isMethod('POST')) {
+            return $this->user()->can('create', Task::class);
+        }
+
+        $task = Task::query()->find($this->route('id'));
+
+        if (! $task) {
+            return true;
+        }
+
+        return $this->user()->can('update', $task);
     }
 
         /**

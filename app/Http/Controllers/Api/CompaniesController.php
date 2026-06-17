@@ -6,14 +6,10 @@ use App\Http\Requests\AccrueSalariesRequest;
 use App\Http\Requests\StoreCompanyRequest;
 use App\Http\Requests\UpdateCompanyRequest;
 use App\Http\Resources\CompanyResource;
-use App\Models\Company;
-use App\Models\TransactionCategoryBinding;
-use App\Models\TransactionCategory;
+use App\Repositories\CompanyRepository;
 use App\Repositories\RolesRepository;
 use App\Services\SalaryAccrualService;
 use App\Services\TransactionCategoryBindingDefaultsService;
-use App\Support\TransactionCategoryBindingKeys;
-use App\Support\TransactionCategoryTypeGuard;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,6 +24,10 @@ use Illuminate\Validation\ValidationException;
  */
 class CompaniesController extends BaseController
 {
+    public function __construct(
+        private readonly CompanyRepository $companyRepository
+    ) {}
+
     /**
      * Список компаний
      *
@@ -35,31 +35,12 @@ class CompaniesController extends BaseController
      */
     public function index(Request $request)
     {
-        $perPage = $request->get('per_page', 10);
-
-        $companies = Company::select([
-            'id', 'name', 'full_name', 'logo',
-            'address', 'phone', 'registration_number', 'email', 'warehouse_number',
-            'show_deleted_transactions', 'display_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold',
-            'rounding_orders_enabled', 'rounding_orders_decimals',
-            'rounding_contracts_enabled', 'rounding_contracts_decimals',
-            'rounding_warehouse_enabled', 'rounding_warehouse_decimals',
-            'rounding_transactions_enabled', 'rounding_transactions_decimals',
-            'rounding_quantity_decimals', 'rounding_quantity_enabled', 'rounding_quantity_direction', 'rounding_quantity_custom_threshold',
-            'skip_project_order_balance', 'work_schedule', 'ui_theme', 'created_at', 'updated_at',
-        ])
-            ->with(['transactionCategoryBindings:company_id,binding_key,transaction_category_id'])
-            ->orderBy('name')
-            ->paginate($perPage);
+        $perPage = (int) $request->get('per_page', 10);
+        $companies = $this->companyRepository->paginateForIndex($perPage);
 
         return $this->successResponse([
             'items' => CompanyResource::collection($companies->items())->resolve(),
-            'meta' => [
-                'current_page' => $companies->currentPage(),
-                'last_page' => $companies->lastPage(),
-                'per_page' => $companies->perPage(),
-                'total' => $companies->total(),
-            ],
+            'meta' => $this->paginationMeta($companies),
         ]);
     }
 
@@ -76,10 +57,10 @@ class CompaniesController extends BaseController
             $data['logo'] = $request->file('logo')->store('companies', 'public');
         }
 
-        $company = Company::create($data);
-        $this->syncTransactionCategoryBindings($company, $request->input('transaction_category_bindings'));
+        $company = $this->companyRepository->create($data);
+        $this->companyRepository->syncTransactionCategoryBindings($company, $request->input('transaction_category_bindings'));
         app(TransactionCategoryBindingDefaultsService::class)->seedMissingForCompany((int) $company->id);
-        $company->load(['transactionCategoryBindings:company_id,binding_key,transaction_category_id']);
+        $this->companyRepository->loadTransactionCategoryBindings($company);
 
         $rolesRepository = app(RolesRepository::class);
         $rolesRepository->createDefaultRolesForCompany($company->id);
@@ -95,7 +76,7 @@ class CompaniesController extends BaseController
      */
     public function update(UpdateCompanyRequest $request, $id)
     {
-        $company = Company::findOrFail($id);
+        $company = $this->companyRepository->findOrFail((int) $id);
 
         $data = $request->validated();
 
@@ -106,12 +87,12 @@ class CompaniesController extends BaseController
             $data['logo'] = $request->file('logo')->store('companies', 'public');
         }
 
-        $company->update($data);
-        $this->syncTransactionCategoryBindings($company, $request->input('transaction_category_bindings'));
+        $this->companyRepository->update($company, $data);
+        $this->companyRepository->syncTransactionCategoryBindings($company, $request->input('transaction_category_bindings'));
         app(TransactionCategoryBindingDefaultsService::class)->seedMissingForCompany((int) $company->id);
 
         $company = $company->fresh();
-        $company->load(['transactionCategoryBindings:company_id,binding_key,transaction_category_id']);
+        $this->companyRepository->loadTransactionCategoryBindings($company);
 
         return $this->successResponse((new CompanyResource($company))->resolve());
     }
@@ -124,8 +105,8 @@ class CompaniesController extends BaseController
      */
     public function destroy($id)
     {
-        $company = Company::findOrFail($id);
-        $company->delete();
+        $company = $this->companyRepository->findOrFail((int) $id);
+        $this->companyRepository->delete($company);
 
         return $this->successResponse(null, __('Company deleted'));
     }
@@ -139,7 +120,7 @@ class CompaniesController extends BaseController
     public function accrueSalaries(AccrueSalariesRequest $request, $id)
     {
         try {
-            $company = Company::findOrFail($id);
+            $company = $this->companyRepository->findOrFail((int) $id);
 
             $validatedData = $request->validated();
             $date = $validatedData['date'];
@@ -192,7 +173,7 @@ class CompaniesController extends BaseController
     public function paySalaries(AccrueSalariesRequest $request, $id)
     {
         try {
-            $company = Company::findOrFail($id);
+            $company = $this->companyRepository->findOrFail((int) $id);
 
             $validatedData = $request->validated();
             $date = $validatedData['date'];
@@ -245,7 +226,7 @@ class CompaniesController extends BaseController
     public function checkExistingSalaries(Request $request, $id)
     {
         try {
-            Company::findOrFail($id);
+            $this->companyRepository->findOrFail((int) $id);
 
             $request->validate([
                 'date' => 'required|date',
@@ -276,7 +257,7 @@ class CompaniesController extends BaseController
     public function salaryAccrualPreview(Request $request, $id)
     {
         try {
-            $company = Company::findOrFail($id);
+            $company = $this->companyRepository->findOrFail((int) $id);
 
             $request->validate([
                 'date' => 'required|date',
@@ -323,7 +304,7 @@ class CompaniesController extends BaseController
     public function salaryMonthlyReport(Request $request, $id)
     {
         try {
-            $company = Company::findOrFail($id);
+            $company = $this->companyRepository->findOrFail((int) $id);
 
             $request->validate([
                 'batch_id' => 'nullable|integer|min:1',
@@ -376,7 +357,7 @@ class CompaniesController extends BaseController
         }
 
         try {
-            $company = Company::findOrFail($id);
+            $company = $this->companyRepository->findOrFail((int) $id);
             $this->salaryAccrualService()->deleteSalaryMonthlyReportBatch((int) $company->id, (int) $batchId);
 
             return $this->successResponse(null, __('Операция удалена'));
@@ -390,78 +371,5 @@ class CompaniesController extends BaseController
     private function salaryAccrualService(): SalaryAccrualService
     {
         return app(SalaryAccrualService::class);
-    }
-
-    /**
-     * @param array<string, mixed>|null $bindings
-     * @return void
-     */
-    private function syncTransactionCategoryBindings(Company $company, ?array $bindings): void
-    {
-        if ($bindings === null) {
-            return;
-        }
-
-        $normalized = [];
-        foreach ($bindings as $entryKey => $binding) {
-            $key = '';
-            $categoryId = 0;
-
-            if (is_array($binding)) {
-                $key = isset($binding['binding_key']) ? (string) $binding['binding_key'] : '';
-                $categoryId = isset($binding['transaction_category_id']) ? (int) $binding['transaction_category_id'] : 0;
-            } elseif (is_string($entryKey)) {
-                $key = $entryKey;
-                $categoryId = (int) $binding;
-            }
-
-            if ($key === '' || $categoryId <= 0) {
-                continue;
-            }
-
-            if (! TransactionCategoryBindingKeys::has($key)) {
-                continue;
-            }
-
-            TransactionCategoryTypeGuard::assertCategoryMatchesBindingKey($key, $categoryId);
-
-            $normalized[$key] = $categoryId;
-        }
-
-        $requestedCategoryIds = array_values($normalized);
-        $existingCategoryIds = $requestedCategoryIds === []
-            ? []
-            : TransactionCategory::query()
-                ->whereIn('id', $requestedCategoryIds)
-                ->pluck('id')
-                ->map(fn ($id) => (int) $id)
-                ->toArray();
-
-        $normalized = array_filter(
-            $normalized,
-            fn ($categoryId) => in_array((int) $categoryId, $existingCategoryIds, true)
-        );
-
-        if ($normalized === []) {
-            return;
-        }
-
-        TransactionCategoryBinding::query()
-            ->where('company_id', $company->id)
-            ->delete();
-
-        $rows = [];
-        $now = now();
-        foreach ($normalized as $key => $categoryId) {
-            $rows[] = [
-                'company_id' => $company->id,
-                'binding_key' => $key,
-                'transaction_category_id' => $categoryId,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-        }
-
-        TransactionCategoryBinding::query()->insert($rows);
     }
 }

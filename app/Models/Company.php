@@ -40,6 +40,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property array|null $work_schedule Рабочий график (сырое значение из БД)
  * @property array|null $ui_theme Цвета интерфейса компании
  * @property array<string, int> $transaction_category_bindings Привязки категорий транзакций по ключам
+ * @property bool $legacy_financial_projection_frozen Заморожена ли legacy-проекция financial_account_movements
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -78,6 +79,7 @@ class Company extends Model
         'skip_project_order_balance',
         'work_schedule',
         'ui_theme',
+        'legacy_financial_projection_frozen',
     ];
 
     protected $attributes = [
@@ -109,6 +111,7 @@ class Company extends Model
         'rounding_transactions_enabled' => 'boolean',
         'rounding_quantity_enabled' => 'boolean',
         'skip_project_order_balance' => 'boolean',
+        'legacy_financial_projection_frozen' => 'boolean',
         'work_schedule' => WorkScheduleCast::class,
         'ui_theme' => 'array',
     ];

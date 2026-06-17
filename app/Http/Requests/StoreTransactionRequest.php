@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\ValidatesTransactionCategoryType;
 use App\Http\Requests\Concerns\ValidatesTransactionClientBalanceConsistency;
-use App\Models\ProjectContract;
+use App\Http\Requests\Concerns\ValidatesTransactionDocumentPaymentAmount;
 use App\Models\Transaction;
 use App\Rules\CashRegisterAccessRule;
 use App\Rules\ProjectAccessRule;
@@ -17,6 +17,7 @@ class StoreTransactionRequest extends FormRequest
 {
     use ValidatesTransactionClientBalanceConsistency;
     use ValidatesTransactionCategoryType;
+    use ValidatesTransactionDocumentPaymentAmount;
 
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
@@ -91,25 +92,34 @@ class StoreTransactionRequest extends FormRequest
             }
 
             $sourceType = $this->input('source_type');
-            $sourceId = $this->input('source_id');
-            $projectId = $this->input('project_id');
-            if (!$sourceType || !$sourceId || strpos($sourceType, 'ProjectContract') === false) {
-                return;
-            }
-            $contract = ProjectContract::find($sourceId);
-            if (!$contract) {
-                $validator->errors()->add('source_id', __('Контракт не найден.'));
-                return;
-            }
-            if ($projectId && (int) $contract->project_id !== (int) $projectId) {
-                $validator->errors()->add('source_id', __('Контракт не принадлежит выбранному проекту.'));
-            }
-            if (! $this->requestBool($this->input('is_debt'))) {
-                $remaining = max(0, (float) $contract->amount - (float) $contract->paid_amount);
-                if ((float) $this->input('orig_amount') > $remaining + 0.01) {
-                    $validator->errors()->add('orig_amount', __('project_contract.payment_exceeds_remaining'));
-                }
-            }
+            $sourceId = $this->normalizeOptionalInt($this->input('source_id'));
+            $orderId = $this->normalizeOptionalInt($this->input('order_id'));
+            $isDebt = $this->requestBool($this->input('is_debt'));
+            $origAmount = (float) $this->input('orig_amount');
+            $currencyId = (int) $this->input('currency_id');
+            $transactionType = $this->normalizeOptionalInt($this->input('type'));
+
+            $this->assertContractPaymentWithinRemaining(
+                $validator,
+                $sourceType ? (string) $sourceType : null,
+                $sourceId,
+                $this->normalizeOptionalInt($this->input('project_id')),
+                $origAmount,
+                $isDebt,
+            );
+
+            $this->assertOrderPaymentWithinRemaining(
+                $validator,
+                $orderId,
+                $sourceType ? (string) $sourceType : null,
+                $sourceId,
+                $origAmount,
+                $currencyId,
+                $isDebt,
+                $transactionType,
+                null,
+                $this->input('date'),
+            );
         });
     }
 

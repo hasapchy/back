@@ -69,7 +69,7 @@ class ProjectContract extends Model implements SupportsTimeline
 
     protected $casts = [
         'status' => ProjectContractStatus::class,
-        'date' => 'date',
+        'date' => 'datetime',
         'type' => 'integer',
         'returned' => 'boolean',
         'files' => 'array',

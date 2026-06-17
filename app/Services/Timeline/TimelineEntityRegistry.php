@@ -4,6 +4,7 @@ namespace App\Services\Timeline;
 
 use App\Models\Client;
 use App\Models\Lead;
+use App\Models\News;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Project;
@@ -37,6 +38,14 @@ final class TimelineEntityRegistry
     public static function skipDescriptionSuffixes(): array
     {
         return ['.products_updated'];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function apiTypes(): array
+    {
+        return array_keys(self::definitions());
     }
 
     /**
@@ -242,6 +251,18 @@ final class TimelineEntityRegistry
                     'cashRegister:id,name',
                     'currency:id,code,name',
                     'clientBalance:id,client_id',
+                ],
+            ],
+            'news' => [
+                'api_type' => 'news',
+                'model' => News::class,
+                'log_name' => 'news',
+                'lines' => self::LINES_HEADER_ONLY,
+                'merge_transaction_logs' => false,
+                'company_resolver' => 'company_id',
+                'select' => ['creator_id', 'title'],
+                'with' => [
+                    'creator:id,name,surname,photo',
                 ],
             ],
         ];

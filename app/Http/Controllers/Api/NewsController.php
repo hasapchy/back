@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Services\EngagementReactionService;
 use App\Http\Requests\StoreNewsRequest;
 use App\Http\Requests\UpdateNewsRequest;
 use App\Http\Resources\NewsResource;
@@ -9,6 +10,7 @@ use App\Models\News;
 use App\Repositories\NewsRepository;
 use App\Services\InAppNotifications\InAppNotificationDispatcher;
 use App\Services\NewsImageService;
+use App\Services\Timeline\TimelineEntityAccessGuard;
 use Illuminate\Http\Request;
 
 /**
@@ -25,6 +27,8 @@ class NewsController extends BaseController
         NewsRepository $itemsRepository,
         NewsImageService $imageService,
         private readonly InAppNotificationDispatcher $inAppNotificationDispatcher,
+        private readonly EngagementReactionService $engagementReactionService,
+        private readonly TimelineEntityAccessGuard $timelineAccessGuard,
     ) {
         $this->itemsRepository = $itemsRepository;
         $this->imageService = $imageService;
@@ -35,7 +39,7 @@ class NewsController extends BaseController
      */
     public function index(Request $request)
     {
-        $userId = $this->getAuthenticatedUserIdOrFail();
+        $userId = (int) ($this->getAuthenticatedUserIdOrFail() ?? 0);
 
         $page = (int) $request->input('page', 1);
         $perPage = (int) $request->input('per_page', 20);
@@ -43,8 +47,13 @@ class NewsController extends BaseController
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
         $authorId = $request->input('author_id');
+        $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
 
         $items = $this->itemsRepository->getItemsWithPagination($perPage, $page, $search, $dateFrom, $dateTo, $authorId);
+        $this->itemsRepository->attachReactionSummaries($items->items());
+        $this->itemsRepository->attachViewedBy($items->items(), $companyId);
+        $this->itemsRepository->attachAcknowledgedBy($items->items(), $companyId);
+        $this->itemsRepository->attachAcknowledgedByCurrentUser($items->items(), $userId, $companyId);
 
         return $this->successResponse([
             'items' => NewsResource::collection($items->items())->resolve(),
@@ -62,8 +71,13 @@ class NewsController extends BaseController
      */
     public function all(Request $request)
     {
-        $userId = $this->getAuthenticatedUserIdOrFail();
+        $userId = (int) ($this->getAuthenticatedUserIdOrFail() ?? 0);
+        $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
         $items = $this->itemsRepository->getAllItems();
+        $this->itemsRepository->attachReactionSummaries($items);
+        $this->itemsRepository->attachViewedBy($items, $companyId);
+        $this->itemsRepository->attachAcknowledgedBy($items, $companyId);
+        $this->itemsRepository->attachAcknowledgedByCurrentUser($items, $userId, $companyId);
 
         return $this->successResponse(NewsResource::collection($items)->resolve());
     }
@@ -87,6 +101,7 @@ class NewsController extends BaseController
             'title' => $validatedData['title'],
             'content' => $processedContent,
             'creator_id' => $userId,
+            'is_important' => (bool) ($validatedData['is_important'] ?? false),
         ];
 
         try {
@@ -142,6 +157,7 @@ class NewsController extends BaseController
         $itemData = [
             'title' => $validatedData['title'],
             'content' => $processedContent,
+            'is_important' => (bool) ($validatedData['is_important'] ?? $news->is_important),
         ];
 
         try {
@@ -175,6 +191,12 @@ class NewsController extends BaseController
                 return $this->errorResponse(__('Новость не найдена или доступ запрещен'), 404);
             }
 
+            $this->itemsRepository->attachReactionSummaries([$news]);
+            $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
+            $this->itemsRepository->attachViewedBy([$news], $companyId);
+            $this->itemsRepository->attachAcknowledgedBy([$news], $companyId);
+            $this->itemsRepository->attachAcknowledgedByCurrentUser([$news], (int) $user->id, $companyId);
+
             return $this->successResponse(new NewsResource($news));
         } catch (\Exception $e) {
             return $this->errorResponse(__('Ошибка при получении новости: ').$e->getMessage(), 500);
@@ -205,5 +227,73 @@ class NewsController extends BaseController
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
+    }
+
+    /**
+     * @param Request $request
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function setReaction(Request $request, int $id)
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
+        $this->timelineAccessGuard->resolveEntityForCompany($user, 'news', $id, $companyId);
+
+        $validated = $request->validate([
+            'emoji' => 'nullable|string|max:16',
+        ]);
+
+        $emoji = $validated['emoji'] ?? null;
+        $reactions = $this->engagementReactionService->setNewsReaction(
+            $companyId,
+            $id,
+            (int) $user->id,
+            $emoji
+        );
+
+        return $this->successResponse(['reactions' => $reactions]);
+    }
+
+    /**
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function markViewed(int $id)
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
+        $this->timelineAccessGuard->resolveEntityForCompany($user, 'news', $id, $companyId);
+
+        $viewedAt = $this->itemsRepository->markViewed($id, (int) $user->id, $companyId);
+
+        return $this->successResponse([
+            'viewed_at' => $viewedAt,
+        ]);
+    }
+
+    /**
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function acknowledge(int $id)
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
+        $news = $this->timelineAccessGuard->resolveEntityForCompany($user, 'news', $id, $companyId);
+
+        if (! $news instanceof News) {
+            return $this->errorResponse(__('Новость не найдена или доступ запрещен'), 404);
+        }
+
+        if (! $news->is_important) {
+            return $this->errorResponse(__('Подтверждение нужно только для важной новости'), 422);
+        }
+
+        $ackAt = $this->itemsRepository->acknowledgeImportant($id, (int) $user->id, $companyId);
+
+        return $this->successResponse([
+            'acknowledged_at' => $ackAt,
+        ]);
     }
 }

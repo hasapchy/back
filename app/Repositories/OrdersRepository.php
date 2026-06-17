@@ -27,13 +27,30 @@ use App\Services\RoundingService;
 use App\Services\Timeline\TimelineEventWriter;
 use App\Http\Resources\OrderResource;
 use App\Support\TransactionCategoryBindingKeys;
+use App\Services\OrderInventoryJournalService;
 
 class OrdersRepository extends BaseRepository
 {
+    private ?OrderInventoryJournalService $orderInventoryJournalService = null;
+
     /**
      * ID статуса заказа "Оплачен"
      */
     private const PAID_STATUS_ID = 5;
+
+    public function __construct(
+        ?OrderInventoryJournalService $orderInventoryJournalService = null,
+    ) {
+        $this->orderInventoryJournalService = $orderInventoryJournalService;
+    }
+
+    /**
+     * @return OrderInventoryJournalService
+     */
+    private function orderInventoryJournal(): OrderInventoryJournalService
+    {
+        return $this->orderInventoryJournalService ??= resolve(OrderInventoryJournalService::class);
+    }
 
     /**
      * @param  \Illuminate\Database\Eloquent\Builder  $query
@@ -629,7 +646,6 @@ class OrdersRepository extends BaseRepository
             $tempRows = $lineData['temp_rows'];
 
             $warehouseName = Warehouse::find($warehouse_id)?->name ?? (string) $warehouse_id;
-            $this->checkAndDeductWarehouseStock($warehouseStocksToUpdate, $warehouse_id, $warehouseName);
 
             $headerPricing = $this->resolveOrderHeaderPricing(
                 $origSubtotal,
@@ -700,6 +716,15 @@ class OrdersRepository extends BaseRepository
                     Order::class,
                     $order->id,
                     true
+                );
+            }
+
+            if ($warehouseStocksToUpdate !== []) {
+                $order->load('warehouse');
+                $this->orderInventoryJournal()->issueInventoryForOrder(
+                    $order,
+                    $warehouseStocksToUpdate,
+                    (int) $warehouse_id,
                 );
             }
 
@@ -793,7 +818,12 @@ class OrdersRepository extends BaseRepository
 
             if ($shouldSyncWarehouseStock) {
                 $this->returnProductsToWarehouse($oldProducts, $oldWarehouseId);
-                $this->checkAndDeductWarehouseStock($warehouseStocksToUpdate, $warehouse_id, $warehouseName);
+                $order->load('warehouse');
+                $this->orderInventoryJournal()->syncInventoryForOrder(
+                    $order,
+                    $warehouseStocksToUpdate,
+                    (int) $warehouse_id,
+                );
             }
 
             $headerPricing = $this->resolveOrderHeaderPricing(

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\CashTransfer;
 use App\Rules\CashRegisterAccessRule;
 use App\Rules\CashRegisterTransferParticipantRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -17,7 +18,7 @@ class StoreTransferRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', CashTransfer::class);
     }
 
     /**

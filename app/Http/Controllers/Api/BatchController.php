@@ -32,11 +32,11 @@ class BatchController extends BaseController
                 $request->header('Idempotency-Key'),
             );
         } catch (ValidationException $e) {
-            return response()->json(['errors' => $e->errors()], 422);
+            return $this->validationErrorResponse($e->validator);
         } catch (UnknownBatchOperationException $e) {
-            return response()->json($this->batchErrorEnvelope($e->getMessage()), 404);
+            return $this->errorResponse($e->getMessage(), 404);
         } catch (AccessDeniedHttpException $e) {
-            return response()->json($this->batchErrorEnvelope($e->getMessage()), 403);
+            return $this->errorResponse($e->getMessage(), 403);
         }
 
         foreach ($result->errors as $err) {
@@ -55,18 +55,5 @@ class BatchController extends BaseController
         $status = $result->correlationId !== null && $result->successCount === 0 ? 202 : 200;
 
         return $this->successResponse($result->toArray(), null, $status);
-    }
-
-    private function batchErrorEnvelope(string $message): array
-    {
-        return [
-            'success_count' => 0,
-            'failed_ids' => [],
-            'errors' => [['message' => $message]],
-            'async_job_id' => null,
-            'async_connection' => null,
-            'correlation_id' => null,
-            'strategy_used' => null,
-        ];
     }
 }

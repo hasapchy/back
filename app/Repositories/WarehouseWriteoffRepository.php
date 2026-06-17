@@ -20,6 +20,7 @@ use App\Services\UnitStockPresentationService;
 use App\Services\InventoryLockService;
 use App\Services\WarehouseReturnSupplierSettlementService;
 use App\Services\Timeline\WarehouseTimelineCache;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class WarehouseWriteoffRepository extends BaseRepository
@@ -90,6 +91,7 @@ class WarehouseWriteoffRepository extends BaseRepository
                 'wh_write_offs.reason as reason',
                 'warehouses.name as warehouse_name',
                 'wh_write_offs.note as note',
+                'wh_write_offs.date as date',
                 'wh_write_offs.creator_id as creator_id',
                 'users.name as creator_name',
                 'users.surname as creator_surname',
@@ -116,6 +118,8 @@ class WarehouseWriteoffRepository extends BaseRepository
                 unset($item->creator_name, $item->creator_surname);
             }
 
+            $this->attachSupplierReturnAmountsToPaginatedItems($items->getCollection());
+
             return $items;
         }, (int)$page);
     }
@@ -141,6 +145,7 @@ class WarehouseWriteoffRepository extends BaseRepository
                 'wh_write_offs.reason',
                 'warehouses.name as warehouse_name',
                 'wh_write_offs.note',
+                'wh_write_offs.date',
                 'wh_write_offs.creator_id',
                 'wh_write_offs.created_at',
                 'wh_write_offs.updated_at'
@@ -206,6 +211,7 @@ class WarehouseWriteoffRepository extends BaseRepository
             'warehouse_name' => $row->warehouse_name,
             'reason' => WarehouseWriteoffResource::serializedReason($row->reason),
             'note' => $row->note ?? '',
+            'date' => $row->date,
             'creator_id' => $row->creator_id ? (int) $row->creator_id : null,
             'creator' => $creator,
             'created_at' => $row->created_at,
@@ -230,6 +236,8 @@ class WarehouseWriteoffRepository extends BaseRepository
                 $returnAmount = $settlement->calculateReturnAmountDefault($productPayload, $lines, $companyId ?: null);
                 $portions = $settlement->calculateFifoPortions($receipt, $returnAmount, (int) $writeoff->id);
                 $manualCashTotal = $settlement->sumManualCashDefaultForWriteoff($writeoff, $companyId);
+                $result['return_amount'] = $returnAmount;
+                $result['return_currency_code'] = $receipt->origCurrency?->code;
                 $result['unpaid_portion'] = $portions['unpaid_portion'];
                 $result['paid_portion'] = $portions['paid_portion'];
                 $result['cash_return_remaining_default'] = max(0.0, $portions['paid_portion'] - $manualCashTotal);
@@ -263,7 +271,7 @@ class WarehouseWriteoffRepository extends BaseRepository
             $writeoff->reason = $reason;
             $writeoff->source_receipt_id = $sourceReceiptId;
             $writeoff->note = $note;
-            $writeoff->date = now();
+            $writeoff->date = $this->normalizeWriteoffDateTime($data['date'] ?? null);
             $writeoff->creator_id      = auth('api')->id();
             $writeoff->save();
 
@@ -315,7 +323,7 @@ class WarehouseWriteoffRepository extends BaseRepository
 
         app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
 
-        return DB::transaction(function () use ($writeoff_id, $warehouse_id, $reason, $sourceReceiptId, $note, $products) {
+        return DB::transaction(function () use ($writeoff_id, $warehouse_id, $reason, $sourceReceiptId, $note, $products, $data) {
             $writeoff = WhWriteoff::findOrFail($writeoff_id);
             $old_warehouse_id = $writeoff->warehouse_id;
 
@@ -323,6 +331,9 @@ class WarehouseWriteoffRepository extends BaseRepository
             $writeoff->reason = $reason;
             $writeoff->source_receipt_id = $sourceReceiptId;
             $writeoff->note = $note;
+            if (array_key_exists('date', $data)) {
+                $writeoff->date = $this->normalizeWriteoffDateTime($data['date']);
+            }
             $writeoff->save();
 
             $existingProducts = WhWriteoffProduct::where('write_off_id', $writeoff_id)->get();
@@ -442,7 +453,7 @@ class WarehouseWriteoffRepository extends BaseRepository
             $writeoff->warehouse_id = $warehouseId;
             $writeoff->reason = $reason;
             $writeoff->note = $note;
-            $writeoff->date = now();
+            $writeoff->date = $this->normalizeWriteoffDateTime(null);
             $writeoff->creator_id = auth('api')->id();
             $writeoff->save();
 
@@ -486,6 +497,74 @@ class WarehouseWriteoffRepository extends BaseRepository
         });
 
         WarehouseTimelineCache::forgetWriteoff($writeoffId, $warehouseId > 0 ? $warehouseId : null);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, object>  $items
+     * @return void
+     */
+    private function attachSupplierReturnAmountsToPaginatedItems(\Illuminate\Support\Collection $items): void
+    {
+        $returnSupplierValue = WhWriteoffReason::ReturnSupplier->value;
+
+        $receiptIds = $items
+            ->filter(function ($item) use ($returnSupplierValue): bool {
+                $reason = $item->reason instanceof WhWriteoffReason
+                    ? $item->reason->value
+                    : (string) ($item->reason ?? '');
+
+                return $reason === $returnSupplierValue && ! empty($item->source_receipt_id);
+            })
+            ->pluck('source_receipt_id')
+            ->map(static fn ($id) => (int) $id)
+            ->filter(static fn (int $id) => $id > 0)
+            ->unique()
+            ->values();
+
+        $receiptsById = $receiptIds->isEmpty()
+            ? collect()
+            : WhReceipt::query()
+                ->with(['products', 'origCurrency:id,code', 'warehouse:id,company_id'])
+                ->whereIn('id', $receiptIds)
+                ->get()
+                ->keyBy('id');
+
+        $settlement = app(WarehouseReturnSupplierSettlementService::class);
+
+        foreach ($items as $item) {
+            $item->return_amount = null;
+            $item->return_currency_code = null;
+
+            $reason = $item->reason instanceof WhWriteoffReason
+                ? $item->reason->value
+                : (string) ($item->reason ?? '');
+
+            if ($reason !== $returnSupplierValue || empty($item->source_receipt_id)) {
+                continue;
+            }
+
+            $receipt = $receiptsById->get((int) $item->source_receipt_id);
+            if (! $receipt instanceof WhReceipt) {
+                continue;
+            }
+
+            $productPayload = collect($item->products ?? [])->map(static function ($line): array {
+                return [
+                    'quantity' => (float) ($line->quantity ?? 0),
+                    'source_receipt_product_id' => $line->source_receipt_product_id ?? null,
+                ];
+            })->all();
+
+            $companyId = (int) ($receipt->warehouse?->company_id ?? 0);
+            $receiptLines = $receipt->products->keyBy('id');
+
+            $item->return_amount = $settlement->calculateReturnAmountDefault(
+                $productPayload,
+                $receiptLines,
+                $companyId > 0 ? $companyId : null
+            );
+            $item->return_currency_code = $receipt->origCurrency?->code;
+        }
     }
 
     /**
@@ -635,5 +714,18 @@ class WarehouseWriteoffRepository extends BaseRepository
             )
             ->get()
             ->groupBy('write_off_id');
+    }
+
+    /**
+     * @param string|null $date
+     * @return string
+     */
+    private function normalizeWriteoffDateTime(?string $date): string
+    {
+        if ($date === null || $date === '') {
+            return now()->startOfDay()->format('Y-m-d H:i:s');
+        }
+
+        return Carbon::parse($date)->startOfDay()->format('Y-m-d H:i:s');
     }
 }

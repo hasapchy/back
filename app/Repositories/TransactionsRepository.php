@@ -195,13 +195,19 @@ class TransactionsRepository extends BaseRepository
                             $subQ->where('source_type', 'App\\Models\\Order');
                         } elseif ($source === 'receipt') {
                             $subQ->where('source_type', 'App\\Models\\WhReceipt');
+                        } elseif ($source === 'writeoff' || $source === 'return_supplier') {
+                            $subQ->where('source_type', 'App\\Models\\WhWriteoff');
                         } elseif ($source === 'purchase') {
                             $subQ->where('source_type', 'App\\Models\\WhPurchase');
+                        } elseif ($source === 'contract') {
+                            $subQ->where('source_type', 'App\\Models\\ProjectContract');
+                        } elseif ($source === 'transaction') {
+                            $subQ->where('source_type', 'App\\Models\\Transaction');
                         } elseif ($source === 'salary') {
                             $subQ->where('source_type', 'App\\Models\\EmployeeSalary');
                         } elseif ($source === 'other') {
                             $subQ->whereNull('source_type')
-                                ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order', 'App\\Models\\WhReceipt', 'App\\Models\\WhPurchase', 'App\\Models\\EmployeeSalary']);
+                                ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order', 'App\\Models\\WhReceipt', 'App\\Models\\WhWriteoff', 'App\\Models\\WhPurchase', 'App\\Models\\ProjectContract', 'App\\Models\\Transaction', 'App\\Models\\EmployeeSalary']);
                         }
                     });
                 })
@@ -242,7 +248,8 @@ class TransactionsRepository extends BaseRepository
 
             if ($exportLimit !== null) {
                 $results = $query->limit($exportLimit)->get();
-                $items = $results->map(fn ($transaction) => $this->transformTransactionToListItem($transaction));
+                $writeoffReasonById = $this->buildWriteoffReasonMapFromTransactions($results);
+                $items = $results->map(fn ($transaction) => $this->transformTransactionToListItem($transaction, $writeoffReasonById));
 
                 return (object) ['items' => $items->all()];
             }
@@ -254,7 +261,8 @@ class TransactionsRepository extends BaseRepository
             $totalDebtPositive = $debtTotals['positive'];
             $totalDebtNegative = $debtTotals['negative'];
 
-            $paginatedResults->getCollection()->transform(fn ($transaction) => $this->transformTransactionToListItem($transaction));
+            $writeoffReasonById = $this->buildWriteoffReasonMapFromTransactions($paginatedResults->getCollection());
+            $paginatedResults->getCollection()->transform(fn ($transaction) => $this->transformTransactionToListItem($transaction, $writeoffReasonById));
 
             /** @var object $paginatedResults */
             $paginatedResults->total_debt_positive = $totalDebtPositive;
@@ -304,7 +312,7 @@ class TransactionsRepository extends BaseRepository
      * @param  mixed  $transaction
      * @return object
      */
-    protected function transformTransactionToListItem($transaction)
+    protected function transformTransactionToListItem($transaction, array $writeoffReasonById = [])
     {
         if (!$transaction instanceof Transaction) {
             return (object) [];
@@ -373,6 +381,7 @@ class TransactionsRepository extends BaseRepository
             'updated_at' => $transaction->updated_at,
             'source_type' => $transaction->source_type,
             'source_id' => $transaction->source_id,
+            'source' => $this->resolveSourceAlias($transaction, $writeoffReasonById),
             'is_deleted' => $transaction->is_deleted ?? false,
         ];
     }
@@ -383,6 +392,60 @@ class TransactionsRepository extends BaseRepository
     public function transactionToListArray(Transaction $transaction): array
     {
         return (array) $this->transformTransactionToListItem($transaction);
+    }
+
+    /**
+     * @param  iterable<int, Transaction>  $transactions
+     * @return array<int, string>
+     */
+    private function buildWriteoffReasonMapFromTransactions(iterable $transactions): array
+    {
+        $writeoffIds = collect($transactions)
+            ->filter(function ($transaction): bool {
+                return $transaction instanceof Transaction
+                    && is_a((string) $transaction->source_type, WhWriteoff::class, true)
+                    && (int) ($transaction->source_id ?? 0) > 0;
+            })
+            ->map(static fn (Transaction $transaction): int => (int) $transaction->source_id)
+            ->unique()
+            ->values();
+
+        if ($writeoffIds->isEmpty()) {
+            return [];
+        }
+
+        return WhWriteoff::query()
+            ->whereIn('id', $writeoffIds->all())
+            ->pluck('reason', 'id')
+            ->map(static fn ($reason): string => $reason instanceof WhWriteoffReason ? $reason->value : (string) $reason)
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string>  $writeoffReasonById
+     */
+    private function resolveSourceAlias(Transaction $transaction, array $writeoffReasonById): ?string
+    {
+        if (! is_a((string) $transaction->source_type, WhWriteoff::class, true)) {
+            return null;
+        }
+
+        $writeoffId = (int) ($transaction->source_id ?? 0);
+        if ($writeoffId <= 0) {
+            return null;
+        }
+
+        $reason = $writeoffReasonById[$writeoffId] ?? null;
+        if ($reason === null) {
+            $reason = WhWriteoff::query()->whereKey($writeoffId)->value('reason');
+            $reason = $reason instanceof WhWriteoffReason ? $reason->value : (string) $reason;
+        }
+
+        if ($reason === WhWriteoffReason::ReturnSupplier->value) {
+            return 'return_supplier';
+        }
+
+        return 'writeoff';
     }
 
     /**
@@ -1276,6 +1339,15 @@ class TransactionsRepository extends BaseRepository
     private function syncFinancialAccountProjection(Transaction $transaction): void
     {
         try {
+            $transaction->loadMissing('cashRegister:id,company_id');
+            $companyId = (int) ($transaction->company_id ?: $transaction->cashRegister?->company_id);
+            if ($companyId > 0) {
+                $company = \App\Models\Company::query()->find($companyId);
+                if ($company?->legacy_financial_projection_frozen) {
+                    return;
+                }
+            }
+
             app(FinancialAccountService::class)->syncTransaction($transaction);
         } catch (\Throwable $exception) {
             FinancialAccountService::logProjectionError($transaction, $exception);

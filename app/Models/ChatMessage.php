@@ -11,10 +11,11 @@ class ChatMessage extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['chat_id', 'creator_id', 'body', 'files', 'parent_id', 'forwarded_from_message_id', 'is_edited', 'edited_at'];
+    protected $fillable = ['chat_id', 'creator_id', 'body', 'files', 'metadata', 'parent_id', 'forwarded_from_message_id', 'is_edited', 'edited_at'];
 
     protected $casts = [
         'files' => 'array',
+        'metadata' => 'array',
         'is_edited' => 'boolean',
         'edited_at' => 'datetime',
         'is_system' => 'boolean',

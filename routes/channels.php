@@ -71,6 +71,23 @@ Broadcast::channel('company.{companyId}.timeline.{apiType}.{entityId}', function
     }
 });
 
+Broadcast::channel('company.{companyId}.news.{newsId}', function ($user, $companyId, $newsId) use ($userBelongsToCompany) {
+    try {
+        $companyId = (int) $companyId;
+        $newsId = (int) $newsId;
+
+        if (! $userBelongsToCompany($user, $companyId)) {
+            return false;
+        }
+
+        return app(TimelineEntityAccessGuard::class)->canView($user, 'news', $newsId, $companyId);
+    } catch (\Throwable $e) {
+        report($e);
+
+        return false;
+    }
+});
+
 Broadcast::channel('company.{companyId}.' . CompanyPrivateChannel::SEGMENT_ORDERS, function ($user, $companyId) use ($userBelongsToCompany) {
     try {
         $companyId = (int) $companyId;

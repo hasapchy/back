@@ -46,6 +46,16 @@ return [
         'report_currency_not_found' => 'Валюта отчетов не найдена для компании',
         'cash_cannot_go_negative' => 'Операция запрещена: касса не может уходить в минус',
     ],
+    'entity_link' => [
+        'invalid' => 'Некорректная ссылка на сущность',
+        'unsupported_entity' => 'Неподдерживаемый тип сущности',
+        'unsupported_metadata_type' => 'Неподдерживаемый тип metadata сообщения',
+        'transaction_title' => 'Транзакция #:id',
+        'order_title' => 'Заказ #:id',
+        'project_title' => 'Проект #:id',
+        'income' => 'Приход',
+        'outcome' => 'Расход',
+    ],
     'tasks' => [
         'view_forbidden' => 'У вас нет прав на просмотр задач',
         'status_completed_not_found' => 'Статус "Завершена" не найден',
@@ -83,6 +93,8 @@ return [
         'currency_change_forbidden_has_contracts' => 'Нельзя изменить валюту проекта: у проекта есть контракты.',
         'delete_has_transactions_prefix' => 'Невозможно удалить проект, к нему привязано транзакций: ',
         'delete_has_chat' => 'Невозможно удалить проект: у него есть чат. Сначала удалите чат проекта.',
+        'drive_folder_created' => 'Папка проекта успешно создана',
+        'drive_folder_already_exists' => 'Папка для проекта уже создана',
     ],
     'orders' => [
         'not_found' => 'Заказ не найден',
@@ -106,6 +118,7 @@ return [
         'deleted' => 'Комментарий удалён',
         'invalid_timeline_cursor' => 'Некорректный курсор таймлайна',
         'timeline_load_failed_prefix' => 'Ошибка загрузки таймлайна: ',
+        'timeline_load_failed' => 'Ошибка загрузки таймлайна',
     ],
     'writeoff' => [
         'not_found' => 'Списание не найдено',
@@ -232,5 +245,9 @@ return [
         'client_delete_related_transactions' => 'Нельзя удалить клиента: найдены связанные транзакции.',
         'client_delete_related_orders' => 'Нельзя удалить клиента: найдены связанные заказы.',
         'client_delete_non_zero_balance' => 'Нельзя удалить клиента с ненулевым балансом.',
+    ],
+    'drive' => [
+        'project_folder_rename_forbidden' => 'Название папки проекта нельзя изменить. Измените название проекта.',
+        'project_folder_delete_forbidden' => 'Папку проекта нельзя удалить отдельно. Удалите проект.',
     ],
 ];

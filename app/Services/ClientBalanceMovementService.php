@@ -7,6 +7,7 @@ use App\Models\ClientBalance;
 use App\Models\ClientBalanceMovement;
 use App\Models\FinancialAccount;
 use App\Models\Transaction;
+use App\Repositories\ClientBalanceRepository;
 use App\Support\BalanceChainRecalculator;
 use App\Support\MovementHashBuilder;
 use Carbon\Carbon;
@@ -17,6 +18,7 @@ class ClientBalanceMovementService
 {
     public function __construct(
         private readonly ClientBalanceLedgerResolver $ledgerResolver,
+        private readonly ClientBalanceRepository $clientBalanceRepository,
     ) {}
 
     /**
@@ -135,7 +137,7 @@ class ClientBalanceMovementService
      */
     private function createMovementFromTransaction(Transaction $transaction): void
     {
-        $client = $transaction->client ?? Client::query()->find($transaction->client_id);
+        $client = $transaction->client ?? $this->clientBalanceRepository->findClientSummary((int) $transaction->client_id);
         if (! $client) {
             return;
         }
@@ -183,7 +185,7 @@ class ClientBalanceMovementService
             return [];
         }
 
-        $client = $transaction->client ?? Client::query()->find($transaction->client_id);
+        $client = $transaction->client ?? $this->clientBalanceRepository->findClientSummary((int) $transaction->client_id);
         if (! $client) {
             return [];
         }

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Client;
 use App\Models\ClientBalance;
 use App\Models\Transaction;
+use App\Repositories\ClientBalanceRepository;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -12,6 +13,7 @@ class ClientBalanceVerificationService
 {
     public function __construct(
         private readonly ClientBalanceLedgerResolver $ledgerResolver,
+        private readonly ClientBalanceRepository $clientBalanceRepository,
     ) {}
 
     /**
@@ -22,20 +24,13 @@ class ClientBalanceVerificationService
      */
     public function verifyClient(int $clientId, ?int $balanceId = null, bool $dryRun = true): array
     {
-        $client = Client::query()
-            ->select(['id', 'first_name', 'last_name', 'patronymic', 'company_id'])
-            ->find($clientId);
+        $client = $this->clientBalanceRepository->findClientSummary($clientId);
 
         if (! $client) {
             throw new \RuntimeException("Клиент #{$clientId} не найден");
         }
 
-        $balances = ClientBalance::query()
-            ->where('client_id', $clientId)
-            ->with('currency:id,code,name')
-            ->orderByDesc('is_default')
-            ->orderBy('id')
-            ->get();
+        $balances = $this->clientBalanceRepository->getClientBalancesForVerification($clientId);
 
         if ($balanceId !== null) {
             $balances = $balances->where('id', $balanceId)->values();
@@ -360,11 +355,7 @@ class ClientBalanceVerificationService
 
         DB::transaction(function () use ($clientId, $expectedBalances, &$fixesApplied) {
             foreach ($expectedBalances as $balanceId => $expected) {
-                $balance = ClientBalance::query()
-                    ->where('client_id', $clientId)
-                    ->where('id', $balanceId)
-                    ->lockForUpdate()
-                    ->first();
+                $balance = $this->clientBalanceRepository->findForClientWithLock($clientId, (int) $balanceId);
 
                 if (! $balance) {
                     continue;

@@ -6,6 +6,7 @@ use App\Http\Requests\StoreWarehousePurchaseRequest;
 use App\Http\Requests\StoreWarehousePurchasePaymentRequest;
 use App\Http\Requests\UpdateWarehousePurchaseRequest;
 use App\Http\Resources\WarehousePurchaseResource;
+use App\Models\WhPurchase;
 use App\Repositories\WarehousePurchaseRepository;
 use App\Services\WarehouseDocumentPaymentStatusService;
 use Illuminate\Http\Request;
@@ -26,6 +27,8 @@ class WarehousePurchaseController extends BaseController
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', WhPurchase::class);
+
         $items = $this->itemsRepository->getItemsWithPagination(
             (int) $request->input('per_page', 20),
             (int) $request->input('page', 1),
@@ -38,13 +41,7 @@ class WarehousePurchaseController extends BaseController
 
         return $this->successResponse([
             'items' => WarehousePurchaseResource::collection($items->items())->resolve(),
-            'meta' => [
-                'current_page' => $items->currentPage(),
-                'next_page' => $items->nextPageUrl(),
-                'last_page' => $items->lastPage(),
-                'per_page' => $items->perPage(),
-                'total' => $items->total(),
-            ],
+            'meta' => $this->paginationMeta($items),
         ]);
     }
 
@@ -57,6 +54,7 @@ class WarehousePurchaseController extends BaseController
         if (! $item) {
             return $this->errorResponse(__('warehouse_purchase.not_found'), 404);
         }
+        $this->authorize('view', $item);
 
         return $this->successResponse(new WarehousePurchaseResource($item));
     }
@@ -66,6 +64,8 @@ class WarehousePurchaseController extends BaseController
      */
     public function store(StoreWarehousePurchaseRequest $request)
     {
+        $this->authorize('create', WhPurchase::class);
+
         try {
             $id = $this->itemsRepository->createItem($request->validated());
             $item = $this->itemsRepository->getItemById($id);
@@ -84,6 +84,12 @@ class WarehousePurchaseController extends BaseController
      */
     public function update(UpdateWarehousePurchaseRequest $request, int $id)
     {
+        $existing = $this->itemsRepository->getItemById($id);
+        if (! $existing) {
+            return $this->errorResponse(__('warehouse_purchase.not_found'), 404);
+        }
+        $this->authorize('update', $existing);
+
         try {
             $this->itemsRepository->updateItem($id, $request->validated());
             $item = $this->itemsRepository->getItemById($id);
@@ -104,6 +110,12 @@ class WarehousePurchaseController extends BaseController
      */
     public function destroy(int $id)
     {
+        $existing = $this->itemsRepository->getItemById($id);
+        if (! $existing) {
+            return $this->errorResponse(__('warehouse_purchase.not_found'), 404);
+        }
+        $this->authorize('delete', $existing);
+
         try {
             $this->itemsRepository->deleteItem($id);
 
@@ -122,6 +134,12 @@ class WarehousePurchaseController extends BaseController
      */
     public function pay(StoreWarehousePurchasePaymentRequest $request, int $id)
     {
+        $existing = $this->itemsRepository->getItemById($id);
+        if (! $existing) {
+            return $this->errorResponse(__('warehouse_purchase.not_found'), 404);
+        }
+        $this->authorize('update', $existing);
+
         try {
             $txId = $this->itemsRepository->addPayment($id, $request->validated());
 

@@ -13,6 +13,9 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Repositories\TransactionsRepository;
 use App\Support\ClientBalanceViewAccess;
+use App\Services\Journal\SalaryJournalBuilder;
+use App\Services\JournalEntryService;
+use App\Support\JournalTemplateKeys;
 use App\Support\TransactionCategoryBindingKeys;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -26,6 +29,8 @@ class SalaryAccrualService
         private TransactionsRepository $transactionsRepository,
         private PayrollOfficialWorkingDaysCalculator $payrollOfficialWorkingDaysCalculator,
         private TransactionCategoryBindingResolver $categoryBindingResolver,
+        private SalaryJournalBuilder $salaryJournalBuilder,
+        private JournalEntryService $journalEntryService,
     ) {}
 
     /**
@@ -210,7 +215,7 @@ class SalaryAccrualService
                 $report = SalaryMonthlyReport::query()->create([
                     'company_id' => $companyId,
                     'type' => $reportType,
-                    'date' => $monthPayroll['start']->toDateString(),
+                    'date' => $monthPayroll['start']->toDateTimeString(),
                     'payment_type' => $paymentTypeValue,
                     'creator_id' => $actingUserId > 0 ? $actingUserId : null,
                 ]);
@@ -615,6 +620,22 @@ class SalaryAccrualService
         }
 
         $txId = (int) $this->transactionsRepository->createItem($transactionData, true);
+
+        $transaction = Transaction::query()->findOrFail($txId);
+        $templateKey = $isDebt
+            ? JournalTemplateKeys::SALARY_ACCRUAL
+            : JournalTemplateKeys::SALARY_PAYMENT;
+        $lines = $this->salaryJournalBuilder->buildLines($transaction, $isDebt);
+        $this->journalEntryService->createAndPost(
+            (int) $company->id,
+            Carbon::parse($transactionDate),
+            $note ?? $defaultNote,
+            $templateKey,
+            $lines,
+            Transaction::class,
+            $txId,
+            ['employee_client_id' => $employeeClient->id],
+        );
 
         return [
             'batch_line' => [

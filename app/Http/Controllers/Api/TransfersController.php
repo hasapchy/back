@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Requests\StoreTransferRequest;
 use App\Http\Requests\UpdateTransferRequest;
 use App\Http\Resources\TransferResource;
+use App\Models\CashTransfer;
 use App\Repositories\TransfersRepository;
 use Illuminate\Http\Request;
 
@@ -34,6 +35,8 @@ class TransfersController extends BaseController
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', CashTransfer::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $perPage = $request->input('per_page', 20);
@@ -43,13 +46,7 @@ class TransfersController extends BaseController
 
         return $this->successResponse([
             'items' => TransferResource::collection($items->items())->resolve(),
-            'meta' => [
-                'current_page' => $items->currentPage(),
-                'next_page' => $items->nextPageUrl(),
-                'last_page' => $items->lastPage(),
-                'per_page' => $items->perPage(),
-                'total' => $items->total(),
-            ],
+            'meta' => $this->paginationMeta($items),
         ]);
     }
 
@@ -60,6 +57,8 @@ class TransfersController extends BaseController
      */
     public function store(StoreTransferRequest $request)
     {
+        $this->authorize('create', CashTransfer::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
@@ -99,6 +98,7 @@ class TransfersController extends BaseController
         if (!$transfer) {
             return $this->errorResponse(__('api.transfers.not_found'), 404);
         }
+        $this->authorize('update', $transfer);
 
         $cashFromAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id_from']);
         if ($cashFromAccessCheck) {
@@ -134,6 +134,12 @@ class TransfersController extends BaseController
      */
     public function destroy($id)
     {
+        $transfer = $this->itemsRepository->getItemById($id);
+        if (!$transfer) {
+            return $this->errorResponse(__('api.transfers.not_found'), 404);
+        }
+        $this->authorize('delete', $transfer);
+
         try {
             $deleted = $this->itemsRepository->deleteItem($id);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

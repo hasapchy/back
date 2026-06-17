@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreTransactionCategoryRequest;
+use App\Http\Requests\UpsertTransactionCategoryTranslationsRequest;
 use App\Http\Requests\UpdateTransactionCategoryRequest;
 use App\Http\Resources\TransactionCategoryReferenceResource;
 use App\Http\Resources\TransactionCategoryResource;
 use App\Repositories\TransactionCategoryRepository;
+use App\Repositories\TransactionCategoryTranslationOverrideRepository;
 use Illuminate\Http\Request;
 
 /**
@@ -18,15 +20,20 @@ use Illuminate\Http\Request;
 class TransactionCategoryController extends BaseController
 {
     protected $itemsRepository;
+    protected TransactionCategoryTranslationOverrideRepository $translationRepository;
 
     /**
      * Конструктор контроллера
      *
      * @param TransactionCategoryRepository $itemsRepository
      */
-    public function __construct(TransactionCategoryRepository $itemsRepository)
+    public function __construct(
+        TransactionCategoryRepository $itemsRepository,
+        TransactionCategoryTranslationOverrideRepository $translationRepository
+    )
     {
         $this->itemsRepository = $itemsRepository;
+        $this->translationRepository = $translationRepository;
     }
 
     /**
@@ -80,6 +87,32 @@ class TransactionCategoryController extends BaseController
             : TransactionCategoryResource::collection($items);
 
         return $this->successResponse($collection->resolve());
+    }
+
+    /**
+     * Получить справочник ключей и override-переводов категорий транзакций
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function translationDictionary()
+    {
+        $this->getAuthenticatedUserIdOrFail();
+
+        return $this->successResponse($this->translationRepository->getDictionaryWithOverrides());
+    }
+
+    /**
+     * Сохранить override-переводы категорий транзакций
+     *
+     * @param UpsertTransactionCategoryTranslationsRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function upsertTranslations(UpsertTransactionCategoryTranslationsRequest $request)
+    {
+        $this->getAuthenticatedUserIdOrFail();
+        $this->translationRepository->upsertMany($request->validated('items'));
+
+        return $this->successResponse(null, __('api.transaction_categories.updated'));
     }
 
     /**

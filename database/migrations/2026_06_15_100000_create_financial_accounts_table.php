@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('type', 32);
             $table->boolean('is_system')->default(true);
             $table->boolean('is_active')->default(true);
+            $table->boolean('is_contra')->default(false);
             $table->timestamps();
         });
     }

@@ -207,19 +207,30 @@ class BaseController extends BaseRoutingController
     }
 
     /**
+     * Построить стандартный мета-блок пагинации (единый источник истины).
+     *
+     * @param  LengthAwarePaginator  $paginator
+     * @return array<string, mixed>
+     */
+    protected function paginationMeta($paginator): array
+    {
+        return [
+            'current_page' => $paginator->currentPage(),
+            'next_page' => $paginator->nextPageUrl(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total(),
+        ];
+    }
+
+    /**
      * @param  LengthAwarePaginator  $items
      */
     protected function paginatedResponse($items): JsonResponse
     {
         return response()->json([
             'data' => $items->items(),
-            'meta' => [
-                'current_page' => $items->currentPage(),
-                'next_page' => $items->nextPageUrl(),
-                'last_page' => $items->lastPage(),
-                'per_page' => $items->perPage(),
-                'total' => $items->total(),
-            ],
+            'meta' => $this->paginationMeta($items),
         ]);
     }
 

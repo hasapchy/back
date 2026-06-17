@@ -6,6 +6,7 @@ use App\Enums\WhWriteoffReason;
 use App\Http\Requests\StoreWarehouseWriteoffRequest;
 use App\Http\Requests\UpdateWarehouseWriteoffRequest;
 use App\Http\Resources\WarehouseWriteoffResource;
+use App\Models\WhWriteoff;
 use App\Repositories\WarehouseWriteoffRepository;
 use Illuminate\Http\Request;
 
@@ -52,6 +53,8 @@ class WarehouseWriteoffController extends BaseController
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', WhWriteoff::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $perPage = $request->input('per_page', 20);
@@ -74,13 +77,7 @@ class WarehouseWriteoffController extends BaseController
 
         return $this->successResponse([
             'items' => WarehouseWriteoffResource::collection($warehouses->items())->resolve(),
-            'meta' => [
-                'current_page' => $warehouses->currentPage(),
-                'next_page' => $warehouses->nextPageUrl(),
-                'last_page' => $warehouses->lastPage(),
-                'per_page' => $warehouses->perPage(),
-                'total' => $warehouses->total(),
-            ],
+            'meta' => $this->paginationMeta($warehouses),
         ]);
     }
 
@@ -102,6 +99,7 @@ class WarehouseWriteoffController extends BaseController
         if (! $item) {
             return $this->errorResponse(__('api.writeoff.not_found'), 404);
         }
+        $this->authorize('view', WhWriteoff::findOrFail($id));
 
         $warehouseAccessCheck = $this->checkWarehouseAccess($item['warehouse_id'] ?? null);
         if ($warehouseAccessCheck) {
@@ -123,6 +121,8 @@ class WarehouseWriteoffController extends BaseController
      */
     public function store(StoreWarehouseWriteoffRequest $request)
     {
+        $this->authorize('create', WhWriteoff::class);
+
         $validatedData = $request->validated();
 
         $warehouseAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_id']);
@@ -135,6 +135,7 @@ class WarehouseWriteoffController extends BaseController
             'reason' => $validatedData['reason'],
             'source_receipt_id' => $validatedData['source_receipt_id'] ?? null,
             'note' => $validatedData['note'] ?? '',
+            'date' => $validatedData['date'] ?? null,
             'products' => array_map(function ($product) {
                 $row = [
                     'product_id' => $product['product_id'],
@@ -178,6 +179,8 @@ class WarehouseWriteoffController extends BaseController
      */
     public function update(UpdateWarehouseWriteoffRequest $request, $id)
     {
+        $this->authorize('update', WhWriteoff::findOrFail($id));
+
         $validatedData = $request->validated();
 
         $warehouseAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_id']);
@@ -190,6 +193,7 @@ class WarehouseWriteoffController extends BaseController
             'reason' => $validatedData['reason'],
             'source_receipt_id' => $validatedData['source_receipt_id'] ?? null,
             'note' => $validatedData['note'] ?? '',
+            'date' => $validatedData['date'] ?? null,
             'products' => array_map(function ($product) {
                 $row = [
                     'product_id' => $product['product_id'],
@@ -231,7 +235,8 @@ class WarehouseWriteoffController extends BaseController
      */
     public function destroy($id)
     {
-        $writeoff = \App\Models\WhWriteoff::findOrFail($id);
+        $writeoff = WhWriteoff::findOrFail($id);
+        $this->authorize('delete', $writeoff);
 
         if ($writeoff->warehouse_id) {
             $warehouseAccessCheck = $this->checkWarehouseAccess($writeoff->warehouse_id);

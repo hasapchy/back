@@ -3,10 +3,11 @@
 namespace App\Repositories\Chat;
 
 use App\Models\ChatParticipant;
+use App\Repositories\BaseRepository;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-class ChatParticipantRepository
+class ChatParticipantRepository extends BaseRepository
 {
     public function firstOrCreate(int $chatId, int $userId, string $role = 'member'): ChatParticipant
     {

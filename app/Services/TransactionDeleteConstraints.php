@@ -21,6 +21,9 @@ final class TransactionDeleteConstraints
         'ProjectContract',
     ];
 
+    /**
+     * @return string|null
+     */
     public function editRestrictionMessage(?User $user, Transaction $transaction): ?string
     {
         $completedReceipt = $this->completedWarehouseReceiptRestrictionMessage($transaction);
@@ -50,7 +53,10 @@ final class TransactionDeleteConstraints
         return null;
     }
 
-    public function editWindowRestrictionMessage(?User $user, Transaction $transaction): ?string
+    /**
+     * @return string|null
+     */
+    public function deleteWindowRestrictionMessage(?User $user, Transaction $transaction): ?string
     {
         if ($user && $user->is_admin) {
             return null;
@@ -58,15 +64,18 @@ final class TransactionDeleteConstraints
 
         $createdAt = Carbon::parse($transaction->created_at);
         if ($createdAt->diffInHours(Carbon::now()) >= 24) {
-            return 'Редактирование и удаление записей возможно только в течение 24 часов с момента создания';
+            return 'Удаление записей возможно только в течение 24 часов с момента создания';
         }
 
         return null;
     }
 
+    /**
+     * @return string|null
+     */
     public function deleteRestrictionMessage(?User $user, Transaction $transaction): ?string
     {
-        $time = $this->editWindowRestrictionMessage($user, $transaction);
+        $time = $this->deleteWindowRestrictionMessage($user, $transaction);
         if ($time !== null) {
             return $time;
         }

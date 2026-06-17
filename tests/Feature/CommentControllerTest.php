@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Client;
 use App\Models\Comment;
 use App\Models\Company;
+use App\Models\News;
 use App\Models\Lead;
 use App\Models\LeadSource;
 use App\Models\LeadStatus;
@@ -19,6 +20,10 @@ use App\Models\Warehouse;
 use App\Models\WhPurchase;
 use App\Models\CashRegister;
 use App\Models\Category;
+use App\Events\CommentReactionUpdated;
+use App\Events\NewsReactionUpdated;
+use Illuminate\Support\Facades\Event;
+use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -370,7 +375,8 @@ class CommentControllerTest extends TestCase
         $response = $this->actingAsApi($this->adminUser)
             ->getJson('/api/comments/timeline?type=unknown_entity&id=1');
 
-        $response->assertStatus(404);
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['type']);
     }
 
     public function test_unread_counts_excludes_current_user_comments(): void
@@ -454,6 +460,254 @@ class CommentControllerTest extends TestCase
             ]);
         $after->assertStatus(200);
         $after->assertJsonPath("data.counts.{$order->id}", 0);
+    }
+
+    /**
+     * @return News
+     */
+    protected function createNewsItem(?int $creatorId = null): News
+    {
+        return News::query()->create([
+            'title' => 'Test news',
+            'content' => '<p>Body</p>',
+            'company_id' => $this->company->id,
+            'creator_id' => $creatorId ?? $this->adminUser->id,
+        ]);
+    }
+
+    public function test_store_news_comment_with_reply(): void
+    {
+        $news = $this->createNewsItem();
+
+        $parentResponse = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/comments', [
+                'type' => 'news',
+                'id' => $news->id,
+                'body' => 'Top level',
+            ]);
+        $parentResponse->assertStatus(200);
+
+        $parentId = (int) $parentResponse->json('data.comment.id');
+        $this->assertGreaterThan(0, $parentId);
+
+        $replyResponse = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/comments', [
+                'type' => 'news',
+                'id' => $news->id,
+                'body' => 'Reply body',
+                'parent_id' => $parentId,
+            ]);
+        $replyResponse->assertStatus(200);
+
+        $index = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/comments?type=news&id='.$news->id);
+        $index->assertStatus(200);
+        $index->assertJsonPath('data.items.0.replies.0.body', 'Reply body');
+    }
+
+    public function test_news_mark_read_and_viewed_by(): void
+    {
+        $news = $this->createNewsItem();
+        $otherUser = User::factory()->create(['is_active' => true]);
+        $otherUser->companies()->attach($this->company->id);
+
+        Comment::factory()->create([
+            'commentable_type' => News::class,
+            'commentable_id' => $news->id,
+            'creator_id' => $otherUser->id,
+            'body' => 'Hello',
+        ]);
+
+        $this->actingAsApi($this->adminUser)
+            ->postJson('/api/comments/timeline/read', [
+                'type' => 'news',
+                'id' => $news->id,
+            ])
+            ->assertStatus(200);
+
+        $index = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/comments?type=news&id='.$news->id);
+        $index->assertStatus(200);
+        $viewedBy = $index->json('data.items.0.viewed_by');
+        $this->assertIsArray($viewedBy);
+        $this->assertNotEmpty($viewedBy);
+    }
+
+    public function test_news_comment_reaction_toggle(): void
+    {
+        $news = $this->createNewsItem();
+        $comment = Comment::factory()->create([
+            'commentable_type' => News::class,
+            'commentable_id' => $news->id,
+            'creator_id' => $this->adminUser->id,
+            'body' => 'React me',
+        ]);
+
+        $set = $this->actingAsApi($this->adminUser)
+            ->postJson("/api/comments/{$comment->id}/reaction", ['emoji' => '👍']);
+        $set->assertStatus(200);
+        $set->assertJsonPath('data.reactions.0.emoji', '👍');
+
+        $unset = $this->actingAsApi($this->adminUser)
+            ->postJson("/api/comments/{$comment->id}/reaction", ['emoji' => '👍']);
+        $unset->assertStatus(200);
+        $unset->assertJsonPath('data.reactions', []);
+    }
+
+    public function test_news_reaction_toggle(): void
+    {
+        $news = $this->createNewsItem();
+
+        $set = $this->actingAsApi($this->adminUser)
+            ->postJson("/api/news/{$news->id}/reaction", ['emoji' => '❤️']);
+        $set->assertStatus(200);
+        $set->assertJsonPath('data.reactions.0.emoji', '❤️');
+
+        $clear = $this->actingAsApi($this->adminUser)
+            ->postJson("/api/news/{$news->id}/reaction", ['emoji' => null]);
+        $clear->assertStatus(200);
+        $clear->assertJsonPath('data.reactions', []);
+    }
+
+    public function test_news_comment_non_owner_update_and_delete_forbidden(): void
+    {
+        $news = $this->createNewsItem();
+        $otherUser = User::factory()->create(['is_active' => true]);
+        $otherUser->companies()->attach($this->company->id);
+
+        $comment = Comment::factory()->create([
+            'commentable_type' => News::class,
+            'commentable_id' => $news->id,
+            'creator_id' => $this->adminUser->id,
+            'body' => 'Protected',
+        ]);
+
+        $this->actingAsApi($otherUser)
+            ->putJson("/api/comments/{$comment->id}", ['body' => 'Hacked'])
+            ->assertStatus(403);
+
+        $this->actingAsApi($otherUser)
+            ->deleteJson("/api/comments/{$comment->id}")
+            ->assertStatus(403);
+    }
+
+    public function test_news_comment_moderation_delete_with_news_delete_all(): void
+    {
+        Permission::firstOrCreate(['name' => 'news_delete_all', 'guard_name' => 'api']);
+
+        $moderator = User::factory()->create(['is_active' => true, 'is_admin' => false]);
+        $moderator->companies()->attach($this->company->id);
+        $moderator->givePermissionTo('news_delete_all');
+
+        $news = $this->createNewsItem();
+        $comment = Comment::factory()->create([
+            'commentable_type' => News::class,
+            'commentable_id' => $news->id,
+            'creator_id' => $this->adminUser->id,
+            'body' => 'Moderated',
+        ]);
+
+        $this->actingAsApi($moderator)
+            ->deleteJson("/api/comments/{$comment->id}")
+            ->assertStatus(200);
+    }
+
+    public function test_news_nested_reply_depth_rejected(): void
+    {
+        $news = $this->createNewsItem();
+
+        $parentResponse = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/comments', [
+                'type' => 'news',
+                'id' => $news->id,
+                'body' => 'Parent',
+            ]);
+        $parentId = (int) $parentResponse->json('data.comment.id');
+
+        $replyResponse = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/comments', [
+                'type' => 'news',
+                'id' => $news->id,
+                'body' => 'Reply',
+                'parent_id' => $parentId,
+            ]);
+        $replyId = (int) $replyResponse->json('data.comment.id');
+
+        $this->actingAsApi($this->adminUser)
+            ->postJson('/api/comments', [
+                'type' => 'news',
+                'id' => $news->id,
+                'body' => 'Too deep',
+                'parent_id' => $replyId,
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_news_comments_pagination_cursor(): void
+    {
+        $news = $this->createNewsItem();
+
+        for ($i = 1; $i <= 25; $i++) {
+            Comment::factory()->create([
+                'commentable_type' => News::class,
+                'commentable_id' => $news->id,
+                'creator_id' => $this->adminUser->id,
+                'body' => "Comment {$i}",
+            ]);
+        }
+
+        $firstPage = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/comments?type=news&id='.$news->id.'&limit=20');
+        $firstPage->assertStatus(200);
+        $firstPage->assertJsonPath('data.has_more', true);
+        $firstPage->assertJsonCount(20, 'data.items');
+
+        $cursor = $firstPage->json('data.next_cursor');
+        $this->assertNotNull($cursor);
+
+        $secondPage = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/comments?type=news&id='.$news->id.'&limit=20&cursor='.$cursor);
+        $secondPage->assertStatus(200);
+        $secondPage->assertJsonPath('data.has_more', false);
+        $secondPage->assertJsonCount(5, 'data.items');
+    }
+
+    public function test_news_reaction_broadcast_events(): void
+    {
+        Event::fake([NewsReactionUpdated::class, CommentReactionUpdated::class]);
+
+        $news = $this->createNewsItem();
+        $comment = Comment::factory()->create([
+            'commentable_type' => News::class,
+            'commentable_id' => $news->id,
+            'creator_id' => $this->adminUser->id,
+            'body' => 'Broadcast',
+        ]);
+
+        $this->actingAsApi($this->adminUser)
+            ->postJson("/api/news/{$news->id}/reaction", ['emoji' => '👍'])
+            ->assertStatus(200);
+
+        $this->actingAsApi($this->adminUser)
+            ->postJson("/api/comments/{$comment->id}/reaction", ['emoji' => '👍'])
+            ->assertStatus(200);
+
+        Event::assertDispatched(NewsReactionUpdated::class, fn (NewsReactionUpdated $event) => $event->newsId === $news->id);
+        Event::assertDispatched(CommentReactionUpdated::class, fn (CommentReactionUpdated $event) => $event->commentId === $comment->id);
+    }
+
+    public function test_news_engagement_channel_auth(): void
+    {
+        $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
+
+        $news = $this->createNewsItem();
+
+        $this->actingAsApi($this->adminUser)
+            ->postJson('/api/broadcasting/auth', [
+                'channel_name' => "private-company.{$this->company->id}.news.{$news->id}",
+                'socket_id' => '123.456',
+            ])
+            ->assertOk();
     }
 }
 

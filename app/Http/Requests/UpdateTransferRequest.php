@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\CashTransfer;
 use App\Rules\CashRegisterAccessRule;
 use App\Rules\CashRegisterTransferParticipantRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -17,7 +18,13 @@ class UpdateTransferRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $transfer = CashTransfer::query()->find($this->route('id'));
+
+        if (! $transfer) {
+            return true;
+        }
+
+        return $this->user()->can('update', $transfer);
     }
 
     /**

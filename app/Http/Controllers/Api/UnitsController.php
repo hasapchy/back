@@ -5,15 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Requests\StoreUnitRequest;
 use App\Http\Requests\UpdateUnitRequest;
 use App\Http\Resources\UnitResource;
-use App\Models\Product;
-use App\Models\ProductUnitConversion;
 use App\Models\Unit;
+use App\Repositories\UnitRepository;
 use App\Services\CacheService;
 use App\Support\CompanyScopedPermissions;
 use Illuminate\Http\JsonResponse;
 
 class UnitsController extends BaseController
 {
+    public function __construct(
+        private readonly UnitRepository $units,
+    ) {
+    }
+
     /**
      * @return JsonResponse
      */
@@ -27,7 +31,7 @@ class UnitsController extends BaseController
             return $this->errorResponse(__('api.common.forbidden'), 403);
         }
 
-        $units = Unit::forCompanyCatalog($this->getCurrentCompanyId())->get();
+        $units = $this->units->getCompanyCatalog($this->getCurrentCompanyId());
 
         return $this->successResponse(UnitResource::collection($units)->resolve());
     }
@@ -37,15 +41,17 @@ class UnitsController extends BaseController
      */
     public function store(StoreUnitRequest $request)
     {
+        $this->authorize('create', Unit::class);
+
         $companyId = $this->getCurrentCompanyId();
         if (! $companyId) {
             return $this->errorResponse(__('api.common.forbidden'), 403);
         }
-        $unit = new Unit;
-        $unit->company_id = $companyId;
-        $unit->name = $request->input('name');
-        $unit->short_name = $request->input('short_name');
-        $unit->save();
+        $unit = $this->units->create([
+            'company_id' => $companyId,
+            'name' => $request->input('name'),
+            'short_name' => $request->input('short_name'),
+        ]);
 
         CacheService::invalidateUnitsCache();
 
@@ -61,13 +67,15 @@ class UnitsController extends BaseController
         if (! $companyId) {
             return $this->errorResponse(__('api.common.forbidden'), 403);
         }
-        $unit = Unit::query()->whereKey($id)->firstOrFail();
+        $unit = $this->units->findOrFail($id);
+        $this->authorize('update', $unit);
         if ($response = $this->guardMutableCompanyUnit($unit, $companyId)) {
             return $response;
         }
-        $unit->name = $request->input('name');
-        $unit->short_name = $request->input('short_name');
-        $unit->save();
+        $this->units->update($unit, [
+            'name' => $request->input('name'),
+            'short_name' => $request->input('short_name'),
+        ]);
 
         $this->invalidateUnitsAndProductSearchCaches();
 
@@ -90,19 +98,18 @@ class UnitsController extends BaseController
         if (! $companyId) {
             return $this->errorResponse(__('api.common.forbidden'), 403);
         }
-        $unit = Unit::query()->whereKey($id)->firstOrFail();
+        $unit = $this->units->findOrFail($id);
+        $this->authorize('delete', $unit);
         if ($response = $this->guardMutableCompanyUnit($unit, $companyId)) {
             return $response;
         }
-        if (Product::query()->where('unit_id', $unit->id)->exists()) {
+        if ($this->units->isUsedByProducts((int) $unit->id)) {
             return $this->errorResponse(__('units.delete_in_use_by_products'), 422);
         }
-        if (ProductUnitConversion::query()->where(function ($q) use ($unit) {
-            $q->where('parent_unit_id', $unit->id)->orWhere('child_unit_id', $unit->id);
-        })->exists()) {
+        if ($this->units->isUsedByConversions((int) $unit->id)) {
             return $this->errorResponse(__('units.delete_in_use_by_conversions'), 422);
         }
-        $unit->delete();
+        $this->units->delete($unit);
 
         $this->invalidateUnitsAndProductSearchCaches();
 

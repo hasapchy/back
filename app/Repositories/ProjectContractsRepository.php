@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use App\Support\TransactionCategoryBindingKeys;
+use Carbon\Carbon;
 
 /**
  * Репозиторий для работы с контрактами проектов
@@ -150,6 +151,8 @@ class ProjectContractsRepository extends BaseRepository
                 ? [
                     'id' => (int) $contract->client_id,
                     'name' => $contract->client_name,
+                    'first_name' => $first !== '' ? $first : null,
+                    'last_name' => $last !== '' ? $last : null,
                     'client_type' => $contract->client_type ?? null,
                 ]
                 : null;
@@ -562,7 +565,7 @@ class ProjectContractsRepository extends BaseRepository
                 ? (int) $data['cash_id']
                 : null;
             $contract->client_balance_id = $data['client_balance_id'] ?? null;
-            $contract->date = $data['date'] ?? now()->toDateString();
+            $contract->date = $this->normalizeContractDateTime($data['date'] ?? null);
             $contract->returned = $data['returned'] ?? false;
             $contract->paid_amount = 0;
             $contract->files = $data['files'] ?? null;
@@ -652,7 +655,7 @@ class ProjectContractsRepository extends BaseRepository
                     : null;
             }
             if (array_key_exists('date', $data)) {
-                $contract->date = $data['date'];
+                $contract->date = $this->normalizeContractDateTime($data['date']);
             }
             if (array_key_exists('note', $data)) {
                 $contract->note = $data['note'];
@@ -883,5 +886,18 @@ class ProjectContractsRepository extends BaseRepository
         CacheService::invalidateByLike('%project_contract%');
 
         CacheService::invalidateProjectsCache();
+    }
+
+    /**
+     * @param string|null $date
+     * @return string
+     */
+    private function normalizeContractDateTime(?string $date): string
+    {
+        if ($date === null || $date === '') {
+            return now()->startOfDay()->format('Y-m-d H:i:s');
+        }
+
+        return Carbon::parse($date)->startOfDay()->format('Y-m-d H:i:s');
     }
 }

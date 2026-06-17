@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property FinancialAccountType $type
  * @property bool $is_system
  * @property bool $is_active
+ * @property bool $is_contra
  */
 class FinancialAccount extends Model
 {
@@ -22,12 +23,14 @@ class FinancialAccount extends Model
         'type',
         'is_system',
         'is_active',
+        'is_contra',
     ];
 
     protected $casts = [
         'type' => FinancialAccountType::class,
         'is_system' => 'boolean',
         'is_active' => 'boolean',
+        'is_contra' => 'boolean',
     ];
 
     /**

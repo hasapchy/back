@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Requests\StoreInvoiceRequest;
 use App\Http\Requests\UpdateInvoiceRequest;
 use App\Http\Resources\InvoiceResource;
+use App\Models\Invoice;
 use App\Repositories\InvoicesRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -38,6 +39,8 @@ class InvoiceController extends BaseController
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Invoice::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
@@ -53,13 +56,7 @@ class InvoiceController extends BaseController
 
         return $this->successResponse([
             'items' => InvoiceResource::collection($items->items())->resolve(),
-            'meta' => [
-                'current_page' => $items->currentPage(),
-                'next_page' => $items->nextPageUrl(),
-                'last_page' => $items->lastPage(),
-                'per_page' => $items->perPage(),
-                'total' => $items->total(),
-            ],
+            'meta' => $this->paginationMeta($items),
         ]);
     }
 
@@ -71,6 +68,8 @@ class InvoiceController extends BaseController
      */
     public function store(StoreInvoiceRequest $request)
     {
+        $this->authorize('create', Invoice::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $validatedData = $request->validated();
@@ -131,6 +130,8 @@ class InvoiceController extends BaseController
      */
     public function update(UpdateInvoiceRequest $request, $id)
     {
+        $this->authorize('update', $this->itemsRepository->getItemById($id));
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $validatedData = $request->validated();
@@ -167,6 +168,8 @@ class InvoiceController extends BaseController
      */
     public function destroy($id)
     {
+        $this->authorize('delete', $this->itemsRepository->getItemById($id));
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         try {
@@ -191,6 +194,7 @@ class InvoiceController extends BaseController
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse(__('Счёт не найден'), 404);
         }
+        $this->authorize('view', $item);
         return $this->successResponse(new InvoiceResource($item));
     }
 

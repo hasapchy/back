@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Requests\StoreLeaveRequest;
+use App\Http\Requests\UpdateLeaveRequest;
 use App\Http\Resources\LeaveReferenceResource;
 use App\Http\Resources\LeaveResource;
 use App\Models\Leave;
@@ -37,6 +39,8 @@ class LeaveController extends BaseController
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Leave::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $perPage = $request->input('per_page', 20);
@@ -54,12 +58,7 @@ class LeaveController extends BaseController
                 LeaveResource::class,
                 $companyId
             ),
-            'meta' => [
-                'current_page' => $items->currentPage(),
-                'last_page' => $items->lastPage(),
-                'per_page' => $items->perPage(),
-                'total' => $items->total(),
-            ],
+            'meta' => $this->paginationMeta($items),
         ]);
     }
 
@@ -95,15 +94,10 @@ class LeaveController extends BaseController
      */
     public function show($id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $leave = $this->itemsRepository->getItemById($id);
+        $this->authorize('view', $leave);
 
-        try {
-            $leave = $this->itemsRepository->getItemById($id);
-
-            return $this->successResponse(new LeaveResource($leave));
-        } catch (\Exception $e) {
-            return $this->errorResponse(__('Запись отпуска не найдена'), 404);
-        }
+        return $this->successResponse(new LeaveResource($leave));
     }
 
     /**
@@ -111,24 +105,19 @@ class LeaveController extends BaseController
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreLeaveRequest $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->authorize('create', Leave::class);
 
-        $request->validate([
-            'leave_type_id' => 'required|integer|exists:leave_types,id',
-            'user_id' => 'nullable|integer|exists:users,id',
-            'comment' => 'nullable|string',
-            'date_from' => 'required|date',
-            'date_to' => 'required|date|after_or_equal:date_from',
-        ]);
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $validated = $request->validated();
 
         $data = [
-            'leave_type_id' => $request->leave_type_id,
-            'user_id' => $request->user_id ?? $userUuid,
-            'comment' => $request->comment ?? null,
-            'date_from' => $request->date_from,
-            'date_to' => $request->date_to,
+            'leave_type_id' => $validated['leave_type_id'],
+            'user_id' => $validated['user_id'] ?? $userUuid,
+            'comment' => $validated['comment'] ?? null,
+            'date_from' => $validated['date_from'],
+            'date_to' => $validated['date_to'],
         ];
 
         $created = $this->itemsRepository->createItem($data);
@@ -158,45 +147,27 @@ class LeaveController extends BaseController
      * @param  int  $id  ID записи
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateLeaveRequest $request, $id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $leave = Leave::findOrFail($id);
+        $this->authorize('update', $leave);
 
-        $validationRules = [
-            'leave_type_id' => 'nullable|integer|exists:leave_types,id',
-            'user_id' => 'nullable|integer|exists:users,id',
-            'comment' => 'nullable|string',
-            'date_from' => 'nullable|date',
-            'date_to' => 'nullable|date',
-        ];
+        $validated = $request->validated();
 
-        // Если оба поля дат присутствуют, проверяем что date_to >= date_from
-        if ($request->has('date_from') && $request->has('date_to')) {
-            $validationRules['date_to'] .= '|after_or_equal:date_from';
+        $data = array_filter([
+            'leave_type_id' => $validated['leave_type_id'] ?? null,
+            'user_id' => $validated['user_id'] ?? null,
+            'comment' => $validated['comment'] ?? null,
+            'date_from' => $validated['date_from'] ?? null,
+            'date_to' => $validated['date_to'] ?? null,
+        ], fn ($value) => $value !== null);
+
+        $updated = $this->itemsRepository->updateItem($id, $data);
+        if (! $updated) {
+            return $this->errorResponse(__('api.transfers.update_failed'), 400);
         }
 
-        $request->validate($validationRules);
-
-        try {
-            $leave = Leave::findOrFail($id);
-
-            $data = array_filter([
-                'leave_type_id' => $request->input('leave_type_id'),
-                'user_id' => $request->input('user_id'),
-                'comment' => $request->input('comment'),
-                'date_from' => $request->input('date_from'),
-                'date_to' => $request->input('date_to'),
-            ], fn ($value) => $value !== null);
-
-            $updated = $this->itemsRepository->updateItem($id, $data);
-            if (! $updated) {
-                return $this->errorResponse(__('api.transfers.update_failed'), 400);
-            }
-
-            return $this->successResponse(new LeaveResource($updated), __('Запись отпуска обновлена'));
-        } catch (\Exception $e) {
-            return $this->errorResponse(__('Запись отпуска не найдена'), 404);
-        }
+        return $this->successResponse(new LeaveResource($updated), __('Запись отпуска обновлена'));
     }
 
     /**
@@ -207,20 +178,15 @@ class LeaveController extends BaseController
      */
     public function destroy($id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $leave = Leave::findOrFail($id);
+        $this->authorize('delete', $leave);
 
-        try {
-            $leave = Leave::findOrFail($id);
-
-            $deleted = $this->itemsRepository->deleteItem($id);
-            if (! $deleted) {
-                return $this->errorResponse(__('api.transfers.delete_failed'), 400);
-            }
-
-            return $this->successResponse(null, __('Запись отпуска удалена'));
-        } catch (\Exception $e) {
-            return $this->errorResponse(__('Запись отпуска не найдена'), 404);
+        $deleted = $this->itemsRepository->deleteItem($id);
+        if (! $deleted) {
+            return $this->errorResponse(__('api.transfers.delete_failed'), 400);
         }
+
+        return $this->successResponse(null, __('Запись отпуска удалена'));
     }
 
     protected function buildLeaveFilters(Request $request): array

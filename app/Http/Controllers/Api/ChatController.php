@@ -235,8 +235,9 @@ class ChatController extends BaseController
         $body = isset($data['body']) ? trim((string) $data['body']) : '';
         $files = $request->file('files', []);
         $parentId = isset($data['parent_id']) ? (int) $data['parent_id'] : null;
+        $metadata = $data['metadata'] ?? null;
 
-        if ($body === '' && empty($files)) {
+        if ($body === '' && empty($files) && empty($metadata)) {
             return $this->successResponse(['message' => 'Message body or files are required'], null, 422);
         }
 
@@ -247,7 +248,8 @@ class ChatController extends BaseController
             $body,
             is_array($files) ? $files : [],
             $user->can('chats_write_general'),
-            $parentId
+            $parentId,
+            is_array($metadata) ? $metadata : null,
         );
 
         $this->sendNewMessagePush($chat, $message, $user);

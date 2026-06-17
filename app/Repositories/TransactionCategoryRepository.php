@@ -52,6 +52,7 @@ class TransactionCategoryRepository extends BaseRepository
         $item->parent_id = $data['parent_id'] ?? null;
         $item->save();
         CacheService::invalidateTransactionCategoriesCache();
+        CacheService::invalidateTransactionCategoryTranslationsCache();
         return true;
     }
 
@@ -79,6 +80,7 @@ class TransactionCategoryRepository extends BaseRepository
         }
         $item->save();
         CacheService::invalidateTransactionCategoriesCache();
+        CacheService::invalidateTransactionCategoryTranslationsCache();
         return true;
     }
 
@@ -99,6 +101,7 @@ class TransactionCategoryRepository extends BaseRepository
 
         $item->delete();
         CacheService::invalidateTransactionCategoriesCache();
+        CacheService::invalidateTransactionCategoryTranslationsCache();
         return true;
     }
 }

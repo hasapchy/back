@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use App\Models\ChatMessage;
+use App\Services\Chat\EntityLinkShareService;
 use App\Support\ChatBroadcastChannels;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -84,6 +85,7 @@ class MessageSent implements ShouldBroadcast
             'chat_id' => $this->message->chat_id,
             'body' => $this->message->body,
             'files' => $this->message->files,
+            'metadata' => app(EntityLinkShareService::class)->broadcastMetadata($this->message->metadata),
             'parent_id' => $this->message->parent_id,
             'parent' => $parent,
             'forwarded_from_message_id' => $this->message->forwarded_from_message_id,

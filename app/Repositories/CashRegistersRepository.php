@@ -12,6 +12,17 @@ use Illuminate\Support\Arr;
 class CashRegistersRepository extends BaseRepository
 {
     /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginate(array $filters)
+    {
+        $perPage = (int) ($filters['per_page'] ?? 20);
+        $page = (int) ($filters['page'] ?? 1);
+
+        return $this->getItemsWithPagination($perPage, $page);
+    }
+
+    /**
      * Получить кассы с пагинацией
      *
      * @param int $perPage Количество записей на страницу

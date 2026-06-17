@@ -43,7 +43,7 @@ class WhWriteoff extends Model implements SupportsTimeline
     protected $fillable = ['warehouse_id', 'source_receipt_id', 'reason', 'note', 'date', 'creator_id'];
 
     protected $casts = [
-        'date' => 'date',
+        'date' => 'datetime',
         'reason' => WhWriteoffReason::class,
     ];
 

@@ -18,11 +18,15 @@ class UpdateNewsRequest extends FormRequest
         return $this->user()->can('update', $news);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [
             'title' => 'sometimes|required|string|max:255',
             'content' => 'sometimes|required|string|max:50000', // Ограничение размера контента (примерно 50 КБ текста)
+            'is_important' => 'sometimes|boolean',
         ];
     }
 }

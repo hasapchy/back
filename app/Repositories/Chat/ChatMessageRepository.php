@@ -3,10 +3,11 @@
 namespace App\Repositories\Chat;
 
 use App\Models\ChatMessage;
+use App\Repositories\BaseRepository;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
-class ChatMessageRepository
+class ChatMessageRepository extends BaseRepository
 {
     public function getMaxMessageId(int $chatId): ?int
     {
@@ -140,13 +141,14 @@ class ChatMessageRepository
             ->toArray();
     }
 
-    public function createMessage(int $chatId, int $userId, ?string $body, ?array $files, ?int $parentId = null, ?int $forwardedFromMessageId = null): ChatMessage
+    public function createMessage(int $chatId, int $userId, ?string $body, ?array $files, ?int $parentId = null, ?int $forwardedFromMessageId = null, ?array $metadata = null): ChatMessage
     {
         return ChatMessage::query()->create([
             'chat_id' => $chatId,
             'creator_id' => $userId,
             'body' => $body,
             'files' => $files,
+            'metadata' => $metadata,
             'parent_id' => $parentId,
             'forwarded_from_message_id' => $forwardedFromMessageId,
         ]);

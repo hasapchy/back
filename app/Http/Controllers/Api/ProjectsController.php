@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreProjectRequest;
+use App\Http\Requests\StoreProjectDriveFolderRequest;
 use App\Http\Requests\UpdateProjectRequest;
+use App\Http\Resources\DriveFolderResource;
 use App\Http\Resources\ProjectReferenceResource;
 use App\Http\Resources\ProjectResource;
+use App\Models\DriveFolder;
 use App\Models\Project;
 use App\Http\Resources\Chat\ChatResource;
+use App\Repositories\DriveRepository;
 use App\Repositories\ProjectsRepository;
 use App\Services\CacheService;
 use App\Services\Chat\ChatService;
@@ -27,6 +31,7 @@ class ProjectsController extends BaseController
 
     public function __construct(
         ProjectsRepository $itemsRepository,
+        protected DriveRepository $driveRepository,
         protected ChatService $chatService,
     ) {
         $this->itemsRepository = $itemsRepository;
@@ -316,6 +321,112 @@ class ProjectsController extends BaseController
         $chat = $this->chatService->ensureProjectChat($companyId, $project, $user);
 
         return (new ChatResource($chat))->response()->setStatusCode(200);
+    }
+
+    /**
+     * @param  int  $id
+     * @return JsonResponse
+     */
+    public function createDriveFolder(StoreProjectDriveFolderRequest $request, int $id): JsonResponse
+    {
+        $this->requireAuthenticatedUser();
+        $companyId = (int) $this->getCurrentCompanyId();
+        if (! $companyId) {
+            return $this->errorResponse(__('api.common.company_context_required'), 422);
+        }
+
+        $project = Project::query()
+            ->where('company_id', $companyId)
+            ->findOrFail($id);
+
+        $this->authorize('update', $project);
+
+        $existingFolder = DriveFolder::query()
+            ->where('company_id', $companyId)
+            ->where('project_id', (int) $project->id)
+            ->first();
+        if ($existingFolder) {
+            return $this->errorResponse(__('api.projects.drive_folder_already_exists'), 422);
+        }
+
+        $validated = $request->validated();
+        $subfolderNames = $this->resolveProjectDriveSubfolderNames(
+            $validated['preset_keys'] ?? [],
+            $validated['custom_names'] ?? [],
+            $request->presetMap()
+        );
+
+        $rootFolder = $this->driveRepository->createFolder(
+            $companyId,
+            (int) $project->creator_id,
+            [
+                'name' => $project->name,
+            ],
+            null
+        );
+        $rootFolder->project_id = (int) $project->id;
+        $rootFolder->save();
+
+        foreach ($subfolderNames as $subfolderName) {
+            if ($this->driveRepository->folderNameExists($companyId, (int) $rootFolder->id, $subfolderName)) {
+                continue;
+            }
+
+            $this->driveRepository->createFolder(
+                $companyId,
+                (int) $project->creator_id,
+                ['name' => $subfolderName],
+                $rootFolder
+            );
+        }
+
+        $rootFolder->load('creator:id,name,surname');
+        $this->itemsRepository->invalidateProjectCache((int) $project->id);
+        CacheService::invalidateProjectsCache();
+
+        return $this->successResponse(
+            DriveFolderResource::make($rootFolder)->resolve(),
+            __('api.projects.drive_folder_created'),
+            201
+        );
+    }
+
+    /**
+     * @param  array<int, string>  $presetKeys
+     * @param  array<int, string>  $customNames
+     * @param  array<string, string>  $presetMap
+     * @return array<int, string>
+     */
+    private function resolveProjectDriveSubfolderNames(array $presetKeys, array $customNames, array $presetMap): array
+    {
+        $names = [];
+        foreach ($presetKeys as $key) {
+            if (isset($presetMap[$key])) {
+                $names[] = (string) $presetMap[$key];
+            }
+        }
+        foreach ($customNames as $name) {
+            $names[] = (string) $name;
+        }
+
+        $result = [];
+        $seen = [];
+        foreach ($names as $name) {
+            $normalized = trim($name);
+            if ($normalized === '') {
+                continue;
+            }
+
+            $hash = mb_strtolower($normalized);
+            if (isset($seen[$hash])) {
+                continue;
+            }
+
+            $seen[$hash] = true;
+            $result[] = $normalized;
+        }
+
+        return $result;
     }
 
     /**

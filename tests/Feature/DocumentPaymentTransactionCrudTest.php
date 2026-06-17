@@ -199,6 +199,58 @@ class DocumentPaymentTransactionCrudTest extends TestCase
         $second->assertJsonValidationErrors(['orig_amount']);
     }
 
+    public function test_store_order_payment_rejects_overpayment(): void
+    {
+        $order = $this->createOrder([
+            'client_balance_id' => $this->clientBalance->id,
+            'def_total_price' => 100,
+            'total_price' => 100,
+            'paid_amount' => 0,
+            'currency_id' => $this->currency->id,
+        ]);
+
+        $response = $this->postPayment([
+            'order_id' => $order->id,
+            'client_id' => $this->client->id,
+            'client_balance_id' => $this->clientBalance->id,
+            'is_debt' => false,
+            'orig_amount' => 150,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['orig_amount']);
+    }
+
+    public function test_store_order_second_payment_rejects_when_total_exceeds_order(): void
+    {
+        $order = $this->createOrder([
+            'client_balance_id' => $this->clientBalance->id,
+            'def_total_price' => 100,
+            'total_price' => 100,
+            'paid_amount' => 0,
+            'currency_id' => $this->currency->id,
+        ]);
+
+        $this->postPayment([
+            'order_id' => $order->id,
+            'client_id' => $this->client->id,
+            'client_balance_id' => $this->clientBalance->id,
+            'is_debt' => false,
+            'orig_amount' => 100,
+        ])->assertStatus(200);
+
+        $second = $this->postPayment([
+            'order_id' => $order->id,
+            'client_id' => $this->client->id,
+            'client_balance_id' => $this->clientBalance->id,
+            'is_debt' => false,
+            'orig_amount' => 2,
+        ]);
+
+        $second->assertStatus(422);
+        $second->assertJsonValidationErrors(['orig_amount']);
+    }
+
     public function test_store_purchase_goods_payment_rejects_overpayment(): void
     {
         $purchase = $this->createWhPurchase(['amount' => 500]);

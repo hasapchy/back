@@ -339,6 +339,14 @@ class CacheService
     }
 
     /**
+     * Invalidate transaction category translation overrides cache
+     */
+    public static function invalidateTransactionCategoryTranslationsCache(): void
+    {
+        self::invalidateByLike('%transaction_category_translation%');
+    }
+
+    /**
      * Invalidate units cache
      */
     public static function invalidateUnitsCache(): void

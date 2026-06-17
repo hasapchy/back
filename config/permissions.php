@@ -93,6 +93,12 @@ return [
             'actions' => ['view'],
             'scope_actions' => [],
         ],
+        'journal_entries' => [
+            'has_creator_id' => true,
+            'check_strategy' => 'creator_id',
+            'actions' => ['view', 'create', 'update', 'delete', 'export'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
         'projects' => [
             'has_creator_id' => true,
             'check_strategy' => 'creator_id',
@@ -350,7 +356,7 @@ return [
     'groups' => [
         'finance' => [
             'label' => 'finance',
-            'resources' => ['transactions', 'transaction_templates', 'mutual_settlements', 'transaction_categories', 'invoices', 'cash_registers', 'financial_accounts', 'transfers', 'reports'],
+            'resources' => ['transactions', 'transaction_templates', 'mutual_settlements', 'transaction_categories', 'invoices', 'cash_registers', 'financial_accounts', 'journal_entries', 'transfers', 'reports'],
         ],
         'warehouses' => [
             'label' => 'warehouse',

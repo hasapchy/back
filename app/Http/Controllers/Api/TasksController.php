@@ -33,6 +33,8 @@ class TasksController extends BaseController
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Task::class);
+
         $tasks = $this->itemsRepository->getFilteredTasks($request);
         $companyId = $this->getCurrentCompanyId();
 
@@ -43,12 +45,7 @@ class TasksController extends BaseController
                 TaskResource::class,
                 $companyId
             ),
-            'meta' => [
-                'current_page' => $tasks->currentPage(),
-                'per_page' => $tasks->perPage(),
-                'total' => $tasks->total(),
-                'last_page' => $tasks->lastPage(),
-            ]
+            'meta' => $this->paginationMeta($tasks),
         ]);
     }
 
@@ -75,6 +72,8 @@ class TasksController extends BaseController
      */
     public function store(TaskRequest $request)
     {
+        $this->authorize('create', Task::class);
+
         $data = $request->validated();
         $data['company_id'] = $this->getCurrentCompanyId();
 
@@ -110,6 +109,7 @@ class TasksController extends BaseController
     public function show($id)
     {
         $task = $this->itemsRepository->findById($id);
+        $this->authorize('view', $task);
         $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
         return $this->successResponse([
@@ -122,6 +122,8 @@ class TasksController extends BaseController
      */
     public function update(TaskRequest $request, $id)
     {
+        $this->authorize('update', $this->itemsRepository->findById($id));
+
         $task = $this->itemsRepository->update($id, $request->validated());
         $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
@@ -136,6 +138,8 @@ class TasksController extends BaseController
      */
     public function destroy($id)
     {
+        $this->authorize('delete', $this->itemsRepository->findById($id));
+
         $this->itemsRepository->delete($id);
 
         return $this->successResponse([

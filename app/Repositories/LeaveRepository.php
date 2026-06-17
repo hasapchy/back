@@ -8,6 +8,19 @@ use App\Services\CacheService;
 class LeaveRepository extends BaseRepository
 {
     /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginate(array $filters)
+    {
+        $userId = (int) ($filters['user_id'] ?? auth('api')->id());
+        $perPage = (int) ($filters['per_page'] ?? 20);
+        $page = (int) ($filters['page'] ?? 1);
+        unset($filters['per_page'], $filters['page']);
+
+        return $this->getItemsWithPagination($userId, $perPage, $filters, $page);
+    }
+
+    /**
      * Связи для списков и /all (без company).
      *
      * @return array<int, string>

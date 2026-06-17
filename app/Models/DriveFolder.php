@@ -15,6 +15,7 @@ class DriveFolder extends Model
         'company_id',
         'parent_id',
         'creator_id',
+        'project_id',
         'name',
         'icon',
         'icon_color',
@@ -42,6 +43,14 @@ class DriveFolder extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'creator_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function project()
+    {
+        return $this->belongsTo(Project::class, 'project_id');
     }
 
     /**

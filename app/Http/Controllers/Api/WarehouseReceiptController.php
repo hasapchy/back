@@ -7,6 +7,7 @@ use App\Http\Requests\StoreWarehouseReceiptRequest;
 use App\Http\Requests\UpdateWarehouseReceiptRequest;
 use App\Http\Resources\WarehouseReceiptResource;
 use App\Exceptions\WarehouseLockedForInventoryException;
+use App\Models\WhReceipt;
 use App\Repositories\WarehouseReceiptRepository;
 use App\Services\WarehouseDocumentPaymentStatusService;
 use App\Support\NullableInt;
@@ -35,6 +36,8 @@ class WarehouseReceiptController extends BaseController
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', WhReceipt::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $status = WhReceiptStatus::tryFrom((string) ($request->input('status') ?? ''))?->value;
@@ -65,13 +68,7 @@ class WarehouseReceiptController extends BaseController
 
         return $this->successResponse([
             'items' => WarehouseReceiptResource::collection($warehouses->items())->resolve(),
-            'meta' => [
-                'current_page' => $warehouses->currentPage(),
-                'next_page' => $warehouses->nextPageUrl(),
-                'last_page' => $warehouses->lastPage(),
-                'per_page' => $warehouses->perPage(),
-                'total' => $warehouses->total(),
-            ],
+            'meta' => $this->paginationMeta($warehouses),
         ]);
     }
 
@@ -92,6 +89,7 @@ class WarehouseReceiptController extends BaseController
         if (! $item) {
             return $this->errorResponse(__('warehouse_receipt.not_found'), 404);
         }
+        $this->authorize('view', $item);
 
         return $this->successResponse(new WarehouseReceiptResource($item));
     }
@@ -108,6 +106,8 @@ class WarehouseReceiptController extends BaseController
      */
     public function store(StoreWarehouseReceiptRequest $request)
     {
+        $this->authorize('create', WhReceipt::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
@@ -184,6 +184,7 @@ class WarehouseReceiptController extends BaseController
         if (! $receipt) {
             return $this->errorResponse(__('warehouse_receipt.not_found'), 404);
         }
+        $this->authorize('update', $receipt);
 
         if ($receipt->status === WhReceiptStatus::Completed) {
             return $this->errorResponse(__('warehouse_receipt.receipt_completed_readonly'), 400);
@@ -268,6 +269,12 @@ class WarehouseReceiptController extends BaseController
      */
     public function destroy($id)
     {
+        $receipt = $this->itemsRepository->getItemById($id, $this->getAuthenticatedUserIdOrFail());
+        if (! $receipt) {
+            return $this->errorResponse(__('warehouse_receipt.not_found'), 404);
+        }
+        $this->authorize('delete', $receipt);
+
         try {
             $warehouse_deleted = $this->itemsRepository->deleteItem($id);
 

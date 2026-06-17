@@ -4,8 +4,7 @@ namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\ValidatesTransactionCategoryType;
 use App\Http\Requests\Concerns\ValidatesTransactionClientBalanceConsistency;
-use App\Models\Order;
-use App\Models\ProjectContract;
+use App\Http\Requests\Concerns\ValidatesTransactionDocumentPaymentAmount;
 use App\Models\Transaction;
 use App\Rules\ProjectAccessRule;
 use App\Rules\ClientAccessRule;
@@ -17,6 +16,7 @@ class UpdateTransactionRequest extends FormRequest
 {
     use ValidatesTransactionClientBalanceConsistency;
     use ValidatesTransactionCategoryType;
+    use ValidatesTransactionDocumentPaymentAmount;
 
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
@@ -95,15 +95,6 @@ class UpdateTransactionRequest extends FormRequest
                     $projectId = $transaction->project_id;
                 }
             }
-            if ($sourceType && $sourceId && str_contains($sourceType, 'ProjectContract')) {
-                $contract = ProjectContract::find($sourceId);
-                if (!$contract) {
-                    $validator->errors()->add('source_id', __('Контракт не найден.'));
-                } elseif ($projectId && (int) $contract->project_id !== (int) $projectId) {
-                    $validator->errors()->add('source_id', __('Контракт не принадлежит выбранному проекту.'));
-                }
-            }
-
             $transaction = $transactionId ? Transaction::find($transactionId) : null;
             $orderId = $this->input('order_id');
             $sourceType = $this->input('source_type') ?? $transaction?->source_type;
@@ -137,21 +128,38 @@ class UpdateTransactionRequest extends FormRequest
                 $categoryId,
             );
 
-            if (
-                $transaction
-                && $this->has('orig_amount')
-                && ! $isDebt
-                && $sourceType
-                && $sourceId
-                && str_contains((string) $sourceType, 'ProjectContract')
-            ) {
-                $contract = ProjectContract::find($sourceId);
-                if ($contract) {
-                    $remaining = max(0, (float) $contract->amount - (float) $contract->paid_amount + (float) $transaction->orig_amount);
-                    if ((float) $this->input('orig_amount') > $remaining + 0.01) {
-                        $validator->errors()->add('orig_amount', __('project_contract.payment_exceeds_remaining'));
-                    }
-                }
+            if ($transaction && $this->has('orig_amount') && ! $isDebt) {
+                $origAmount = (float) $this->input('orig_amount');
+                $currencyId = $this->has('currency_id')
+                    ? (int) $this->input('currency_id')
+                    : (int) $transaction->currency_id;
+                $resolvedSourceType = $sourceType ? (string) $sourceType : null;
+                $resolvedSourceId = $this->normalizeOptionalInt($sourceId);
+                $resolvedOrderId = $this->normalizeOptionalInt($orderId);
+                $date = $this->has('date') ? $this->input('date') : $transaction->date;
+
+                $this->assertContractPaymentWithinRemaining(
+                    $validator,
+                    $resolvedSourceType,
+                    $resolvedSourceId,
+                    $this->normalizeOptionalInt($projectId),
+                    $origAmount,
+                    $isDebt,
+                    (int) $transaction->id,
+                );
+
+                $this->assertOrderPaymentWithinRemaining(
+                    $validator,
+                    $resolvedOrderId,
+                    $resolvedSourceType,
+                    $resolvedSourceId,
+                    $origAmount,
+                    $currencyId,
+                    $isDebt,
+                    (int) $transaction->type,
+                    (int) $transaction->id,
+                    $date,
+                );
             }
         });
     }

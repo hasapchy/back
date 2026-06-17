@@ -20,6 +20,23 @@ use Illuminate\Support\Facades\Log;
 class ClientsRepository extends BaseRepository
 {
     /**
+     * @param  array<string, mixed>  $filters
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
+    public function paginate(array $filters)
+    {
+        return $this->getItemsWithPagination(
+            $filters['user_uuid'] ?? auth('api')->id(),
+            isset($filters['per_page']) ? (int) $filters['per_page'] : 10,
+            isset($filters['search']) ? (string) $filters['search'] : null,
+            isset($filters['include_inactive']) ? (bool) $filters['include_inactive'] : false,
+            isset($filters['page']) ? (int) $filters['page'] : 1,
+            isset($filters['status_filter']) ? (string) $filters['status_filter'] : null,
+            isset($filters['type_filter']) && is_array($filters['type_filter']) ? $filters['type_filter'] : []
+        );
+    }
+
+    /**
      * Получить клиентов с пагинацией и фильтрацией
      *
      * @param  int  $perPage  Количество записей на страницу

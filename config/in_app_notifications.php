@@ -25,6 +25,12 @@ return [
         'news_new' => [
             'all_company_members' => true,
         ],
+        'news_comment_new' => [
+            'all_company_members' => true,
+        ],
+        'news_comment_reply' => [
+            'all_company_members' => true,
+        ],
         'birthdays_today' => [
             'all_company_members' => true,
         ],
