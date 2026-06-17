@@ -220,6 +220,7 @@ class TimelineBuilder
             'type' => 'comment',
             'id' => $comment->id,
             'body' => $comment->body,
+            'parent_id' => $comment->parent_id ? (int) $comment->parent_id : null,
             'user' => TimelineUserFormatter::toArray($comment->creator),
             'created_at' => $comment->created_at,
             'viewed_by' => $viewedBy,

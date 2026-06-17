@@ -3,7 +3,6 @@
 namespace App\Services\Journal;
 
 use App\DTO\JournalEntryLineDraft;
-use App\Exceptions\InvalidReceiptLandedCostException;
 use App\Models\Transaction;
 use App\Models\WhReceipt;
 use App\Services\JournalAccountResolver;
@@ -24,7 +23,10 @@ class ReceiptInventoryJournalBuilder
      */
     public function buildInventoryLines(WhReceipt $receipt): array
     {
-        $landedTotal = $this->requireLandedTotal($receipt);
+        $landedTotal = $this->resolveLandedTotal($receipt);
+        if ($landedTotal <= 0) {
+            return [];
+        }
 
         return [
             new JournalEntryLineDraft(
@@ -44,7 +46,10 @@ class ReceiptInventoryJournalBuilder
      */
     public function buildCostAdjustmentLines(WhReceipt $receipt): ?array
     {
-        $landedTotal = $this->requireLandedTotal($receipt);
+        $landedTotal = $this->resolveLandedTotal($receipt);
+        if ($landedTotal <= 0) {
+            return null;
+        }
 
         $existingDebt = (float) Transaction::query()
             ->where('source_type', WhReceipt::class)
@@ -81,16 +86,11 @@ class ReceiptInventoryJournalBuilder
      * @param  WhReceipt  $receipt
      * @return float
      */
-    private function requireLandedTotal(WhReceipt $receipt): float
+    private function resolveLandedTotal(WhReceipt $receipt): float
     {
         $receipt->loadMissing(['products.product', 'products.product.unit', 'cashRegister.currency', 'warehouse', 'expenseAllocations']);
         $summary = $this->allocationService->buildLandedCostSummary($receipt);
-        $landedTotal = round((float) ($summary['total_landed_default'] ?? 0), 5);
 
-        if ($landedTotal <= 0) {
-            throw new InvalidReceiptLandedCostException("Receipt {$receipt->id} has no valid landed cost for journal.");
-        }
-
-        return $landedTotal;
+        return round((float) ($summary['total_landed_default'] ?? 0), 5);
     }
 }

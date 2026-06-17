@@ -27,40 +27,10 @@ use App\Services\RoundingService;
 use App\Services\WarehouseReceiptGoodsPaymentLimitService;
 use Illuminate\Database\Eloquent\Builder;
 use App\Support\TransactionCategoryBindingKeys;
-use App\Services\InventoryCostingService;
-use App\Services\ReceiptJournalService;
 use Illuminate\Support\Facades\DB;
 
 class WarehouseReceiptRepository extends BaseRepository
 {
-    private ?InventoryCostingService $inventoryCostingService = null;
-
-    private ?ReceiptJournalService $receiptJournalService = null;
-
-    public function __construct(
-        ?InventoryCostingService $inventoryCostingService = null,
-        ?ReceiptJournalService $receiptJournalService = null,
-    ) {
-        $this->inventoryCostingService = $inventoryCostingService;
-        $this->receiptJournalService = $receiptJournalService;
-    }
-
-    /**
-     * @return InventoryCostingService
-     */
-    private function inventoryCosting(): InventoryCostingService
-    {
-        return $this->inventoryCostingService ??= resolve(InventoryCostingService::class);
-    }
-
-    /**
-     * @return ReceiptJournalService
-     */
-    private function receiptJournal(): ReceiptJournalService
-    {
-        return $this->receiptJournalService ??= resolve(ReceiptJournalService::class);
-    }
-
     use LogsTimelineProductLineChanges;
     use ResolvesWarehouseLineOrigDisplay;
 
@@ -556,7 +526,6 @@ class WarehouseReceiptRepository extends BaseRepository
 
             if ($receipt->status === WhReceiptStatus::Approved) {
                 $this->applyReceiptProductsToStock($receipt);
-                $this->inventoryCosting()->createLayersFromReceipt($receipt);
                 event(new \App\Events\WarehouseReceiptApproved($receipt->fresh()));
                 $this->tryAutoCompleteReceipt((int) $receipt_id);
             }
@@ -688,8 +657,6 @@ class WarehouseReceiptRepository extends BaseRepository
             $receipt->status = WhReceiptStatus::Completed;
             $receipt->save();
 
-            $this->inventoryCosting()->finalizeLayersForReceipt($receipt);
-            $this->receiptJournal()->postCompletionEntries($receipt);
             event(new \App\Events\WarehouseReceiptCompleted($receipt->fresh()));
 
             $this->syncLinkedPurchaseCompletion($receipt->purchase_id);

@@ -34,7 +34,7 @@ class NewsRepository extends BaseRepository
     {
         return $query->withCount([
             'reactions',
-            'comments as comments_count' => fn($q) => $q->whereNull('parent_id'),
+            'comments as comments_count',
             'acknowledgements as acknowledgements_count',
         ]);
     }

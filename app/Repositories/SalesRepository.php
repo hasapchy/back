@@ -17,26 +17,9 @@ use App\Services\Timeline\TimelineCache;
 use Illuminate\Support\Facades\DB;
 use App\Services\RoundingService;
 use App\Support\TransactionCategoryBindingKeys;
-use App\Services\OrderInventoryJournalService;
 
 class SalesRepository extends BaseRepository
 {
-    private ?OrderInventoryJournalService $orderInventoryJournalService = null;
-
-    public function __construct(
-        ?OrderInventoryJournalService $orderInventoryJournalService = null,
-    ) {
-        $this->orderInventoryJournalService = $orderInventoryJournalService;
-    }
-
-    /**
-     * @return OrderInventoryJournalService
-     */
-    private function orderInventoryJournal(): OrderInventoryJournalService
-    {
-        return $this->orderInventoryJournalService ??= resolve(OrderInventoryJournalService::class);
-    }
-
     use LogsTimelineProductLineChanges;
 
     /**
@@ -312,11 +295,14 @@ class SalesRepository extends BaseRepository
                 ]);
             }
 
-            $this->orderInventoryJournal()->issueInventoryForSale(
-                $sale,
-                $products,
-                (int) $warehouseId,
-            );
+            foreach ($products as $prod) {
+                $product = Product::find($prod['product_id']);
+                if ($product && (int) $product->type === Product::TYPE_GOODS) {
+                    WarehouseStock::where('product_id', $product->id)
+                        ->where('warehouse_id', $warehouseId)
+                        ->decrement('quantity', $prod['rounded_quantity']);
+                }
+            }
 
             $this->clearSalesCache();
             CacheService::invalidateClientsCache();

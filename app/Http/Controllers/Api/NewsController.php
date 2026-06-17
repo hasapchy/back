@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\NewsAcknowledgedUpdated;
+use App\Events\NewsCreated;
+use App\Events\NewsViewedUpdated;
 use App\Services\EngagementReactionService;
 use App\Http\Requests\StoreNewsRequest;
 use App\Http\Requests\UpdateNewsRequest;
@@ -128,6 +131,7 @@ class NewsController extends BaseController
                     $itemCreated->title,
                     ['route' => '/news', 'news_id' => $itemCreated->id]
                 );
+                $this->dispatchNewsCreatedBroadcast((int) $itemCreated->id, $companyId);
             }
 
             return $this->successResponse(null, __('Новость создана'));
@@ -267,6 +271,18 @@ class NewsController extends BaseController
 
         $viewedAt = $this->itemsRepository->markViewed($id, (int) $user->id, $companyId);
 
+        if ($companyId > 0) {
+            $news = $this->itemsRepository->findItemWithRelations($id);
+            if ($news) {
+                $this->itemsRepository->attachViewedBy([$news], $companyId);
+                NewsViewedUpdated::dispatch(
+                    $companyId,
+                    $id,
+                    is_array($news->viewed_by) ? $news->viewed_by : [],
+                );
+            }
+        }
+
         return $this->successResponse([
             'viewed_at' => $viewedAt,
         ]);
@@ -292,8 +308,39 @@ class NewsController extends BaseController
 
         $ackAt = $this->itemsRepository->acknowledgeImportant($id, (int) $user->id, $companyId);
 
+        if ($companyId > 0) {
+            $news = $this->itemsRepository->findItemWithRelations($id);
+            if ($news) {
+                $this->itemsRepository->attachAcknowledgedBy([$news], $companyId);
+                NewsAcknowledgedUpdated::dispatch(
+                    $companyId,
+                    $id,
+                    is_array($news->acknowledged_by) ? $news->acknowledged_by : [],
+                );
+            }
+        }
+
         return $this->successResponse([
             'acknowledged_at' => $ackAt,
         ]);
+    }
+
+    /**
+     * @param int $newsId
+     * @param int $companyId
+     * @return void
+     */
+    private function dispatchNewsCreatedBroadcast(int $newsId, int $companyId): void
+    {
+        $news = $this->itemsRepository->findItemWithRelations($newsId);
+        if (! $news) {
+            return;
+        }
+
+        $this->itemsRepository->attachReactionSummaries([$news]);
+        $this->itemsRepository->attachViewedBy([$news], $companyId);
+        $this->itemsRepository->attachAcknowledgedBy([$news], $companyId);
+
+        NewsCreated::dispatch($companyId, (new NewsResource($news))->resolve());
     }
 }

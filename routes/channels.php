@@ -71,6 +71,18 @@ Broadcast::channel('company.{companyId}.timeline.{apiType}.{entityId}', function
     }
 });
 
+Broadcast::channel('company.{companyId}.news.feed', function ($user, $companyId) use ($userBelongsToCompany) {
+    try {
+        $companyId = (int) $companyId;
+
+        return $userBelongsToCompany($user, $companyId);
+    } catch (\Throwable $e) {
+        report($e);
+
+        return false;
+    }
+});
+
 Broadcast::channel('company.{companyId}.news.{newsId}', function ($user, $companyId, $newsId) use ($userBelongsToCompany) {
     try {
         $companyId = (int) $companyId;

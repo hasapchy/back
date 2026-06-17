@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Services\EngagementReactionService;
+use App\Events\CommentDeleted;
+use App\Events\CommentUpdated;
 use App\Events\TimelineItemCreated;
 use App\Contracts\SupportsTimeline;
 use App\Http\Requests\StoreCommentRequest;
@@ -176,6 +178,16 @@ class CommentController extends BaseController
 
         $this->invalidateTimelineCache($apiType, (int) $updatedComment->commentable_id);
 
+        if ($apiType === 'news' && $companyId > 0) {
+            CommentUpdated::dispatch(
+                $companyId,
+                (int) $updatedComment->commentable_id,
+                (int) $updatedComment->id,
+                (string) $updatedComment->body,
+                $updatedComment->parent_id ? (int) $updatedComment->parent_id : null,
+            );
+        }
+
         return $this->successResponse(new CommentResource($updatedComment), __('api.comments.updated'));
     }
 
@@ -197,6 +209,8 @@ class CommentController extends BaseController
 
         $apiType = $this->itemsRepository->apiTypeFromModelClass($comment->commentable_type);
         $commentableId = (int) $comment->commentable_id;
+        $commentId = (int) $comment->id;
+        $parentId = $comment->parent_id ? (int) $comment->parent_id : null;
         $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
         $this->timelineAccessGuard->resolveEntityForCompany($user, $apiType, $commentableId, $companyId);
 
@@ -207,6 +221,10 @@ class CommentController extends BaseController
         }
 
         $this->invalidateTimelineCache($apiType, $commentableId);
+
+        if ($apiType === 'news' && $companyId > 0) {
+            CommentDeleted::dispatch($companyId, $commentableId, $commentId, $parentId);
+        }
 
         return $this->successResponse(null, __('api.comments.deleted'));
     }
@@ -441,5 +459,8 @@ class CommentController extends BaseController
     {
         TimelineCache::forget($apiType, $id, (int) ($this->getCurrentCompanyId() ?? 0));
         $this->itemsRepository->invalidateCommentsCacheByType($apiType);
+        if ($apiType === 'news') {
+            CacheService::invalidateByLike('%news%');
+        }
     }
 }

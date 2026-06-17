@@ -20,8 +20,13 @@ use App\Models\Warehouse;
 use App\Models\WhPurchase;
 use App\Models\CashRegister;
 use App\Models\Category;
+use App\Events\CommentDeleted;
 use App\Events\CommentReactionUpdated;
+use App\Events\CommentUpdated;
+use App\Events\NewsAcknowledgedUpdated;
+use App\Events\NewsCreated;
 use App\Events\NewsReactionUpdated;
+use App\Events\NewsViewedUpdated;
 use Illuminate\Support\Facades\Event;
 use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Facades\Schema;
@@ -498,6 +503,7 @@ class CommentControllerTest extends TestCase
                 'parent_id' => $parentId,
             ]);
         $replyResponse->assertStatus(200);
+        $replyResponse->assertJsonPath('data.timeline_item.parent_id', $parentId);
 
         $index = $this->actingAsApi($this->adminUser)
             ->getJson('/api/comments?type=news&id='.$news->id);
@@ -708,6 +714,153 @@ class CommentControllerTest extends TestCase
                 'socket_id' => '123.456',
             ])
             ->assertOk();
+    }
+
+    public function test_news_feed_channel_auth(): void
+    {
+        $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
+
+        $this->actingAsApi($this->adminUser)
+            ->postJson('/api/broadcasting/auth', [
+                'channel_name' => "private-company.{$this->company->id}.news.feed",
+                'socket_id' => '123.456',
+            ])
+            ->assertOk();
+    }
+
+    public function test_news_comment_updated_broadcast(): void
+    {
+        Event::fake([CommentUpdated::class]);
+
+        $news = $this->createNewsItem();
+        $comment = Comment::factory()->create([
+            'commentable_type' => News::class,
+            'commentable_id' => $news->id,
+            'creator_id' => $this->adminUser->id,
+            'body' => 'Original',
+        ]);
+
+        $this->actingAsApi($this->adminUser)
+            ->putJson("/api/comments/{$comment->id}", ['body' => 'Updated body'])
+            ->assertStatus(200);
+
+        Event::assertDispatched(CommentUpdated::class, function (CommentUpdated $event) use ($news, $comment) {
+            return $event->companyId === $this->company->id
+                && $event->newsId === $news->id
+                && $event->commentId === $comment->id
+                && $event->body === 'Updated body'
+                && $event->parentId === null;
+        });
+    }
+
+    public function test_news_comment_deleted_broadcast(): void
+    {
+        Event::fake([CommentDeleted::class]);
+
+        $news = $this->createNewsItem();
+        $parent = Comment::factory()->create([
+            'commentable_type' => News::class,
+            'commentable_id' => $news->id,
+            'creator_id' => $this->adminUser->id,
+            'body' => 'Parent',
+        ]);
+        $comment = Comment::factory()->create([
+            'commentable_type' => News::class,
+            'commentable_id' => $news->id,
+            'creator_id' => $this->adminUser->id,
+            'body' => 'Reply',
+            'parent_id' => $parent->id,
+        ]);
+
+        $this->actingAsApi($this->adminUser)
+            ->deleteJson("/api/comments/{$comment->id}")
+            ->assertStatus(200);
+
+        Event::assertDispatched(CommentDeleted::class, function (CommentDeleted $event) use ($news, $comment, $parent) {
+            return $event->companyId === $this->company->id
+                && $event->newsId === $news->id
+                && $event->commentId === $comment->id
+                && $event->parentId === $parent->id;
+        });
+    }
+
+    public function test_order_comment_update_does_not_broadcast_news_events(): void
+    {
+        Event::fake([CommentUpdated::class, CommentDeleted::class]);
+
+        $order = $this->createScopedOrder();
+        $comment = Comment::factory()->create([
+            'commentable_type' => Order::class,
+            'commentable_id' => $order->id,
+            'creator_id' => $this->adminUser->id,
+            'body' => 'Order comment',
+        ]);
+
+        $this->actingAsApi($this->adminUser)
+            ->putJson("/api/comments/{$comment->id}", ['body' => 'Updated'])
+            ->assertStatus(200);
+
+        Event::assertNotDispatched(CommentUpdated::class);
+    }
+
+    public function test_news_created_broadcast(): void
+    {
+        Event::fake([NewsCreated::class]);
+
+        $this->actingAsApi($this->adminUser)
+            ->postJson('/api/news', [
+                'title' => 'Broadcast news',
+                'content' => '<p>New item</p>',
+            ])
+            ->assertStatus(200);
+
+        Event::assertDispatched(NewsCreated::class, function (NewsCreated $event) {
+            return $event->companyId === $this->company->id
+                && ($event->news['title'] ?? '') === 'Broadcast news'
+                && ($event->news['content'] ?? '') === '<p>New item</p>';
+        });
+    }
+
+    public function test_news_viewed_broadcast(): void
+    {
+        Event::fake([NewsViewedUpdated::class]);
+
+        $news = $this->createNewsItem();
+
+        $this->actingAsApi($this->adminUser)
+            ->postJson("/api/news/{$news->id}/view")
+            ->assertStatus(200);
+
+        Event::assertDispatched(NewsViewedUpdated::class, function (NewsViewedUpdated $event) use ($news) {
+            return $event->companyId === $this->company->id
+                && $event->newsId === $news->id
+                && is_array($event->viewedBy)
+                && collect($event->viewedBy)->contains(fn (array $row) => (int) ($row['user_id'] ?? 0) === $this->adminUser->id);
+        });
+    }
+
+    public function test_news_acknowledged_broadcast(): void
+    {
+        Event::fake([NewsAcknowledgedUpdated::class]);
+
+        $news = News::query()->create([
+            'title' => 'Important',
+            'content' => '<p>Must read</p>',
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+            'is_important' => true,
+        ]);
+
+        $this->actingAsApi($this->adminUser)
+            ->postJson("/api/news/{$news->id}/acknowledge")
+            ->assertStatus(200);
+
+        Event::assertDispatched(NewsAcknowledgedUpdated::class, function (NewsAcknowledgedUpdated $event) use ($news) {
+            return $event->companyId === $this->company->id
+                && $event->newsId === $news->id
+                && is_array($event->acknowledgedBy)
+                && collect($event->acknowledgedBy)->contains(fn (array $row) => (int) ($row['user_id'] ?? 0) === $this->adminUser->id);
+        });
     }
 }
 

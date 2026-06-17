@@ -3,7 +3,6 @@
 namespace Tests\Unit;
 
 use App\Exceptions\CompanyContextMissingException;
-use App\Exceptions\InvalidReceiptLandedCostException;
 use App\Exceptions\UnbalancedJournalEntryException;
 use App\Enums\JournalEntryStatus;
 use App\Models\Company;
@@ -32,7 +31,7 @@ class JournalEntryAuditTest extends TestCase
         CompanyContextResolver::requireWarehouseCompanyId(null, 'test');
     }
 
-    public function test_receipt_builder_throws_on_zero_landed_cost(): void
+    public function test_receipt_builder_returns_empty_lines_on_zero_landed_cost(): void
     {
         $company = Company::factory()->create();
         $receipt = WhReceipt::factory()->create([
@@ -44,8 +43,8 @@ class JournalEntryAuditTest extends TestCase
 
         $builder = app(ReceiptInventoryJournalBuilder::class);
 
-        $this->expectException(InvalidReceiptLandedCostException::class);
-        $builder->buildInventoryLines($receipt);
+        $this->assertSame([], $builder->buildInventoryLines($receipt));
+        $this->assertNull($builder->buildCostAdjustmentLines($receipt));
     }
 
     public function test_create_and_post_retries_existing_draft(): void
