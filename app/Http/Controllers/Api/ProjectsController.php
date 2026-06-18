@@ -381,6 +381,7 @@ class ProjectsController extends BaseController
         }
 
         $rootFolder->load('creator:id,name,surname');
+        $this->itemsRepository->syncProjectDriveParticipantAccess($project->fresh(['users:id']));
         $this->itemsRepository->invalidateProjectCache((int) $project->id);
         CacheService::invalidateProjectsCache();
 

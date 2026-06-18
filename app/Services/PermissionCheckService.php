@@ -27,7 +27,7 @@ class PermissionCheckService
 
         $ownPermission = PermissionParser::generate($resource, $action, 'own');
         if (in_array($ownPermission, $userPermissions)) {
-            return $this->checkOwnAccess($user, $resource, $record);
+            return $this->checkOwnAccess($user, $resource, $action, $record);
         }
 
         $legacyPermission = PermissionParser::generate($resource, $action);
@@ -41,10 +41,11 @@ class PermissionCheckService
     /**
      * @param User $user
      * @param string $resource
+     * @param string $action
      * @param mixed $record
      * @return bool
      */
-    private function checkOwnAccess(User $user, string $resource, $record): bool
+    private function checkOwnAccess(User $user, string $resource, string $action, $record): bool
     {
         if (!$record) {
             return true;
@@ -52,6 +53,17 @@ class PermissionCheckService
 
         $config = config("permissions.resources.{$resource}") ?? [];
         $strategy = $config['check_strategy'] ?? 'default';
+
+        if (in_array($strategy, ['task_participants', 'project_participants'], true)) {
+            if ($action === 'view' && method_exists($record, 'userCanView')) {
+                return $record->userCanView($user);
+            }
+            if (in_array($action, ['update', 'delete'], true) && method_exists($record, 'userCanUpdate')) {
+                return $record->userCanUpdate($user);
+            }
+
+            return false;
+        }
 
         if ($strategy === 'many_to_many') {
             return method_exists($record, 'hasUser') && $record->hasUser($user->id);

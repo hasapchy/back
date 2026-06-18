@@ -33,9 +33,9 @@ class TimelineEntityAccessGuard
         'transaction' => ['transactions_view_all', 'transactions_view'],
         'client' => ['clients_view_all', 'clients_view', 'settings_client_balance_view_own'],
         'product' => ['products_view_all', 'products_view'],
-        'project' => ['projects_view_all', 'projects_view'],
-        'task' => ['tasks_view_all', 'tasks_view'],
-        'project_contract' => ['projects_view_all', 'projects_view'],
+        'project' => ['projects_view_all', 'projects_view', 'projects_view_own'],
+        'task' => ['tasks_view_all', 'tasks_view', 'tasks_view_own'],
+        'project_contract' => ['projects_view_all', 'projects_view', 'projects_view_own'],
         'lead' => ['leads_view_all', 'leads_view_own'],
         'wh_receipt' => ['warehouse_receipts_view_all', 'warehouse_receipts_view_own'],
         'wh_writeoff' => ['warehouse_writeoffs_view_all', 'warehouse_writeoffs_view_own'],
@@ -93,7 +93,53 @@ class TimelineEntityAccessGuard
             return false;
         }
 
-        return $this->scopedQuery($modelClass, $companyId)->whereKey($entityId)->exists();
+        if (! $this->scopedQuery($modelClass, $companyId)->whereKey($entityId)->exists()) {
+            return false;
+        }
+
+        return $this->passesEntityParticipantAccess($user, $apiType, $entityId, $companyId);
+    }
+
+    /**
+     * @param User $user
+     * @param string $apiType
+     * @param int $entityId
+     * @param int $companyId
+     * @return bool
+     */
+    private function passesEntityParticipantAccess(User $user, string $apiType, int $entityId, int $companyId): bool
+    {
+        if ($user->is_admin) {
+            return true;
+        }
+
+        if ($apiType === 'task' && ! $this->userHasFullViewPermission($user, 'tasks', $companyId)) {
+            $task = Task::with(['observers', 'project.users'])->find($entityId);
+
+            return $task !== null && $task->userCanView($user);
+        }
+
+        if ($apiType === 'project' && ! $this->userHasFullViewPermission($user, 'projects', $companyId)) {
+            $project = Project::with('users:id')->find($entityId);
+
+            return $project !== null && $project->userCanView($user);
+        }
+
+        return true;
+    }
+
+    /**
+     * @param User $user
+     * @param string $resource
+     * @param int $companyId
+     * @return bool
+     */
+    private function userHasFullViewPermission(User $user, string $resource, int $companyId): bool
+    {
+        $names = $user->getAllPermissionsForCompany($companyId)->pluck('name');
+
+        return $names->contains("{$resource}_view_all")
+            || $names->contains("{$resource}_view");
     }
 
     /**
@@ -128,12 +174,21 @@ class TimelineEntityAccessGuard
             return [];
         }
 
-        return $this->scopedQuery($modelClass, $companyId)
+        $ids = $this->scopedQuery($modelClass, $companyId)
             ->whereIn('id', $entityIds)
             ->pluck('id')
             ->map(static fn ($id) => (int) $id)
             ->values()
             ->all();
+
+        if ($apiType === 'task' || $apiType === 'project') {
+            $ids = array_values(array_filter(
+                $ids,
+                fn (int $id) => $this->passesEntityParticipantAccess($user, $apiType, $id, $companyId)
+            ));
+        }
+
+        return $ids;
     }
 
     /**

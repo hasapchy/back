@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Task;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,6 +23,7 @@ class TaskReferenceResource extends JsonResource
         $creator = $task->relationLoaded('creator') ? $task->creator : null;
         $supervisor = $task->relationLoaded('supervisor') ? $task->supervisor : null;
         $executor = $task->relationLoaded('executor') ? $task->executor : null;
+        $observers = $task->relationLoaded('observers') ? $task->observers : null;
         $project = $task->relationLoaded('project') ? $task->project : null;
 
         return [
@@ -48,6 +50,14 @@ class TaskReferenceResource extends JsonResource
             ] : null,
             'files' => [],
             'id' => $task->id,
+            'observers' => $observers ? $observers->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'surname' => $user->surname,
+                'email' => $user->email,
+                'position' => $user->position,
+                'photo' => $user->photo,
+            ])->values()->all() : [],
             'priority' => $priority?->value,
             'priority_icons' => $priority?->icons(),
             'priority_label' => $priority?->label(),
@@ -55,6 +65,7 @@ class TaskReferenceResource extends JsonResource
                 'id' => $project->id,
                 'name' => $project->name,
             ] : null,
+            'restrict_visibility' => (bool) $task->restrict_visibility,
             'status' => $status ? [
                 'id' => $status->id,
                 'name' => $status->name,

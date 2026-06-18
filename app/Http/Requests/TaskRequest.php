@@ -3,7 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Models\Task;
+use App\Rules\CompanyUserMembershipRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class TaskRequest extends FormRequest
 {
@@ -108,9 +110,11 @@ class TaskRequest extends FormRequest
             'files' => 'nullable|array',
             'comments' => 'nullable|array',
             'checklist' => 'nullable|array',
+            'observer_ids' => 'nullable|array',
+            'observer_ids.*' => ['integer', 'exists:users,id', new CompanyUserMembershipRule()],
+            'restrict_visibility' => 'nullable|boolean',
         ];
 
-        // При обновлении не требуем обязательные поля, если они не переданы
         if ($this->isMethod('PUT') || $this->isMethod('PATCH')) {
             $rules['title'] = 'sometimes|required|string|max:255';
             $rules['supervisor_id'] = 'sometimes|required|exists:users,id';
@@ -119,5 +123,31 @@ class TaskRequest extends FormRequest
         }
 
         return $rules;
+    }
+
+    /**
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $observerIds = $this->input('observer_ids');
+            if (! is_array($observerIds) || $observerIds === []) {
+                return;
+            }
+
+            $supervisorId = (int) $this->input('supervisor_id');
+            $executorId = (int) $this->input('executor_id');
+
+            foreach ($observerIds as $observerId) {
+                $id = (int) $observerId;
+                if ($supervisorId > 0 && $id === $supervisorId) {
+                    $validator->errors()->add('observer_ids', __('api.tasks.observer_cannot_be_supervisor'));
+                }
+                if ($executorId > 0 && $id === $executorId) {
+                    $validator->errors()->add('observer_ids', __('api.tasks.observer_cannot_be_executor'));
+                }
+            }
+        });
     }
 }

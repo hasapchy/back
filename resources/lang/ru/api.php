@@ -68,6 +68,8 @@ return [
         'file_not_found' => 'Файл не найден в задаче',
         'delete_file_failed_prefix' => 'Ошибка при удалении файла: ',
         'no_statuses_found' => 'No task statuses found. Please create at least one task status.',
+        'observer_cannot_be_supervisor' => 'Наблюдатель не может совпадать с постановщиком',
+        'observer_cannot_be_executor' => 'Наблюдатель не может совпадать с исполнителем',
     ],
     'sales' => [
         'created' => 'Продажа добавлена',

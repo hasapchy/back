@@ -2,14 +2,13 @@
 
 namespace App\Http\Resources;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class TaskResource extends JsonResource
 {
     /**
-     * Transform the resource into an array.
-     *
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
@@ -19,6 +18,7 @@ class TaskResource extends JsonResource
             'title' => $this->title,
             'description' => $this->description,
             'status_id' => $this->status_id,
+            'restrict_visibility' => (bool) $this->restrict_visibility,
             'priority' => $this->priority?->value,
             'priority_label' => $this->priority?->label(),
             'priority_icons' => $this->priority?->icons(),
@@ -31,8 +31,6 @@ class TaskResource extends JsonResource
             'checklist' => $this->checklist,
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
-
-            // Связи
             'status' => $this->whenLoaded('status', function () {
                 return [
                     'id' => $this->status->id,
@@ -66,6 +64,16 @@ class TaskResource extends JsonResource
                     'position' => $this->executor->position,
                     'photo' => $this->executor->photo,
                 ];
+            }),
+            'observers' => $this->whenLoaded('observers', function () {
+                return $this->observers->map(fn (User $user) => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'surname' => $user->surname,
+                    'email' => $user->email,
+                    'position' => $user->position,
+                    'photo' => $user->photo,
+                ])->values()->all();
             }),
             'project' => $this->whenLoaded('project', function () {
                 return [

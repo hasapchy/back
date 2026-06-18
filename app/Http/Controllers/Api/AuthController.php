@@ -336,6 +336,7 @@ class AuthController extends BaseController
             'surname' => $user->surname,
             'email' => $user->email,
             'photo' => $user->photo,
+            'profile_wallpaper' => $user->profile_wallpaper,
             'birthday' => $user->birthday?->format('Y-m-d'),
             'is_admin' => $user->is_admin,
             'is_simple_user' => (bool) $user->is_simple_user,

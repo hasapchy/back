@@ -57,6 +57,7 @@ class User extends Authenticatable
         'birthday',
         'position',
         'photo',
+        'profile_wallpaper',
         'last_login_at',
     ];
 

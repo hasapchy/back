@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\DriveFolder;
+use App\Models\DrivePermission;
 use App\Models\Chat;
 use App\Models\ChatParticipant;
 use App\Models\Client;
@@ -225,5 +227,56 @@ class ProjectChatControllerTest extends TestCase
             ->postJson("/api/projects/{$project->id}/chat");
 
         $response->assertStatus(200);
+    }
+
+    public function test_updating_project_users_syncs_drive_folder_acl(): void
+    {
+        $project = $this->createProject();
+
+        $this->actingAsApi($this->adminUser)
+            ->postJson("/api/projects/{$project->id}/drive-folder", [
+                'preset_keys' => [],
+            ])
+            ->assertStatus(201);
+
+        $rootFolder = DriveFolder::query()
+            ->where('company_id', $this->company->id)
+            ->where('project_id', $project->id)
+            ->firstOrFail();
+
+        $this->actingAsApi($this->adminUser)
+            ->putJson("/api/projects/{$project->id}", [
+                'name' => $project->name,
+                'client_id' => $this->client->id,
+                'users' => [$this->memberUser->id],
+            ])
+            ->assertStatus(200);
+
+        $this->assertDatabaseHas('drive_permissions', [
+            'company_id' => $this->company->id,
+            'resource_type' => DrivePermission::RESOURCE_FOLDER,
+            'resource_id' => $rootFolder->id,
+            'subject_type' => DrivePermission::SUBJECT_USER,
+            'subject_id' => $this->memberUser->id,
+            'ability' => 'view',
+            'effect' => DrivePermission::EFFECT_ALLOW,
+        ]);
+
+        $this->actingAsApi($this->adminUser)
+            ->putJson("/api/projects/{$project->id}", [
+                'name' => $project->name,
+                'client_id' => $this->client->id,
+                'users' => [],
+            ])
+            ->assertStatus(200);
+
+        $this->assertDatabaseMissing('drive_permissions', [
+            'company_id' => $this->company->id,
+            'resource_type' => DrivePermission::RESOURCE_FOLDER,
+            'resource_id' => $rootFolder->id,
+            'subject_type' => DrivePermission::SUBJECT_USER,
+            'subject_id' => $this->memberUser->id,
+            'ability' => 'view',
+        ]);
     }
 }

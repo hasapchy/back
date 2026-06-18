@@ -68,6 +68,8 @@ return [
         'file_not_found' => 'File not found in task',
         'delete_file_failed_prefix' => 'File delete failed: ',
         'no_statuses_found' => 'No task statuses found. Please create at least one task status.',
+        'observer_cannot_be_supervisor' => 'Observer cannot be the same as supervisor',
+        'observer_cannot_be_executor' => 'Observer cannot be the same as executor',
     ],
     'sales' => [
         'created' => 'Sale created',

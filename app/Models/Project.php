@@ -189,6 +189,41 @@ class Project extends Model implements SupportsTimeline
     }
 
     /**
+     * @param int $userId
+     * @return bool
+     */
+    public function hasParticipant(int $userId): bool
+    {
+        if ((int) $this->creator_id === $userId) {
+            return true;
+        }
+
+        if ($this->relationLoaded('users')) {
+            return $this->users->contains(fn (User $user) => (int) $user->id === $userId);
+        }
+
+        return $this->hasUser($userId);
+    }
+
+    /**
+     * @param User $user
+     * @return bool
+     */
+    public function userCanView(User $user): bool
+    {
+        return $this->hasParticipant((int) $user->id);
+    }
+
+    /**
+     * @param User $user
+     * @return bool
+     */
+    public function userCanUpdate(User $user): bool
+    {
+        return (int) $this->creator_id === (int) $user->id;
+    }
+
+    /**
      * @param  int|null  $currencyId
      * @return bool
      */

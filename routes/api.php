@@ -99,6 +99,8 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::get('user/me', [AuthController::class, 'me'])->name('api.auth.me');
     Route::get('user/current', [UsersController::class, 'getCurrentUser'])->name('api.users.current');
     Route::post('user/profile', [UsersController::class, 'updateProfile'])->name('api.users.update_profile');
+    Route::get('user/profile-wallpapers', [UsersController::class, 'profileWallpapers'])->name('api.users.profile_wallpapers');
+    Route::put('user/profile-wallpaper', [UsersController::class, 'updateProfileWallpaper'])->name('api.users.update_profile_wallpaper');
     Route::get('user/sessions', [UserSessionsController::class, 'index'])->name('api.user_sessions.index');
     Route::delete('user/sessions', [UserSessionsController::class, 'destroyAll'])->name('api.user_sessions.destroy_all');
     Route::delete('user/sessions/{id}', [UserSessionsController::class, 'destroy'])->name('api.user_sessions.destroy');
@@ -263,12 +265,12 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::middleware('permission:projects_create')->post('projects', [ProjectsController::class, 'store'])->name('api.projects.store');
     Route::middleware('permission.scope:projects_update_all,projects_update')->put('projects/{id}', [ProjectsController::class, 'update'])->name('api.projects.update');
     Route::middleware('permission.scope:projects_delete_all,projects_delete')->delete('projects/{id}', [ProjectsController::class, 'destroy'])->name('api.projects.destroy');
-    Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{id}/balance-history', [ProjectsController::class, 'getBalanceHistory'])->name('api.projects.balance_history');
-    Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{id}/detailed-balance', [ProjectsController::class, 'getDetailedBalance'])->name('api.projects.detailed_balance');
+    Route::middleware('permission.scope:projects_view_all,projects_view,projects_view_own')->get('projects/{id}/balance-history', [ProjectsController::class, 'getBalanceHistory'])->name('api.projects.balance_history');
+    Route::middleware('permission.scope:projects_view_all,projects_view,projects_view_own')->get('projects/{id}/detailed-balance', [ProjectsController::class, 'getDetailedBalance'])->name('api.projects.detailed_balance');
     Route::middleware('permission.scope:chats_view_all,chats_view')->post('projects/{id}/chat', [ProjectsController::class, 'ensureChat'])->name('api.projects.ensure_chat');
     Route::middleware('permission.scope:projects_update_all,projects_update')->post('projects/{id}/drive-folder', [ProjectsController::class, 'createDriveFolder'])->name('api.projects.create_drive_folder');
 
-    Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{projectId}/contracts/all', [ProjectContractsController::class, 'getAll'])->name('api.project_contracts.all');
+    Route::middleware('permission.scope:projects_view_all,projects_view,projects_view_own')->get('projects/{projectId}/contracts/all', [ProjectContractsController::class, 'getAll'])->name('api.project_contracts.all');
     Route::middleware('permission.scope:projects_update_all,projects_update')->post('projects/{projectId}/contracts', [ProjectContractsController::class, 'store'])->name('api.project_contracts.store');
     Route::middleware('permission.scope:contracts_view_all,contracts_view_own')->get('contracts', [ProjectContractsController::class, 'getAllContracts'])->name('api.project_contracts.index');
     Route::middleware('permission.scope:contracts_view_all,contracts_view_own')->get('contracts/{id}', [ProjectContractsController::class, 'show'])->name('api.project_contracts.show');
@@ -409,9 +411,9 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::get('user/companies', [UserCompanyController::class, 'getUserCompanies'])->name('api.user_company.companies');
 
     // Tasks routes
-    Route::middleware('permission.scope:tasks_view_all,tasks_view')->get('tasks', [TasksController::class, 'index'])->name('api.tasks.index');
-    Route::middleware('permission.scope:tasks_view_all,tasks_view')->get('tasks/overdue-count', [TasksController::class, 'overdueCount'])->name('api.tasks.overdue_count');
-    Route::middleware('permission.scope:tasks_view_all,tasks_view')->get('tasks/{id}', [TasksController::class, 'show'])->name('api.tasks.show');
+    Route::middleware('permission.scope:tasks_view_all,tasks_view,tasks_view_own')->get('tasks', [TasksController::class, 'index'])->name('api.tasks.index');
+    Route::middleware('permission.scope:tasks_view_all,tasks_view,tasks_view_own')->get('tasks/overdue-count', [TasksController::class, 'overdueCount'])->name('api.tasks.overdue_count');
+    Route::middleware('permission.scope:tasks_view_all,tasks_view,tasks_view_own')->get('tasks/{id}', [TasksController::class, 'show'])->name('api.tasks.show');
     Route::middleware('permission:tasks_create')->post('tasks', [TasksController::class, 'store'])->name('api.tasks.store');
     Route::middleware('permission.scope:tasks_update_all,tasks_update')->put('tasks/{id}', [TasksController::class, 'update'])->name('api.tasks.update');
     Route::middleware('permission.scope:tasks_delete_all,tasks_delete')->delete('tasks/{id}', [TasksController::class, 'destroy'])->name('api.tasks.destroy');

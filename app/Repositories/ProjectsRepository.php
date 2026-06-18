@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\Currency;
 use App\Models\DriveFolder;
+use App\Models\DrivePermission;
 use App\Models\Project;
 use App\Models\ProjectContract;
 use App\Models\ProjectStatus;
@@ -71,6 +72,9 @@ class ProjectsRepository extends BaseRepository
         );
     }
 
+    /**
+     * @return ChatService
+     */
     private function resolveChatService(): ChatService
     {
         return $this->chatService ??= app(ChatService::class);
@@ -106,6 +110,9 @@ class ProjectsRepository extends BaseRepository
         $this->resolveDriveRepository()->deleteFolder($folder);
     }
 
+    /**
+     * @return void
+     */
     private function syncProjectChatIfExists(Project $project): void
     {
         $companyId = (int) $project->company_id;
@@ -114,6 +121,94 @@ class ProjectsRepository extends BaseRepository
         }
 
         $this->resolveChatService()->syncProjectChatFromProject($companyId, $project);
+    }
+
+    /**
+     * @param  Builder<Project>  $query
+     */
+    private function applyProjectOwnFilter(Builder $query, ?User $user): void
+    {
+        if (! $user || $user->is_admin || ! $this->shouldApplyResourceOwnScope($user, 'projects')) {
+            return;
+        }
+
+        $userId = (int) $user->id;
+        $query->where(function ($q) use ($userId) {
+            $q->where('projects.creator_id', $userId)
+                ->orWhereHas('users', fn ($uq) => $uq->where('users.id', $userId));
+        });
+    }
+
+    /**
+     * @param  array<int, int>|null  $previousParticipantIds
+     */
+    public function syncProjectDriveParticipantAccess(Project $project, ?array $previousParticipantIds = null): void
+    {
+        $companyId = (int) $project->company_id;
+        if (! $companyId) {
+            return;
+        }
+
+        $folder = DriveFolder::query()
+            ->where('company_id', $companyId)
+            ->where('project_id', (int) $project->id)
+            ->first();
+
+        if ($folder === null) {
+            return;
+        }
+
+        $currentIds = $this->resolveChatService()->resolveProjectParticipantIds($companyId, $project);
+        $creatorId = (int) $project->creator_id;
+        $previousIds = $previousParticipantIds ?? $currentIds;
+
+        $added = array_diff($currentIds, $previousIds);
+        $removed = array_diff($previousIds, $currentIds);
+        $driveRepo = $this->resolveDriveRepository();
+
+        foreach ($added as $userId) {
+            if ((int) $userId === $creatorId) {
+                continue;
+            }
+            $driveRepo->syncSubjectPermissions(
+                $companyId,
+                $creatorId,
+                DrivePermission::RESOURCE_FOLDER,
+                (int) $folder->id,
+                (int) $userId,
+                ['view']
+            );
+        }
+
+        foreach ($removed as $userId) {
+            if ((int) $userId === $creatorId) {
+                continue;
+            }
+            $driveRepo->syncSubjectPermissions(
+                $companyId,
+                $creatorId,
+                DrivePermission::RESOURCE_FOLDER,
+                (int) $folder->id,
+                (int) $userId,
+                []
+            );
+        }
+
+        if ($previousParticipantIds === null) {
+            foreach ($currentIds as $userId) {
+                if ((int) $userId === $creatorId) {
+                    continue;
+                }
+                $driveRepo->syncSubjectPermissions(
+                    $companyId,
+                    $creatorId,
+                    DrivePermission::RESOURCE_FOLDER,
+                    (int) $folder->id,
+                    (int) $userId,
+                    ['view']
+                );
+            }
+        }
     }
 
     /**
@@ -146,7 +241,7 @@ class ProjectsRepository extends BaseRepository
 
             $query = $this->addCompanyFilterDirect($query, 'projects');
             $this->applyProjectListFilters($query, $search, $dateFilter, $startDate, $endDate, $clientId, $statusId);
-            $this->applyOwnFilter($query, 'projects', 'projects', 'creator_id', $currentUser);
+            $this->applyProjectOwnFilter($query, $currentUser);
 
             $paginated = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int) $page);
 
@@ -183,7 +278,7 @@ class ProjectsRepository extends BaseRepository
 
         $query = $this->addCompanyFilterDirect($query, 'projects');
         $this->applyProjectListFilters($query, $search, $dateFilter, $startDate, $endDate, $clientId);
-        $this->applyOwnFilter($query, 'projects', 'projects', 'creator_id', $currentUser);
+        $this->applyProjectOwnFilter($query, $currentUser);
 
         return $query
             ->select([
@@ -230,7 +325,7 @@ class ProjectsRepository extends BaseRepository
                     ->where('project_statuses.is_visible', true);
             }
 
-            $this->applyOwnFilter($query, 'projects', 'projects', 'creator_id', $currentUser);
+            $this->applyProjectOwnFilter($query, $currentUser);
 
             $items = $query->orderBy('created_at', 'desc')->get();
 
@@ -266,7 +361,9 @@ class ProjectsRepository extends BaseRepository
                 $this->syncProjectUsers($item->id, $data['users'], (int) $item->creator_id);
             }
 
-            $this->syncProjectChatIfExists($item->fresh(['users:id']));
+            $freshProject = $item->fresh(['users:id']);
+            $this->syncProjectChatIfExists($freshProject);
+            $this->syncProjectDriveParticipantAccess($freshProject);
 
             CacheService::invalidateProjectsCache();
             TimelineCache::forget('project', (int) $item->id);
@@ -312,11 +409,21 @@ class ProjectsRepository extends BaseRepository
                 ->where('project_id', $id)
                 ->update(['name' => $item->name]);
 
+            $previousParticipantIds = ProjectUser::query()
+                ->where('project_id', $id)
+                ->pluck('user_id')
+                ->map(fn ($userId) => (int) $userId)
+                ->all();
+
             if (isset($data['users']) && is_array($data['users'])) {
                 $this->syncProjectUsers($id, $data['users'], (int) $item->creator_id);
             }
 
-            $this->syncProjectChatIfExists($item->fresh(['users:id']));
+            $freshProject = $item->fresh(['users:id']);
+            $this->syncProjectChatIfExists($freshProject);
+            if (isset($data['users']) && is_array($data['users'])) {
+                $this->syncProjectDriveParticipantAccess($freshProject, $previousParticipantIds);
+            }
 
             $previousCurrencyNormalized = $previousCurrencyId !== null ? (int) $previousCurrencyId : null;
             $currentCurrencyNormalized = $item->currency_id !== null ? (int) $item->currency_id : null;

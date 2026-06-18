@@ -56,12 +56,6 @@ class TasksController extends BaseController
      */
     public function overdueCount()
     {
-        $user = $this->requireAuthenticatedUser();
-        $permissions = $this->getUserPermissions($user);
-        if (!in_array('tasks_view_all', $permissions) && !in_array('tasks_view_own', $permissions)) {
-            return $this->errorResponse(__('api.tasks.view_forbidden'), 403);
-        }
-
         $count = $this->itemsRepository->getOverdueCount();
 
         return $this->successResponse(['count' => $count]);
@@ -82,7 +76,6 @@ class TasksController extends BaseController
         }
 
         $task = $this->itemsRepository->create($data);
-        $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
         $user = $this->requireAuthenticatedUser();
         $companyId = (int) $data['company_id'];
@@ -110,7 +103,7 @@ class TasksController extends BaseController
     {
         $task = $this->itemsRepository->findById($id);
         $this->authorize('view', $task);
-        $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
+        $task->loadMissing(['creator', 'supervisor', 'executor', 'observers', 'project', 'status']);
 
         return $this->successResponse([
             'data' => new TaskResource($task)
@@ -125,7 +118,7 @@ class TasksController extends BaseController
         $this->authorize('update', $this->itemsRepository->findById($id));
 
         $task = $this->itemsRepository->update($id, $request->validated());
-        $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
+        $task->loadMissing(['creator', 'supervisor', 'executor', 'observers', 'project', 'status']);
 
         return $this->successResponse([
             'data' => new TaskResource($task),
@@ -163,7 +156,7 @@ class TasksController extends BaseController
         }
 
         $task = $this->itemsRepository->changeStatus($id, $completedStatus->id);
-        $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
+        $task->loadMissing(['creator', 'supervisor', 'executor', 'observers', 'project', 'status']);
 
         return $this->successResponse([
             'data' => new TaskResource($task),
@@ -187,7 +180,7 @@ class TasksController extends BaseController
         }
 
         $task = $this->itemsRepository->changeStatus($id, $acceptedStatus->id);
-        $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
+        $task->loadMissing(['creator', 'supervisor', 'executor', 'observers', 'project', 'status']);
 
         return $this->successResponse([
             'data' => new TaskResource($task),
@@ -211,7 +204,7 @@ class TasksController extends BaseController
         }
 
         $task = $this->itemsRepository->changeStatus($id, $inProgressStatus->id);
-        $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
+        $task->loadMissing(['creator', 'supervisor', 'executor', 'observers', 'project', 'status']);
 
         return $this->successResponse([
             'data' => new TaskResource($task),

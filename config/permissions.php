@@ -101,7 +101,7 @@ return [
         ],
         'projects' => [
             'has_creator_id' => true,
-            'check_strategy' => 'creator_id',
+            'check_strategy' => 'project_participants',
             'actions' => ['view', 'create', 'update', 'delete', 'export'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
@@ -271,7 +271,7 @@ return [
         ],
         'tasks' => [
             'has_creator_id' => true,
-            'check_strategy' => 'creator_id',
+            'check_strategy' => 'task_participants',
             'actions' => ['view', 'create', 'update', 'delete', 'export'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],

@@ -17,6 +17,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Permission;
 use App\Services\CacheService;
+use App\Services\ProfileWallpaperService;
+use App\Http\Validation\ProfileWallpaperRules;
 
 /**
  * Контроллер для работы с пользователями
@@ -28,14 +30,20 @@ class UsersController extends BaseController
 {
     protected $itemsRepository;
 
+    protected ProfileWallpaperService $profileWallpaperService;
+
     /**
      * Конструктор контроллера
      *
      * @param UsersRepository $itemsRepository
+     * @param ProfileWallpaperService $profileWallpaperService
      */
-    public function __construct(UsersRepository $itemsRepository)
-    {
+    public function __construct(
+        UsersRepository $itemsRepository,
+        ProfileWallpaperService $profileWallpaperService
+    ) {
         $this->itemsRepository = $itemsRepository;
+        $this->profileWallpaperService = $profileWallpaperService;
     }
 
     /**
@@ -675,5 +683,44 @@ class UsersController extends BaseController
         } catch (\Exception $e) {
             return $this->errorResponse(__('api.users.balance_history_fetch_failed', ['message' => $e->getMessage()]), 500);
         }
+    }
+
+    /**
+     * Каталог доступных заставок профиля
+     *
+     * @return JsonResponse
+     */
+    public function profileWallpapers(): JsonResponse
+    {
+        return $this->successResponse($this->profileWallpaperService->catalog());
+    }
+
+    /**
+     * Сохранить выбранную заставку профиля
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function updateProfileWallpaper(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        try {
+            $data = $request->validate(ProfileWallpaperRules::updateRules());
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator);
+        }
+
+        $wallpaper = $data['profile_wallpaper'] ?? null;
+        if ($wallpaper === '') {
+            $wallpaper = null;
+        }
+
+        $user->profile_wallpaper = $wallpaper;
+        $user->save();
+
+        return $this->successResponse([
+            'profile_wallpaper' => $user->profile_wallpaper,
+        ]);
     }
 }

@@ -517,6 +517,30 @@ abstract class BaseRepository
     }
 
     /**
+     * @param  array<int, string>  $permissions
+     */
+    protected function userHasFullResourceView(array $permissions, string $resource): bool
+    {
+        return in_array("{$resource}_view_all", $permissions, true)
+            || in_array("{$resource}_view", $permissions, true);
+    }
+
+    /**
+     * @param  User  $user
+     */
+    protected function shouldApplyResourceOwnScope(User $user, string $resource): bool
+    {
+        if ($user->is_admin) {
+            return false;
+        }
+
+        $permissions = $this->getUserPermissionsForCompany($user);
+
+        return ! $this->userHasFullResourceView($permissions, $resource)
+            && in_array("{$resource}_view_own", $permissions, true);
+    }
+
+    /**
      * Получить ID пользователя для фильтрации по правам _own/_all
      *
      * @param  string  $resource  Название ресурса (например, 'cash_registers', 'warehouses')
