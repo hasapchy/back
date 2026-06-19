@@ -58,6 +58,8 @@ class User extends Authenticatable
         'position',
         'photo',
         'profile_wallpaper',
+        'ui_preferences',
+        'ui_preferences_updated_at',
         'last_login_at',
     ];
 
@@ -86,6 +88,8 @@ class User extends Authenticatable
         'is_active' => 'boolean',
         'is_admin' => 'boolean',
         'is_simple_user' => 'boolean',
+        'ui_preferences' => 'array',
+        'ui_preferences_updated_at' => 'integer',
     ];
 
 

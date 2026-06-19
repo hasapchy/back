@@ -241,6 +241,12 @@ return [
         'name_exists' => 'A preset with this name already exists',
         'not_found' => 'Preset not found',
     ],
+    'ui_preferences' => [
+        'unknown_vuex_field' => 'Unknown preferences field: :field',
+        'unknown_ls_key' => 'Unknown preferences key: :key',
+        'invalid_ls_value' => 'Invalid value for key: :key',
+        'patch_too_large' => 'Preferences payload is too large',
+    ],
     'batch' => [
         'client_not_found' => 'Client not found',
         'employee_client_delete_forbidden' => 'Employee client can only be deleted via employee profile',

@@ -344,6 +344,9 @@ class AuthController extends BaseController
             'simple_warehouse_id' => $user->simple_warehouse_id,
             'roles' => $roles,
             'permissions' => $permissions,
+            'ui_preferences_updated_at' => $user->ui_preferences_updated_at !== null
+                ? (int) $user->ui_preferences_updated_at
+                : null,
         ];
     }
 }

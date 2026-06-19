@@ -8,6 +8,8 @@ use App\Models\NewsView;
 use App\Models\NewsReaction;
 use App\Services\CacheService;
 use App\Services\ReactionToggleService;
+use App\Services\Timeline\TimelineUserFormatter;
+use App\Support\Timeline\ViewedByBuilder;
 use Illuminate\Support\Facades\DB;
 
 class NewsRepository extends BaseRepository
@@ -164,7 +166,7 @@ class NewsRepository extends BaseRepository
 
             $rows = collect($states->get($newsId, []))
                 ->map(function (NewsView $state) use ($ackByUser) {
-                    $name = trim((string) (($state->user?->name ?? '') . ' ' . ($state->user?->surname ?? '')));
+                    $name = TimelineUserFormatter::fullName($state->user);
                     $viewedAt = $state->viewed_at;
                     $ack = $ackByUser->get((int) $state->user_id);
                     if ($ack?->acknowledged_at && $viewedAt && $viewedAt->gt($ack->acknowledged_at)) {
@@ -178,24 +180,10 @@ class NewsRepository extends BaseRepository
                     ];
                 })
                 ->filter(fn(array $row) => $row['name'] !== '' && $row['viewed_at'] !== null)
-                ->values();
+                ->values()
+                ->all();
 
-            if ((int) $item->creator_id > 0) {
-                $creatorId = (int) $item->creator_id;
-                $exists = $rows->contains(fn(array $row) => (int) $row['user_id'] === $creatorId);
-                if (! $exists) {
-                    $creatorName = trim((string) (($item->creator?->name ?? '') . ' ' . ($item->creator?->surname ?? '')));
-                    if ($creatorName !== '') {
-                        $rows->prepend([
-                            'user_id' => $creatorId,
-                            'name' => $creatorName,
-                            'viewed_at' => optional($item->created_at)->toISOString(),
-                        ]);
-                    }
-                }
-            }
-
-            $item->setAttribute('viewed_by', $rows->all());
+            $item->setAttribute('viewed_by', ViewedByBuilder::withCreator($rows, $item->creator, $item->created_at));
         }
     }
 
@@ -278,7 +266,7 @@ class NewsRepository extends BaseRepository
 
             $rows = collect($acknowledgements->get((int) $item->id, []))
                 ->map(function (NewsAcknowledgement $ack) {
-                    $name = trim((string) (($ack->user?->name ?? '') . ' ' . ($ack->user?->surname ?? '')));
+                    $name = TimelineUserFormatter::fullName($ack->user);
                     return [
                         'user_id' => (int) $ack->user_id,
                         'name' => $name,
@@ -289,7 +277,7 @@ class NewsRepository extends BaseRepository
                 ->values()
                 ->all();
 
-            $item->setAttribute('acknowledged_by', $rows);
+            $item->setAttribute('acknowledged_by', ViewedByBuilder::sortByViewedAtDesc($rows));
         }
     }
 

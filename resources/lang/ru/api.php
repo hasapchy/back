@@ -241,6 +241,12 @@ return [
         'name_exists' => 'Пресет с таким названием уже существует',
         'not_found' => 'Пресет не найден',
     ],
+    'ui_preferences' => [
+        'unknown_vuex_field' => 'Неизвестное поле настроек: :field',
+        'unknown_ls_key' => 'Неизвестный ключ настроек: :key',
+        'invalid_ls_value' => 'Недопустимое значение для ключа: :key',
+        'patch_too_large' => 'Слишком большой объём настроек',
+    ],
     'batch' => [
         'client_not_found' => 'Клиент не найден',
         'employee_client_delete_forbidden' => 'Клиент сотрудника удаляется только через сотрудника',

@@ -24,4 +24,16 @@ class TimelineUserFormatter
             'photo' => $user->photo,
         ];
     }
+
+    /**
+     * @return string
+     */
+    public static function fullName(?User $user): string
+    {
+        if (! $user) {
+            return '';
+        }
+
+        return trim((string) ($user->name ?? '').' '.(string) ($user->surname ?? ''));
+    }
 }

@@ -10,7 +10,7 @@ use App\Services\CacheService;
 use App\Services\CommentModerationGuard;
 use App\Services\Timeline\TimelineEntityRegistry;
 use App\Services\Timeline\TimelineUserFormatter;
-use Illuminate\Support\Collection;
+use App\Support\Timeline\ViewedByBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -95,16 +95,16 @@ class CommentsRepository extends BaseRepository
                 'timeline_read_states.last_read_comment_id',
                 'timeline_read_states.last_read_at',
             ])
-            ->with(['user:id,name'])
+            ->with(['user:id,name,surname'])
             ->where('commentable_type', $modelClass)
             ->where('commentable_id', $newsId)
             ->when($companyId > 0, fn ($q) => $q->where('company_id', $companyId))
             ->get();
 
         $items = $comments->map(function (Comment $comment) use ($readStates) {
-            $this->attachViewedBy($comment, $readStates);
+            $comment->setAttribute('viewed_by', ViewedByBuilder::forComment($readStates, $comment));
             foreach ($comment->replies as $reply) {
-                $this->attachViewedBy($reply, $readStates);
+                $reply->setAttribute('viewed_by', ViewedByBuilder::forComment($readStates, $reply));
             }
 
             return $comment;
@@ -120,45 +120,6 @@ class CommentsRepository extends BaseRepository
             'next_cursor' => $nextCursor,
             'has_more' => $hasMore,
         ];
-    }
-
-    /**
-     * @param Comment $comment
-     * @param Collection<int, TimelineReadState> $readStates
-     * @return void
-     */
-    private function attachViewedBy(Comment $comment, Collection $readStates): void
-    {
-        $viewedBy = $readStates
-            ->filter(function (TimelineReadState $state) use ($comment) {
-                return $state->last_read_comment_id !== null
-                    && (int) $state->last_read_comment_id >= (int) $comment->id
-                    && $state->last_read_at !== null;
-            })
-            ->map(function (TimelineReadState $state) {
-                return [
-                    'user_id' => (int) $state->user_id,
-                    'name' => $state->user?->name ?? '',
-                    'viewed_at' => optional($state->last_read_at)->toISOString(),
-                ];
-            })
-            ->filter(fn (array $row) => $row['name'] !== '' && $row['viewed_at'] !== null)
-            ->values()
-            ->all();
-
-        if ((int) $comment->creator_id > 0) {
-            $creatorId = (int) $comment->creator_id;
-            $creatorExists = collect($viewedBy)->contains(fn (array $row) => (int) $row['user_id'] === $creatorId);
-            if (! $creatorExists) {
-                array_unshift($viewedBy, [
-                    'user_id' => $creatorId,
-                    'name' => $comment->creator?->name ?? '',
-                    'viewed_at' => optional($comment->created_at)->toISOString(),
-                ]);
-            }
-        }
-
-        $comment->setAttribute('viewed_by', $viewedBy);
     }
 
     /**
@@ -406,7 +367,9 @@ class CommentsRepository extends BaseRepository
             ->where('commentable_id', $entityId)
             ->max('id') ?? 0);
 
-        TimelineReadState::query()->updateOrCreate(
+        $nextReadId = $lastCommentId > 0 ? $lastCommentId : null;
+
+        $state = TimelineReadState::query()->firstOrCreate(
             [
                 'user_id' => $userId,
                 'company_id' => $companyId,
@@ -414,10 +377,16 @@ class CommentsRepository extends BaseRepository
                 'commentable_id' => $entityId,
             ],
             [
-                'last_read_comment_id' => $lastCommentId > 0 ? $lastCommentId : null,
+                'last_read_comment_id' => $nextReadId,
                 'last_read_at' => now(),
             ]
         );
+
+        if (! $state->wasRecentlyCreated) {
+            $state->update([
+                'last_read_comment_id' => $nextReadId,
+            ]);
+        }
 
         if ($type === 'news') {
             $this->invalidateCommentsCache($type, $entityId);

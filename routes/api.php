@@ -101,6 +101,8 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::post('user/profile', [UsersController::class, 'updateProfile'])->name('api.users.update_profile');
     Route::get('user/profile-wallpapers', [UsersController::class, 'profileWallpapers'])->name('api.users.profile_wallpapers');
     Route::put('user/profile-wallpaper', [UsersController::class, 'updateProfileWallpaper'])->name('api.users.update_profile_wallpaper');
+    Route::get('user/ui-preferences', [UsersController::class, 'uiPreferences'])->name('api.users.ui_preferences');
+    Route::patch('user/ui-preferences', [UsersController::class, 'patchUiPreferences'])->name('api.users.patch_ui_preferences');
     Route::get('user/sessions', [UserSessionsController::class, 'index'])->name('api.user_sessions.index');
     Route::delete('user/sessions', [UserSessionsController::class, 'destroyAll'])->name('api.user_sessions.destroy_all');
     Route::delete('user/sessions/{id}', [UserSessionsController::class, 'destroy'])->name('api.user_sessions.destroy');

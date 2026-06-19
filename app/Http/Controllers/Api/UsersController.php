@@ -18,7 +18,10 @@ use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Permission;
 use App\Services\CacheService;
 use App\Services\ProfileWallpaperService;
+use App\Services\UserUiPreferencesService;
 use App\Http\Validation\ProfileWallpaperRules;
+use App\Http\Validation\UserUiPreferencesRules;
+use InvalidArgumentException;
 
 /**
  * Контроллер для работы с пользователями
@@ -32,18 +35,23 @@ class UsersController extends BaseController
 
     protected ProfileWallpaperService $profileWallpaperService;
 
+    protected UserUiPreferencesService $uiPreferencesService;
+
     /**
      * Конструктор контроллера
      *
      * @param UsersRepository $itemsRepository
      * @param ProfileWallpaperService $profileWallpaperService
+     * @param UserUiPreferencesService $uiPreferencesService
      */
     public function __construct(
         UsersRepository $itemsRepository,
-        ProfileWallpaperService $profileWallpaperService
+        ProfileWallpaperService $profileWallpaperService,
+        UserUiPreferencesService $uiPreferencesService
     ) {
         $this->itemsRepository = $itemsRepository;
         $this->profileWallpaperService = $profileWallpaperService;
+        $this->uiPreferencesService = $uiPreferencesService;
     }
 
     /**
@@ -722,5 +730,41 @@ class UsersController extends BaseController
         return $this->successResponse([
             'profile_wallpaper' => $user->profile_wallpaper,
         ]);
+    }
+
+    /**
+     * Настройки интерфейса пользователя
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function uiPreferences(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $payload = $this->uiPreferencesService->get($user);
+
+        return $this->successResponse($payload);
+    }
+
+    /**
+     * Частичное обновление настроек интерфейса
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function patchUiPreferences(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        try {
+            $data = $request->validate(UserUiPreferencesRules::patchRules());
+            $result = $this->uiPreferencesService->patch($user, $data);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator);
+        } catch (InvalidArgumentException $e) {
+            return $this->errorResponse($e->getMessage(), 422);
+        }
+
+        return $this->successResponse($result);
     }
 }

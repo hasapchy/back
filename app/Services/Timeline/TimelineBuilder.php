@@ -5,6 +5,7 @@ namespace App\Services\Timeline;
 use App\Contracts\SupportsTimeline;
 use App\Models\Comment;
 use App\Models\TimelineReadState;
+use App\Support\Timeline\ViewedByBuilder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Spatie\Activitylog\Models\Activity;
@@ -170,7 +171,7 @@ class TimelineBuilder
                 'timeline_read_states.last_read_comment_id',
                 'timeline_read_states.last_read_at',
             ])
-            ->with(['user:id,name'])
+            ->with(['user:id,name,surname'])
             ->where('commentable_type', get_class($model))
             ->where('commentable_id', (int) $model->id);
 
@@ -187,35 +188,6 @@ class TimelineBuilder
      */
     public function mapCommentToTimelineItem(Comment $comment, Collection $readStates): array
     {
-        $viewedBy = $readStates
-            ->filter(function (TimelineReadState $state) use ($comment) {
-                return $state->last_read_comment_id !== null
-                    && (int) $state->last_read_comment_id >= (int) $comment->id
-                    && $state->last_read_at !== null;
-            })
-            ->map(function (TimelineReadState $state) {
-                return [
-                    'user_id' => (int) $state->user_id,
-                    'name' => $state->user?->name ?? '',
-                    'viewed_at' => optional($state->last_read_at)->toISOString(),
-                ];
-            })
-            ->filter(fn (array $row) => $row['name'] !== '' && $row['viewed_at'] !== null)
-            ->values()
-            ->all();
-
-        if ((int) $comment->creator_id > 0) {
-            $creatorId = (int) $comment->creator_id;
-            $creatorExists = collect($viewedBy)->contains(fn (array $row) => (int) $row['user_id'] === $creatorId);
-            if (! $creatorExists) {
-                array_unshift($viewedBy, [
-                    'user_id' => $creatorId,
-                    'name' => $comment->creator?->name ?? '',
-                    'viewed_at' => optional($comment->created_at)->toISOString(),
-                ]);
-            }
-        }
-
         return [
             'type' => 'comment',
             'id' => $comment->id,
@@ -223,7 +195,7 @@ class TimelineBuilder
             'parent_id' => $comment->parent_id ? (int) $comment->parent_id : null,
             'user' => TimelineUserFormatter::toArray($comment->creator),
             'created_at' => $comment->created_at,
-            'viewed_by' => $viewedBy,
+            'viewed_by' => ViewedByBuilder::forComment($readStates, $comment),
         ];
     }
 
