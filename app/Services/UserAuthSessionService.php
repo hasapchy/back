@@ -97,10 +97,13 @@ class UserAuthSessionService
         $query->delete();
     }
 
-    public function resetMobileAuth(User $user): void
+    /**
+     * @return void
+     */
+    public function resetClientAuth(User $user, TokenClient $client): void
     {
-        $user->deleteTokensForClient(TokenClient::Mobile);
-        $this->deleteAllForUser((int) $user->id, TokenClient::Mobile);
+        $user->deleteTokensForClient($client);
+        $this->deleteAllForUser((int) $user->id, $client);
     }
 
     public function invalidateWebSession(Request $request): void

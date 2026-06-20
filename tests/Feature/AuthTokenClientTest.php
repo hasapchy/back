@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\TokenClient;
 use App\Models\Company;
 use App\Models\User;
+use App\Models\UserAuthSession;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -50,10 +51,34 @@ class AuthTokenClientTest extends TestCase
         );
     }
 
+    public function test_stateful_web_login_resets_previous_web_sessions(): void
+    {
+        $company = Company::factory()->create();
+        $password = 'client-type-test-3';
+        $user = User::factory()->create([
+            'email' => 'web-reset-sessions@example.com',
+            'password' => Hash::make($password),
+            'is_active' => true,
+        ]);
+        $user->companies()->attach($company->id);
+
+        $first = $this->statefulWebLogin('web-reset-sessions@example.com', $password);
+        $firstSessionId = (int) $first->json('data.auth_session_id');
+
+        $second = $this->statefulWebLogin('web-reset-sessions@example.com', $password);
+
+        $this->assertNull(UserAuthSession::query()->find($firstSessionId));
+        $this->assertSame(
+            (int) $second->json('data.auth_session_id'),
+            UserAuthSession::query()
+                ->where('user_id', $user->id)
+                ->where('client_type', TokenClient::Web->value)
+                ->value('id')
+        );
+    }
+
     public function test_stateful_web_login_does_not_revoke_mobile_tokens(): void
     {
-        config(['sanctum.stateful' => ['localhost', '127.0.0.1', '::1']]);
-
         $company = Company::factory()->create();
         $password = 'client-type-test-2';
         $user = User::factory()->create([
@@ -70,16 +95,7 @@ class AuthTokenClientTest extends TestCase
         $mobile->assertOk();
         $mobileRefresh = $mobile->json('data.refresh_token');
 
-        $web = $this
-            ->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class)
-            ->withHeader('Origin', 'http://localhost')
-            ->withHeader('Referer', 'http://localhost/auth/login')
-            ->postJson('/api/user/login', [
-                'email' => 'web-preserve-mobile@example.com',
-                'password' => $password,
-            ]);
-
-        $web->assertOk();
+        $web = $this->statefulWebLogin('web-preserve-mobile@example.com', $password);
         $web->assertJsonMissingPath('data.access_token');
 
         $this->postJson('/api/user/refresh', [
@@ -98,5 +114,23 @@ class AuthTokenClientTest extends TestCase
         $this->postJson('/api/user/refresh', [
             'refresh_token' => $webRefresh->plainTextToken,
         ])->assertUnauthorized();
+    }
+
+    /**
+     * @return \Illuminate\Testing\TestResponse<\Illuminate\Http\JsonResponse>
+     */
+    private function statefulWebLogin(string $email, string $password)
+    {
+        config(['sanctum.stateful' => ['localhost', '127.0.0.1', '::1']]);
+
+        return $this
+            ->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class)
+            ->withHeader('Origin', 'http://localhost')
+            ->withHeader('Referer', 'http://localhost/auth/login')
+            ->postJson('/api/user/login', [
+                'email' => $email,
+                'password' => $password,
+            ])
+            ->assertOk();
     }
 }

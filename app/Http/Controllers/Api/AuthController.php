@@ -85,7 +85,7 @@ class AuthController extends BaseController
         }
 
         if ($stateful) {
-            $user->deleteTokensForClient(TokenClient::Web);
+            $this->authSessionService->resetClientAuth($user, TokenClient::Web);
 
             Auth::guard('web')->login($user, $remember);
             $request->session()->regenerate();
@@ -112,7 +112,7 @@ class AuthController extends BaseController
             ]);
         }
 
-        $this->authSessionService->resetMobileAuth($user);
+        $this->authSessionService->resetClientAuth($user, TokenClient::Mobile);
 
         $this->authLoginLog('auth.login.success', array_merge($baseCtx, [
             'user_id' => $user->id,

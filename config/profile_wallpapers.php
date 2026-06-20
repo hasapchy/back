@@ -114,5 +114,45 @@ return [
                 'light' => 'trees.jpg',
             ],
         ],
+        'wolf' => [
+            'label_key' => 'profileWallpaperWolf',
+            'supported_modes' => ['dark'],
+            'files' => [
+                'dark' => 'wolf.jpg',
+            ],
+            'previews' => [
+                'dark' => 'wolf.jpg',
+            ],
+        ],
+        'purple-smoke' => [
+            'label_key' => 'profileWallpaperPurpleSmoke',
+            'supported_modes' => ['dark'],
+            'files' => [
+                'dark' => 'dym.jpg',
+            ],
+            'previews' => [
+                'dark' => 'dym.jpg',
+            ],
+        ],
+        'astronaut' => [
+            'label_key' => 'profileWallpaperAstronaut',
+            'supported_modes' => ['dark'],
+            'files' => [
+                'dark' => 'astronavt.jpg',
+            ],
+            'previews' => [
+                'dark' => 'astronavt.jpg',
+            ],
+        ],
+        'milky-way' => [
+            'label_key' => 'profileWallpaperMilkyWay',
+            'supported_modes' => ['dark'],
+            'files' => [
+                'dark' => 'mlechnyi-put.jpg',
+            ],
+            'previews' => [
+                'dark' => 'mlechnyi-put.jpg',
+            ],
+        ],
     ],
 ];
