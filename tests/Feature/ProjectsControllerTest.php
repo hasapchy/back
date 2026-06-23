@@ -238,6 +238,13 @@ class ProjectsControllerTest extends TestCase
         $this->assertSame($project->creator_id, $rootFolder->creator_id);
         $this->assertSame('fas fa-link', $rootFolder->icon);
 
+        $projectsFolder = DriveFolder::query()
+            ->where('company_id', $this->company->id)
+            ->where('system_key', 'projects')
+            ->first();
+        $this->assertNotNull($projectsFolder);
+        $this->assertSame($projectsFolder->id, $rootFolder->parent_id);
+
         $childNames = DriveFolder::query()
             ->where('company_id', $this->company->id)
             ->where('parent_id', $rootFolder->id)

@@ -435,6 +435,7 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'resolve.company', 'user.acti
     Route::middleware('permission.scope:drive_delete_all,drive_delete')->delete('drive/folders/{id}', [DriveController::class, 'deleteFolder'])->name('api.drive.delete_folder');
     Route::middleware('permission:drive_create')->post('drive/files/upload', [DriveController::class, 'upload'])->name('api.drive.upload');
     Route::middleware('permission.scope:drive_view_all,drive_view')->get('drive/files/{id}/download', [DriveController::class, 'download'])->name('api.drive.download');
+    Route::middleware('permission.scope:drive_view_all,drive_view')->get('drive/files/{id}/view', [DriveController::class, 'view'])->name('api.drive.view');
     Route::middleware('permission.scope:drive_view_all,drive_view')->get('drive/files/{id}/preview', [DriveController::class, 'preview'])->name('api.drive.preview');
     Route::middleware('permission.scope:drive_update_all,drive_update')->put('drive/files/{id}', [DriveController::class, 'renameFile'])->name('api.drive.rename_file');
     Route::middleware('permission.scope:drive_delete_all,drive_delete')->delete('drive/files/{id}', [DriveController::class, 'deleteFile'])->name('api.drive.delete_file');

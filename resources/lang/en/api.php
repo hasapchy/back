@@ -257,5 +257,10 @@ return [
     'drive' => [
         'project_folder_rename_forbidden' => 'Project folder name cannot be changed. Rename the project instead.',
         'project_folder_delete_forbidden' => 'Project folder cannot be deleted separately. Delete the project.',
+        'view_not_available' => 'Browser view is available for PDF files only.',
+        'system_folder_update_forbidden' => 'System folder cannot be modified.',
+        'system_folder_delete_forbidden' => 'System folder cannot be deleted.',
+        'system_folder_create_child_forbidden' => 'Manual folders cannot be created inside the Projects system folder.',
+        'system_folder_upload_forbidden' => 'Files cannot be uploaded directly into the Projects system folder.',
     ],
 ];

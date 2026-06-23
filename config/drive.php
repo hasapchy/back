@@ -10,6 +10,10 @@ return [
         'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg',
     ],
 
+    'browser_view_extensions' => [
+        'pdf',
+    ],
+
     'allowed_mime_types_by_extension' => [
         'pdf' => ['application/pdf'],
         'doc' => ['application/msword'],
@@ -32,6 +36,14 @@ return [
     ],
 
     'max_file_bytes' => 10240 * 1024,
+
+    'system_folders' => [
+        'projects' => [
+            'name' => 'Проекты',
+            'icon' => 'fas fa-diagram-project',
+            'icon_color' => '#3B82F6',
+        ],
+    ],
 
     'folder_icons' => [
         'fas fa-folder',

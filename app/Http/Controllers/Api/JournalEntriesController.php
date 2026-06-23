@@ -80,6 +80,10 @@ class JournalEntriesController extends BaseController
             [],
         );
 
+        if ($entry === null) {
+            return $this->errorResponse(__('api.common.validation_error'), 422);
+        }
+
         return $this->successResponse([
             'item' => (new JournalEntryResource($entry->load('lines.financialAccount')))->resolve(),
         ], 201);
@@ -116,6 +120,10 @@ class JournalEntriesController extends BaseController
         }
 
         $reversal = $this->journalEntryService->reverse($entry, $request->input('reason'));
+
+        if ($reversal === null) {
+            return $this->errorResponse(__('api.common.validation_error'), 422);
+        }
 
         return $this->successResponse([
             'item' => (new JournalEntryResource($reversal))->resolve(),

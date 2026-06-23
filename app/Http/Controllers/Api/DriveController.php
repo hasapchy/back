@@ -21,6 +21,7 @@ use App\Models\User;
 use App\Repositories\DriveRepository;
 use App\Services\DriveAccessService;
 use App\Support\DriveFileRules;
+use App\Support\DriveSystemFolders;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -75,10 +76,14 @@ class DriveController extends BaseController
             return $this->errorResponse('Forbidden', 403);
         }
 
+        if ($parentIdInt === null) {
+            $this->driveRepository->ensureProjectsSystemFolder($companyId, (int) $user->id);
+        }
+
         $listing = $this->driveRepository->listContents($companyId, $parentIdInt);
 
         $listing['folders'] = $listing['folders']
-            ->filter(fn (DriveFolder $folder) => $this->driveAccessService->can($user, $companyId, 'view', $folder))
+            ->filter(fn (DriveFolder $folder) => $this->folderVisibleToUser($user, $companyId, $folder, $viewAbilities))
             ->values();
 
         $listing['files'] = $listing['files']
@@ -99,7 +104,7 @@ class DriveController extends BaseController
      */
     private function canBrowseFolder(User $user, int $companyId, DriveFolder $folder, array $viewAbilities): bool
     {
-        if ($this->driveAccessService->can($user, $companyId, 'view', $folder)) {
+        if ($this->folderVisibleToUser($user, $companyId, $folder, $viewAbilities)) {
             return true;
         }
 
@@ -107,6 +112,27 @@ class DriveController extends BaseController
             $companyId,
             (int) $user->id,
             (int) $folder->id,
+            $viewAbilities
+        );
+    }
+
+    /**
+     * @param  array<int, string>  $viewAbilities
+     */
+    private function folderVisibleToUser(User $user, int $companyId, DriveFolder $folder, array $viewAbilities): bool
+    {
+        if ($this->driveAccessService->can($user, $companyId, 'view', $folder)) {
+            return true;
+        }
+
+        if (! DriveSystemFolders::isProjectsContainer($folder)) {
+            return false;
+        }
+
+        return $this->driveRepository->projectsContainerHasBrowsableChild(
+            $companyId,
+            (int) $folder->id,
+            $user,
             $viewAbilities
         );
     }
@@ -173,6 +199,10 @@ class DriveController extends BaseController
             return $this->errorResponse('Forbidden', 403);
         }
 
+        if ($parentFolder !== null && DriveSystemFolders::isProjectsContainer($parentFolder)) {
+            return $this->errorResponse(__('api.drive.system_folder_create_child_forbidden'), 422);
+        }
+
         if ($this->driveRepository->folderNameExists($companyId, $parentFolder?->id, $validated['name'])) {
             return $this->errorResponse('Folder with this name already exists', 422);
         }
@@ -205,6 +235,10 @@ class DriveController extends BaseController
             return $this->errorResponse('Forbidden', 403);
         }
 
+        if (DriveSystemFolders::isSystemFolder($folder)) {
+            return $this->errorResponse(__('api.drive.system_folder_update_forbidden'), 422);
+        }
+
         if ($folder->project_id && trim($validated['name']) !== $folder->name) {
             return $this->errorResponse(__('api.drive.project_folder_rename_forbidden'), 422);
         }
@@ -233,6 +267,10 @@ class DriveController extends BaseController
 
         if (! $this->driveAccessService->can($user, $companyId, 'delete', $folder)) {
             return $this->errorResponse('Forbidden', 403);
+        }
+
+        if (DriveSystemFolders::isSystemFolder($folder)) {
+            return $this->errorResponse(__('api.drive.system_folder_delete_forbidden'), 422);
         }
 
         if ($folder->project_id) {
@@ -269,6 +307,10 @@ class DriveController extends BaseController
 
         if (! $this->driveAccessService->can($user, $companyId, 'create', $folder)) {
             return $this->errorResponse('Forbidden', 403);
+        }
+
+        if ($folder !== null && DriveSystemFolders::isProjectsContainer($folder)) {
+            return $this->errorResponse(__('api.drive.system_folder_upload_forbidden'), 422);
         }
 
         $rawFiles = $request->file('files');
@@ -324,6 +366,34 @@ class DriveController extends BaseController
         }
 
         return $this->fileBinaryResponse($file, false);
+    }
+
+    /**
+     * @return BinaryFileResponse|JsonResponse
+     */
+    public function view(int $id): BinaryFileResponse|JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = $this->getCurrentCompanyId();
+        if (! $companyId) {
+            return $this->errorResponse('Company is required', 422);
+        }
+
+        $file = $this->driveRepository->findFile($companyId, $id);
+
+        if (! $this->driveAccessService->can($user, $companyId, 'view', $file->folder, $file)) {
+            return $this->errorResponse('Forbidden', 403);
+        }
+
+        if (! DriveFileRules::isBrowserViewableFile($file)) {
+            return $this->errorResponse(__('api.drive.view_not_available'), 422);
+        }
+
+        if (! Storage::disk($file->disk_name)->exists($file->path)) {
+            return $this->errorResponse('File not found on disk', 404);
+        }
+
+        return $this->fileBinaryResponse($file, true);
     }
 
     /**
@@ -582,6 +652,10 @@ class DriveController extends BaseController
     {
         if ($targetFolder !== null && ! $this->driveAccessService->can($user, $companyId, 'create', $targetFolder)) {
             return $this->errorResponse('Forbidden', 403);
+        }
+
+        if ($targetFolder !== null && DriveSystemFolders::isProjectsContainer($targetFolder)) {
+            return $this->errorResponse(__('api.drive.system_folder_upload_forbidden'), 422);
         }
 
         foreach ($fileIds as $fileId) {

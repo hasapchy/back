@@ -43,7 +43,7 @@ class JournalEntryService
      * @param  string|null  $sourceType
      * @param  int|null  $sourceId
      * @param  array<string, mixed>  $meta
-     * @return JournalEntry
+     * @return JournalEntry|null
      */
     public function createDraft(
         int $companyId,
@@ -54,7 +54,11 @@ class JournalEntryService
         ?string $sourceType = null,
         ?int $sourceId = null,
         array $meta = [],
-    ): JournalEntry {
+    ): ?JournalEntry {
+        if (! $this->repository->lineAccountsExist($lines)) {
+            return null;
+        }
+
         $this->assertBalanced($lines);
 
         $entry = $this->repository->createDraftRecord(
@@ -106,7 +110,7 @@ class JournalEntryService
      * @param  string|null  $sourceType
      * @param  int|null  $sourceId
      * @param  array<string, mixed>  $meta
-     * @return JournalEntry
+     * @return JournalEntry|null
      */
     public function createAndPost(
         int $companyId,
@@ -117,7 +121,11 @@ class JournalEntryService
         ?string $sourceType = null,
         ?int $sourceId = null,
         array $meta = [],
-    ): JournalEntry {
+    ): ?JournalEntry {
+        if (! $this->repository->lineAccountsExist($lines)) {
+            return null;
+        }
+
         $this->assertBalanced($lines);
 
         if ($sourceType !== null && $sourceId !== null) {
@@ -127,7 +135,7 @@ class JournalEntryService
             }
         }
 
-        return DB::transaction(function () use ($companyId, $entryDate, $description, $templateKey, $lines, $sourceType, $sourceId, $meta): JournalEntry {
+        return DB::transaction(function () use ($companyId, $entryDate, $description, $templateKey, $lines, $sourceType, $sourceId, $meta): ?JournalEntry {
             if ($sourceType !== null && $sourceId !== null) {
                 $existing = $this->repository->findBySourceForUpdate($companyId, $sourceType, $sourceId, $templateKey);
 
@@ -153,6 +161,10 @@ class JournalEntryService
                 $meta,
             );
 
+            if ($draft === null) {
+                return null;
+            }
+
             return $this->post($draft);
         });
     }
@@ -160,15 +172,15 @@ class JournalEntryService
     /**
      * @param  JournalEntry  $entry
      * @param  string|null  $reason
-     * @return JournalEntry
+     * @return JournalEntry|null
      */
-    public function reverse(JournalEntry $entry, ?string $reason = null): JournalEntry
+    public function reverse(JournalEntry $entry, ?string $reason = null): ?JournalEntry
     {
         if (! $entry->canReverse()) {
             throw new JournalEntryNotReversibleException('Journal entry cannot be reversed.');
         }
 
-        return DB::transaction(function () use ($entry, $reason): JournalEntry {
+        return DB::transaction(function () use ($entry, $reason): ?JournalEntry {
             $entry->loadMissing('lines.financialAccount');
 
             $mirrorLines = [];
@@ -191,6 +203,10 @@ class JournalEntryService
                 $entry->source_id !== null ? (int) $entry->source_id : null,
                 array_merge($entry->meta ?? [], ['reverses_entry_id' => $entry->id]),
             );
+
+            if ($reversal === null) {
+                return null;
+            }
 
             $this->repository->markReversed($entry, (int) $reversal->id);
             $this->repository->linkReversal($reversal, (int) $entry->id);

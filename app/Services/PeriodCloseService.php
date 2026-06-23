@@ -20,9 +20,9 @@ class PeriodCloseService
     /**
      * @param  int  $companyId
      * @param  Carbon  $periodEnd
-     * @return JournalEntry
+     * @return JournalEntry|null
      */
-    public function closePeriod(int $companyId, Carbon $periodEnd): JournalEntry
+    public function closePeriod(int $companyId, Carbon $periodEnd): ?JournalEntry
     {
         $incomeCodes = [
             $this->accountResolver->resolveCode(JournalAccountBindingKeys::REVENUE),
@@ -37,7 +37,10 @@ class PeriodCloseService
         $lines = [];
         $incomeTotal = 0.0;
         foreach ($incomeCodes as $code) {
-            $account = \App\Models\FinancialAccount::query()->where('code', $code)->firstOrFail();
+            $account = \App\Models\FinancialAccount::query()->where('code', $code)->first();
+            if ($account === null) {
+                continue;
+            }
             $balance = $this->accountBalanceService->getBalance((int) $account->id, $companyId, $periodEnd);
             if ($balance > 0) {
                 $lines[] = new JournalEntryLineDraft($code, debit: round($balance, 5));
@@ -51,7 +54,10 @@ class PeriodCloseService
 
         $expenseTotal = 0.0;
         foreach ($expenseCodes as $code) {
-            $account = \App\Models\FinancialAccount::query()->where('code', $code)->firstOrFail();
+            $account = \App\Models\FinancialAccount::query()->where('code', $code)->first();
+            if ($account === null) {
+                continue;
+            }
             $balance = $this->accountBalanceService->getBalance((int) $account->id, $companyId, $periodEnd);
             if ($balance > 0) {
                 $lines[] = new JournalEntryLineDraft($code, credit: round($balance, 5));
@@ -67,7 +73,7 @@ class PeriodCloseService
             throw new \RuntimeException('No balances to close for period.');
         }
 
-        return $this->journalEntryService->createAndPost(
+        $entry = $this->journalEntryService->createAndPost(
             $companyId,
             $periodEnd,
             'Period close '.$periodEnd->toDateString(),
@@ -77,5 +83,11 @@ class PeriodCloseService
             null,
             ['period_end' => $periodEnd->toDateString()],
         );
+
+        if ($entry === null) {
+            return null;
+        }
+
+        return $entry;
     }
 }

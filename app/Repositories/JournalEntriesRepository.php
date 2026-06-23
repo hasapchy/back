@@ -4,7 +4,6 @@ namespace App\Repositories;
 
 use App\DTO\JournalEntryLineDraft;
 use App\Enums\JournalEntryStatus;
-use App\Exceptions\FinancialAccountNotFoundException;
 use App\Models\FinancialAccount;
 use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
@@ -140,6 +139,27 @@ class JournalEntriesRepository extends BaseRepository
     }
 
     /**
+     * @param  list<JournalEntryLineDraft>  $lines
+     * @return bool
+     */
+    public function lineAccountsExist(array $lines): bool
+    {
+        if ($lines === []) {
+            return false;
+        }
+
+        $accounts = $this->resolveAccountsByCode($lines);
+
+        foreach ($lines as $draft) {
+            if (! $accounts->has($draft->accountCode)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * @param  JournalEntry  $entry
      * @param  list<JournalEntryLineDraft>  $lines
      * @return void
@@ -151,7 +171,7 @@ class JournalEntriesRepository extends BaseRepository
         foreach ($lines as $index => $draft) {
             $account = $accounts->get($draft->accountCode);
             if ($account === null) {
-                throw new FinancialAccountNotFoundException("Financial account not found: {$draft->accountCode}");
+                continue;
             }
 
             JournalEntryLine::query()->create([

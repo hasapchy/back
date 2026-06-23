@@ -257,5 +257,10 @@ return [
     'drive' => [
         'project_folder_rename_forbidden' => 'Название папки проекта нельзя изменить. Измените название проекта.',
         'project_folder_delete_forbidden' => 'Папку проекта нельзя удалить отдельно. Удалите проект.',
+        'view_not_available' => 'Просмотр в браузере доступен только для PDF-файлов.',
+        'system_folder_update_forbidden' => 'Системную папку нельзя изменить.',
+        'system_folder_delete_forbidden' => 'Системную папку нельзя удалить.',
+        'system_folder_create_child_forbidden' => 'В системную папку «Проекты» нельзя создавать папки вручную.',
+        'system_folder_upload_forbidden' => 'В системную папку «Проекты» нельзя загружать файлы.',
     ],
 ];

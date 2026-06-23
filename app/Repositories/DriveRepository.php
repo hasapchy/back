@@ -5,8 +5,11 @@ namespace App\Repositories;
 use App\Models\DriveFile;
 use App\Models\DriveFolder;
 use App\Models\DrivePermission;
+use App\Models\User;
+use App\Services\DriveAccessService;
 use App\Support\DriveFileRules;
 use App\Support\DriveFolderAppearance;
+use App\Support\DriveSystemFolders;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -38,7 +41,12 @@ class DriveRepository extends BaseRepository
                 },
             ])
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->sortBy([
+                static fn (DriveFolder $folder) => DriveSystemFolders::isSystemFolder($folder) ? 0 : 1,
+                static fn (DriveFolder $folder) => mb_strtolower((string) $folder->name),
+            ])
+            ->values();
 
         $files = DriveFile::query()
             ->where('company_id', $companyId)
@@ -123,6 +131,54 @@ class DriveRepository extends BaseRepository
         ]);
     }
 
+    public function ensureProjectsSystemFolder(int $companyId, int $creatorId): DriveFolder
+    {
+        $existing = DriveFolder::query()
+            ->where('company_id', $companyId)
+            ->where('system_key', DriveSystemFolders::KEY_PROJECTS)
+            ->first();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        $definition = DriveSystemFolders::definition(DriveSystemFolders::KEY_PROJECTS);
+        $folderName = trim((string) ($definition['name'] ?? 'Проекты'));
+        if ($folderName === '') {
+            $folderName = 'Проекты';
+        }
+
+        if ($this->folderNameExists($companyId, null, $folderName)) {
+            $conflict = DriveFolder::query()
+                ->where('company_id', $companyId)
+                ->whereNull('parent_id')
+                ->whereNull('system_key')
+                ->where('name', $folderName)
+                ->first();
+
+            if ($conflict !== null) {
+                $suffix = 1;
+                $candidate = $folderName.' ('.$suffix.')';
+                while ($this->folderNameExists($companyId, null, $candidate)) {
+                    $suffix++;
+                    $candidate = $folderName.' ('.$suffix.')';
+                }
+                $conflict->name = $candidate;
+                $conflict->save();
+            }
+        }
+
+        return DriveFolder::query()->create([
+            'company_id' => $companyId,
+            'parent_id' => null,
+            'creator_id' => $creatorId,
+            'system_key' => DriveSystemFolders::KEY_PROJECTS,
+            'name' => $folderName,
+            'icon' => DriveFolderAppearance::resolveIcon((string) ($definition['icon'] ?? 'fas fa-folder')),
+            'icon_color' => DriveFolderAppearance::resolveIconColor((string) ($definition['icon_color'] ?? '')),
+        ]);
+    }
+
     public function folderNameExists(int $companyId, ?int $parentId, string $name, ?int $excludeId = null): bool
     {
         $query = DriveFolder::query()
@@ -142,7 +198,7 @@ class DriveRepository extends BaseRepository
      */
     public function renameFolder(DriveFolder $folder, array $validated): DriveFolder
     {
-        if (! $folder->project_id) {
+        if (! $folder->project_id && ! $folder->system_key) {
             $folder->name = trim($validated['name']);
         }
         if (array_key_exists('icon', $validated)) {
@@ -575,5 +631,29 @@ class DriveRepository extends BaseRepository
         }
 
         return $parent;
+    }
+
+    /**
+     * @param  array<int, string>  $viewAbilities
+     */
+    public function projectsContainerHasBrowsableChild(
+        int $companyId,
+        int $projectsFolderId,
+        User $user,
+        array $viewAbilities
+    ): bool {
+        $children = DriveFolder::query()
+            ->where('company_id', $companyId)
+            ->where('parent_id', $projectsFolderId)
+            ->get();
+
+        $accessService = app(DriveAccessService::class);
+        foreach ($children as $child) {
+            if ($accessService->can($user, $companyId, 'view', $child)) {
+                return true;
+            }
+        }
+
+        return $this->userHasDirectFileViewInFolder($companyId, (int) $user->id, $projectsFolderId, $viewAbilities);
     }
 }

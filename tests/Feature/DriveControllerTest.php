@@ -77,6 +77,53 @@ class DriveControllerTest extends TestCase
     /**
      * @return void
      */
+    public function test_drive_root_contains_projects_system_folder(): void
+    {
+        $response = $this->actingAsApi($this->adminUser)->getJson('/api/drive');
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('drive_folders', [
+            'company_id' => $this->company->id,
+            'system_key' => 'projects',
+            'parent_id' => null,
+        ]);
+
+        $folderNames = collect($response->json('data.folders'))->pluck('name')->all();
+        $this->assertContains('Проекты', $folderNames);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_drive_system_projects_folder_is_protected(): void
+    {
+        $this->actingAsApi($this->adminUser)->getJson('/api/drive');
+        $projectsFolder = DriveFolder::query()
+            ->where('company_id', $this->company->id)
+            ->where('system_key', 'projects')
+            ->firstOrFail();
+
+        $rename = $this->actingAsApi($this->adminUser)->putJson('/api/drive/folders/'.$projectsFolder->id, [
+            'name' => 'Renamed',
+        ]);
+        $rename->assertStatus(422);
+        $rename->assertJson(['error' => __('api.drive.system_folder_update_forbidden')]);
+
+        $delete = $this->actingAsApi($this->adminUser)->deleteJson('/api/drive/folders/'.$projectsFolder->id);
+        $delete->assertStatus(422);
+        $delete->assertJson(['error' => __('api.drive.system_folder_delete_forbidden')]);
+
+        $createChild = $this->actingAsApi($this->adminUser)->postJson('/api/drive/folders', [
+            'name' => 'Manual',
+            'parent_id' => $projectsFolder->id,
+        ]);
+        $createChild->assertStatus(422);
+        $createChild->assertJson(['error' => __('api.drive.system_folder_create_child_forbidden')]);
+    }
+
+    /**
+     * @return void
+     */
     public function test_drive_create_folder_success(): void
     {
         $response = $this->actingAsApi($this->adminUser)->postJson('/api/drive/folders', [
@@ -466,12 +513,74 @@ class DriveControllerTest extends TestCase
             'data' => [
                 'allowed_file_extensions',
                 'image_extensions',
+                'browser_view_extensions',
                 'max_file_bytes',
                 'folder_icons',
                 'folder_icon_color_default',
             ],
         ]);
         $this->assertContains('pdf', $response->json('data.allowed_file_extensions'));
+        $this->assertContains('pdf', $response->json('data.browser_view_extensions'));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_drive_view_pdf_returns_inline_disposition(): void
+    {
+        Storage::fake('local');
+        $pdfBytes = '%PDF-1.4 test content';
+        $path = 'drive/'.$this->company->id.'/root/view-test.pdf';
+        Storage::disk('local')->put($path, $pdfBytes);
+
+        $file = DriveFile::query()->create([
+            'company_id' => $this->company->id,
+            'folder_id' => null,
+            'creator_id' => $this->adminUser->id,
+            'disk' => 'local',
+            'name' => 'document.pdf',
+            'stored_name' => 'view-test.pdf',
+            'path' => $path,
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'size' => strlen($pdfBytes),
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)->get('/api/drive/files/'.$file->id.'/view');
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'application/pdf');
+        $response->assertHeader('Content-Disposition', 'inline; filename="document.pdf"');
+        $baseResponse = $response->baseResponse;
+        $this->assertInstanceOf(\Symfony\Component\HttpFoundation\BinaryFileResponse::class, $baseResponse);
+        $this->assertSame($pdfBytes, file_get_contents($baseResponse->getFile()->getPathname()));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_drive_view_rejects_non_pdf(): void
+    {
+        Storage::fake('local');
+        $path = 'drive/'.$this->company->id.'/root/readme.txt';
+        Storage::disk('local')->put($path, 'hello');
+
+        $file = DriveFile::query()->create([
+            'company_id' => $this->company->id,
+            'folder_id' => null,
+            'creator_id' => $this->adminUser->id,
+            'disk' => 'local',
+            'name' => 'readme.txt',
+            'stored_name' => 'readme.txt',
+            'path' => $path,
+            'mime_type' => 'text/plain',
+            'extension' => 'txt',
+            'size' => 5,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)->getJson('/api/drive/files/'.$file->id.'/view');
+
+        $response->assertStatus(422);
     }
 
     /**

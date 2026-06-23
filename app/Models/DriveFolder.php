@@ -16,6 +16,7 @@ class DriveFolder extends Model
         'parent_id',
         'creator_id',
         'project_id',
+        'system_key',
         'name',
         'icon',
         'icon_color',

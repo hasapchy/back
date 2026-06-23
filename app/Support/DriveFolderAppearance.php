@@ -23,8 +23,12 @@ final class DriveFolderAppearance
         return $value;
     }
 
-    public static function resolveDisplayIcon(?string $icon, ?int $projectId): string
+    public static function resolveDisplayIcon(?string $icon, ?int $projectId, ?string $systemKey = null): string
     {
+        if ($systemKey !== null) {
+            return DriveSystemFolders::displayIcon($icon, $systemKey);
+        }
+
         $resolved = self::resolveIcon($icon);
         if ($projectId && $resolved === self::PROJECT_LINKED_ICON) {
             return self::resolveIcon(null);

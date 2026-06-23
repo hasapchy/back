@@ -123,7 +123,7 @@ class BackfillJournalEntriesFromMovementsCommand extends Command
                     continue;
                 }
 
-                $journalEntryService->createAndPost(
+                $entry = $journalEntryService->createAndPost(
                     $txCompanyId,
                     Carbon::parse($transaction->date ?? $transaction->created_at),
                     'Legacy transaction #'.$transactionId,
@@ -132,6 +132,15 @@ class BackfillJournalEntriesFromMovementsCommand extends Command
                     Transaction::class,
                     (int) $transactionId,
                 );
+                if ($entry === null) {
+                    $skippedNoAccount++;
+                    if ($strict) {
+                        $this->error("Transaction {$transactionId}: journal accounts are not configured.");
+
+                        return self::FAILURE;
+                    }
+                    continue;
+                }
                 $synced++;
             }
         }

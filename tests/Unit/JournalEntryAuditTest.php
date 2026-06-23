@@ -86,13 +86,12 @@ class JournalEntryAuditTest extends TestCase
             ->count());
     }
 
-    public function test_financial_account_not_found_exception_on_unknown_code(): void
+    public function test_create_draft_skips_when_account_code_is_unknown(): void
     {
         $service = app(JournalEntryService::class);
         $company = Company::factory()->create();
 
-        $this->expectException(\App\Exceptions\FinancialAccountNotFoundException::class);
-        $service->createDraft(
+        $entry = $service->createDraft(
             (int) $company->id,
             now(),
             'Bad account',
@@ -102,6 +101,9 @@ class JournalEntryAuditTest extends TestCase
                 new \App\DTO\JournalEntryLineDraft('4000', credit: 10),
             ],
         );
+
+        $this->assertNull($entry);
+        $this->assertSame(0, JournalEntry::query()->where('company_id', $company->id)->count());
     }
 
     public function test_contra_asset_2001_backfill_sign(): void

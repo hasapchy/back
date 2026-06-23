@@ -25,6 +25,14 @@ final class DriveFileRules
     }
 
     /**
+     * @return array<int, string>
+     */
+    public static function browserViewExtensions(): array
+    {
+        return config('drive.browser_view_extensions');
+    }
+
+    /**
      * @return array<string, array<int, string>>
      */
     public static function allowedMimeTypesByExtension(): array
@@ -79,6 +87,18 @@ final class DriveFileRules
         return str_starts_with($mimeType, 'image/');
     }
 
+    public static function isBrowserViewableFile(DriveFile $file): bool
+    {
+        $extension = self::extensionFromDriveFile($file);
+        if (in_array($extension, self::browserViewExtensions(), true)) {
+            return true;
+        }
+
+        $mimeType = strtolower(trim((string) ($file->mime_type ?? '')));
+
+        return $mimeType === 'application/pdf';
+    }
+
     public static function unsupportedUploadMessage(UploadedFile $file): string
     {
         $name = $file->getClientOriginalName();
@@ -96,6 +116,7 @@ final class DriveFileRules
         return [
             'allowed_file_extensions' => self::allowedExtensions(),
             'image_extensions' => self::imageExtensions(),
+            'browser_view_extensions' => self::browserViewExtensions(),
             'max_file_bytes' => self::maxFileBytes(),
             'folder_icons' => config('drive.folder_icons'),
             'folder_icon_color_default' => config('drive.folder_icon_color_default'),

@@ -329,7 +329,7 @@ class ProjectsController extends BaseController
      */
     public function createDriveFolder(StoreProjectDriveFolderRequest $request, int $id): JsonResponse
     {
-        $this->requireAuthenticatedUser();
+        $user = $this->requireAuthenticatedUser();
         $companyId = (int) $this->getCurrentCompanyId();
         if (! $companyId) {
             return $this->errorResponse(__('api.common.company_context_required'), 422);
@@ -362,7 +362,7 @@ class ProjectsController extends BaseController
             [
                 'name' => $project->name,
             ],
-            null
+            $this->driveRepository->ensureProjectsSystemFolder($companyId, (int) $user->id)
         );
         $rootFolder->project_id = (int) $project->id;
         $rootFolder->save();

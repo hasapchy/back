@@ -26,6 +26,11 @@ class JournalClosePeriodCommand extends Command
             : Carbon::now();
 
         $entry = $periodCloseService->closePeriod($companyId, $date);
+        if ($entry === null) {
+            $this->warn('Period close skipped: journal accounts are not configured or unavailable.');
+
+            return self::SUCCESS;
+        }
         $this->info('Period close entry: '.$entry->entry_number);
 
         return self::SUCCESS;
