@@ -189,7 +189,6 @@ class SalaryAccrualService
                         $actingUserId,
                         $categoryId,
                         $note,
-                        $date,
                         $isDebt,
                         $defaultNote,
                         $payrollUser instanceof User ? $payrollUser : null
@@ -560,7 +559,6 @@ class SalaryAccrualService
         int $actingUserId,
         int $categoryId,
         ?string $note,
-        string $transactionDate,
         bool $isDebt,
         string $defaultNote,
         ?User $payrollUser = null
@@ -590,6 +588,8 @@ class SalaryAccrualService
             $origAmount = $origAmount + $adjustments['bonus'] - $adjustments['penalty'] - $adjustments['advance'];
         }
 
+        $postedAt = now();
+
         $transactionData = [
             'type' => 0,
             'creator_id' => $actingUserId,
@@ -602,7 +602,7 @@ class SalaryAccrualService
             'source_type' => EmployeeSalary::class,
             'source_id' => $activeSalary->id,
             'note' => $note ?? $defaultNote,
-            'date' => $transactionDate,
+            'date' => $postedAt,
             'is_debt' => $isDebt,
             'exchange_rate' => null,
         ];
@@ -628,7 +628,7 @@ class SalaryAccrualService
         $lines = $this->salaryJournalBuilder->buildLines($transaction, $isDebt);
         $this->journalEntryService->createAndPost(
             (int) $company->id,
-            Carbon::parse($transactionDate),
+            $postedAt,
             $note ?? $defaultNote,
             $templateKey,
             $lines,

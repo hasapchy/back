@@ -44,7 +44,7 @@ class WhMovement extends Model implements SupportsTimeline
     ];
 
     protected $casts = [
-        'date' => 'date',
+        'date' => 'datetime',
     ];
 
     /**
